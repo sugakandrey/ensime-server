@@ -2,15 +2,15 @@
 // Licence: http://www.gnu.org/licenses/gpl-3.0.en.html
 package org.ensime.core
 
-import java.io.File
 import java.nio.charset.Charset
 import org.ensime.api._
 import org.ensime.util.FileUtils._
 import org.ensime.util._
+import org.ensime.util.file.File
 import scala.tools.nsc.io.AbstractFile
 import scala.tools.refactoring._
 import scala.tools.refactoring.analysis.GlobalIndexes
-import scala.tools.refactoring.common.{ Change, CompilerAccess }
+import scala.tools.refactoring.common.{ Change, CompilerAccess, RenameSourceFileChange }
 import scala.tools.refactoring.implementations._
 import scala.util.{ Success, Try }
 import scalariform.astselect.AstSelector
@@ -28,9 +28,16 @@ abstract class RefactoringEnvironment(file: String, start: Int, end: Int) {
   )(implicit charset: Charset): Either[RefactorFailure, RefactorDiffEffect] = {
 
     def transformToDiff(modifications: List[Change]): Either[RefactorFailure, RefactorDiffEffect] = {
-      val edits = modifications.map(FileEditHelper.fromChange).sorted
+      val renameChange = modifications.collectFirst { case ch: RenameSourceFileChange => ch }
+      val renameTarget = renameChange.map {
+        ch =>
+          val sourceFile = ch.sourceFile
+          val fullNewName = sourceFile.path.replace(sourceFile.name, ch.to)
+          (sourceFile.file, File(fullNewName))
+      }
+      val edits = modifications.flatMap(FileEditHelper.fromChange).sorted
 
-      writeDiffChanges(edits) match {
+      writeDiffChanges(edits, renameTarget) match {
         case Right(diff) => Right(new RefactorDiffEffect(procId, tpe, diff))
         case Left(err) => Left(RefactorFailure(procId, err.toString))
       }
@@ -187,7 +194,7 @@ trait RefactoringImpl { self: RichPresentationCompiler =>
 
     val af = AbstractFile.getFile(file.getPath)
     val modifications = refactoring.addImport(af, qualName)
-    val edits = modifications.map(FileEditHelper.fromChange)
+    val edits = modifications.flatMap(FileEditHelper.fromChange)
 
     writeDiffChanges(edits)(charset) match {
       case Right(diff) => Right(new RefactorDiffEffect(procId, tpe, diff))

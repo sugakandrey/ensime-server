@@ -314,21 +314,74 @@ class RefactoringHandlerSpec extends EnsimeSpec
       diffContent should ===(expectedContents)
     }
   }
+
+  it should "support RenameSourceFileChange change" in {
+    withAnalyzer { (dir, analyzerRef) =>
+      val file = srcFile(dir, "Foo.scala", contents(
+        "object Foo {}"
+      ), write = true, encoding = encoding)
+      val analyzer = analyzerRef.underlyingActor
+
+      val procId = 1
+
+      val result = analyzer.handleRefactorRequest(
+        new RefactorReq(
+          procId, RenameRefactorDesc("Qux", new File(file.path), 8, 10), false
+        )
+      )
+
+      val diffContent = extractDiffFromResponse(result, analyzer.charset)
+      val renamed = new File(file.path.replace("Foo.scala", "Qux.scala"))
+
+      val expectedChangesFoo = s"""|@@ -1,1 +0,0 @@
+                                   |-object Foo {}
+                                   |""".stripMargin
+      val expectedChangesQux = s"""|@@ -0,0 +1,1 @@
+                                   |+object Qux {}
+                                   |""".stripMargin
+
+      val changes = Seq(
+        (file.path, DeleteFile, expectedChangesFoo),
+        (renamed.getPath, CreateFile, expectedChangesQux)
+      )
+      val expectedDiff = expectedDiffContent(changes)
+
+      diffContent should ===(expectedDiff)
+    }
+  }
 }
 
 trait RefactoringHandlerTestUtils extends Assertions {
 
   import org.ensime.util.file._
+  sealed trait FileChangeType
+  case object CreateFile extends FileChangeType
+  case object DeleteFile extends FileChangeType
+  case object ChangeContents extends FileChangeType
 
-  def expectedDiffContent(filepath: String, expectedContent: String) = {
+  private val epoch: String = "1970-01-01 12:00:00 +0000"
+
+  def expectedDiffContent(files: Seq[(String, FileChangeType, String)]): String = {
     val sdf = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss Z")
-    val t = sdf.format(new Date((new File(filepath)).lastModified()))
-    val filepathPart = s"""|--- ${filepath}	${t}
-                           |+++ ${filepath}	${t}
-                           |""".stripMargin
-
-    filepathPart + expectedContent
+    files.map {
+      case (filepath, fileChangeType, changes) =>
+        val originalTime = fileChangeType match {
+          case CreateFile => epoch
+          case _ => sdf.format(new Date(new File(filepath).lastModified()))
+        }
+        val modifiedTime = fileChangeType match {
+          case DeleteFile => epoch
+          case _ => originalTime
+        }
+        val filepathPart = s"""|--- ${filepath}	${originalTime}
+                               |+++ ${filepath}	${modifiedTime}
+                               |""".stripMargin
+        filepathPart + changes
+    }.mkString("\n")
   }
+
+  def expectedDiffContent(filepath: String, expectedContent: String): String =
+    expectedDiffContent(Seq((filepath, ChangeContents, expectedContent)))
 
   def extractDiffFromResponse(response: RpcResponse, charset: Charset) = response match {
     case RefactorDiffEffect(_, _, f) =>

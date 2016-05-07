@@ -81,15 +81,30 @@ object FileUtils {
     }
   }
 
-  def writeDiffChanges(changes: List[FileEdit])(implicit cs: Charset): Either[Exception, File] = {
-    val editsByFile = changes.collect { case ed: TextEdit => ed }.groupBy(_.file)
+  def writeDiffChanges(changes: List[FileEdit], renameFromTo: Option[(File, File)] = None)(implicit cs: Charset): Either[Exception, File] = {
+    //sorted for the sake of testing, because otherwise the order of files in diff is not well defined
+    val editsByFile = scala.collection.immutable.SortedMap(changes.groupBy(_.file).toSeq: _*)
     try {
       val diffContents =
         editsByFile.map {
+          case (file, (nf @ NewFile(newFile, _, _, _)) :: Nil) =>
+            val Some((from, to)) = renameFromTo
+            readFile(from)(cs) match {
+              case Right(contents) =>
+                val edits = editsByFile(from).collect { case ed: TextEdit => ed }
+                FileEditHelper.diffFromNewFile(nf, edits, contents)
+              case Left(e) => throw e
+            }
           case (file, fileChanges) =>
+            val textEdits = fileChanges.collect { case ed: TextEdit => ed }
+            val deleteFile = fileChanges.collectFirst { case delete: DeleteFile => delete }
             readFile(file)(cs) match {
               case Right(contents) =>
-                FileEditHelper.diffFromTextEdits(fileChanges, contents, file, file)
+                deleteFile match {
+                  //ignore text changes if the file is being deleted
+                  case Some(deletion) => FileEditHelper.diffFromDeleteFile(deletion, contents)
+                  case None => FileEditHelper.diffFromTextEdits(textEdits, contents, file, file)
+                }
               case Left(e) => throw e
             }
         }.mkString("\n")

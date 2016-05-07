@@ -28,4 +28,5 @@ case object Blue
 
 class Qux {
   List(1, 2, 3).head + 2
+  val x = Bar.Bla
 }

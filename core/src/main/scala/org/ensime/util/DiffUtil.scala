@@ -5,7 +5,6 @@ package org.ensime.util
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
-import java.util.TimeZone
 
 object DiffUtil {
 
@@ -23,8 +22,35 @@ object DiffUtil {
     if (file.exists)
       format.format(new Date(file.lastModified()))
     else {
-      format.setTimeZone(TimeZone.getTimeZone("UTC"))
-      format.format(new Date(0L))
+      epoch
     }
+  }
+
+  private val epoch: String = "1970-01-01 12:00:00 +0000"
+
+  def newFileDiff(text: Seq[String], file: File): String = {
+    val diff = StringBuilder.newBuilder
+    val originalInfo = s"${file.getAbsolutePath}\t$epoch"
+    val revisedInfo = s"${file.getAbsolutePath}\t${fileModificationTimeOrEpoch(file)}"
+
+    diff ++= s"--- $originalInfo\n"
+    diff ++= s"+++ $revisedInfo\n"
+    val additions = text.length
+    diff ++= s"@@ -0,0 +1,$additions @@\n"
+    diff ++= text.map(line => s"+$line").mkString("", "\n", "\n")
+    diff.toString
+  }
+
+  def deleteFileDiff(text: Seq[String], file: File): String = {
+    val diff = StringBuilder.newBuilder
+    val originalInfo = s"${file.getAbsolutePath}\t${fileModificationTimeOrEpoch(file)}"
+    val revisedInfo = s"${file.getAbsolutePath}\t$epoch"
+
+    diff ++= s"--- $originalInfo\n"
+    diff ++= s"+++ $revisedInfo\n"
+    val removals = text.length
+    diff ++= s"@@ -1,$removals +0,0 @@\n"
+    diff ++= text.map(line => s"-$line").mkString("", "\n", "\n")
+    diff.toString
   }
 }

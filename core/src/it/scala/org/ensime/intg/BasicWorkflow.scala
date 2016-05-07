@@ -44,7 +44,7 @@ class BasicWorkflow extends EnsimeSpec
           expectMsg(FalseResponse)
 
           // trigger typeCheck
-          project ! TypecheckFilesReq(List(Left(fooFile)))
+          project ! TypecheckFilesReq(List(Left(fooFile), Left(barFile)))
           expectMsg(VoidResponse)
 
           asyncHelper.expectMsg(FullTypeCheckCompleteEvent)
@@ -294,6 +294,64 @@ class BasicWorkflow extends EnsimeSpec
               val stripped = ast.replaceAll("[\n\r]", "")
               stripped == tree2.replaceAll("[\n\r]", "") || stripped == oldTree2.replaceAll("[\n\r]", "")
             } =>
+          }
+
+          project ! TypecheckFilesReq(List(Left(fooFile), Left(barFile)))
+          expectMsg(VoidResponse)
+
+          asyncHelper.fishForMessage() {
+            case FullTypeCheckCompleteEvent => true
+            case _ => false
+          }
+
+          project ! RefactorReq(4321, RenameRefactorDesc("Renamed", barFile, 30, 30), false)
+          expectMsgPF() {
+            case RefactorDiffEffect(4321, RefactorType.Rename, diff) =>
+              val renamedFile = new File(barFile.getPath.replace("Bar", "Renamed"))
+              val barChanges = s"""|@@ -1,13 +0,0 @@
+                                   |-package org.example
+                                   |-
+                                   |-object Bar extends App {
+                                   |-  case class Foo(bar: String, baz: Int)
+                                   |-  object Bla {
+                                   |-    val foo: Foo = Foo(
+                                   |-      bar = "Bar",
+                                   |-      baz = 123
+                                   |-    )
+                                   |-
+                                   |-    val fooUpd = foo.copy(bar = foo.bar.reverse)
+                                   |-  }
+                                   |-}
+                                   |""".stripMargin
+              val fooChanges = s"""|@@ -30,3 +30,3 @@
+                                   |   List(1, 2, 3).head + 2
+                                   |-  val x = Bar.Bla
+                                   |+  val x = Renamed.Bla
+                                   | }
+                                   |""".stripMargin
+              val renamedChanges = s"""|@@ -0,0 +1,13 @@
+                                       |+package org.example
+                                       |+
+                                       |+object Renamed extends App {
+                                       |+  case class Foo(bar: String, baz: Int)
+                                       |+  object Bla {
+                                       |+    val foo: Foo = Foo(
+                                       |+      bar = "Bar",
+                                       |+      baz = 123
+                                       |+    )
+                                       |+
+                                       |+    val fooUpd = foo.copy(bar = foo.bar.reverse)
+                                       |+  }
+                                       |+}
+                                       |""".stripMargin
+              val changes = Seq(
+                (barFile.getPath, DeleteFile, barChanges),
+                (fooFile.getPath, ChangeContents, fooChanges),
+                (renamedFile.getPath, CreateFile, renamedChanges)
+              )
+              val expectedDiff = expectedDiffContent(changes)
+              val diffContent = diff.canon.readString()
+              diffContent should ===(expectedDiff)
           }
         }
       }
