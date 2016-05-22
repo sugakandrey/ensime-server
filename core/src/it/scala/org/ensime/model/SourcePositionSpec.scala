@@ -4,7 +4,7 @@ package org.ensime.model
 
 import org.ensime.api._
 import org.ensime.fixture._
-import org.ensime.indexer.database.DatabaseService.FqnSymbol
+import org.ensime.indexer.graph.GraphService.FqnSymbol
 import org.ensime.util.EnsimeSpec
 import org.ensime.util.file._
 import org.ensime.vfs._

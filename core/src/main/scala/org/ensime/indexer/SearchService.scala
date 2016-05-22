@@ -12,8 +12,8 @@ import akka.actor._
 import akka.event.slf4j.SLF4JLogging
 import org.apache.commons.vfs2._
 import org.ensime.api._
-import org.ensime.indexer.database._
-import org.ensime.indexer.database.DatabaseService._
+import org.ensime.indexer.graph._
+import org.ensime.indexer.graph.GraphService._
 import org.ensime.util.file._
 import org.ensime.vfs._
 
@@ -49,6 +49,8 @@ class SearchService(
    *
    * 1.4 - remove redundant descriptors, doh!
    *
+   * 1.3g - use a graph database
+   *
    * 1.3 - methods include descriptors in (now unique) FQNs
    *
    * 1.2 - added foreign key to FqnSymbols.file with cascade delete
@@ -64,7 +66,7 @@ class SearchService(
   private val version = "2.0"
 
   private val index = new IndexService((config.cacheDir / ("index-" + version)).toPath)
-  private val db = new DatabaseService(config.cacheDir / ("sql-" + version))
+  private val db = new GraphService(config.cacheDir / ("graph-" + version))
 
   import ExecutionContext.Implicits.global
 
