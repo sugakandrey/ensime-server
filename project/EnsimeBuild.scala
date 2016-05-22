@@ -23,6 +23,7 @@ object EnsimeBuild extends Build {
     libraryDependencies ++= Sensible.testLibs() ++ Sensible.logback,
 
     dependencyOverrides ++= Set(
+       "commons-lang" % "commons-lang" % "2.6",
        "com.typesafe.akka" %% "akka-actor" % Sensible.akkaVersion,
        "com.typesafe.akka" %% "akka-testkit" % Sensible.akkaVersion,
        "io.spray" %% "spray-json" % "1.3.2"
@@ -140,9 +141,13 @@ object EnsimeBuild extends Build {
       unmanagedJars in Compile += JavaTools,
       ensimeUnmanagedSourceArchives += (baseDirectory in ThisBuild).value / "openjdk-langtools/openjdk7-langtools-src.zip",
       libraryDependencies ++= Seq(
-        "com.h2database" % "h2" % "1.4.192",
-        "com.typesafe.slick" %% "slick" % "3.1.1",
-        "com.zaxxer" % "HikariCP" % "2.4.6",
+        "org.ensime" %% "java7-file-watcher" % "1.0.0",
+        // could trim down our OrientDB dependency to the minimum and
+        // also investigate what the most recent Java 6 supported
+        // release is.
+        "com.orientechnologies" % "orientdb-graphdb" % "2.1.17",
+        "com.zaxxer" % "HikariCP-java6" % "2.3.13",
+        // lucene 4.8+ needs Java 7: http://www.gossamer-threads.com/lists/lucene/general/225300
         "org.apache.lucene" % "lucene-core" % luceneVersion,
         "org.apache.lucene" % "lucene-analyzers-common" % luceneVersion,
         "org.ow2.asm" % "asm-commons" % "5.1",

@@ -6,7 +6,7 @@ import akka.actor._
 import akka.event.LoggingReceive
 import org.ensime.api._
 import org.ensime.indexer.SearchService
-import org.ensime.indexer.database.DatabaseService.FqnSymbol
+import org.ensime.indexer.graph.GraphService.FqnSymbol
 import org.ensime.model._
 import org.ensime.vfs._
 
