@@ -145,7 +145,7 @@ object EnsimeBuild extends Build {
         "org.ensime" %% "java7-file-watcher" % "1.0.0",
         "com.h2database" % "h2" % "1.4.192",
         "com.typesafe.slick" %% "slick" % "3.1.1",
-        "com.zaxxer" % "HikariCP" % "2.3.13",
+        "com.zaxxer" % "HikariCP" % "2.4.6",
         "org.apache.lucene" % "lucene-core" % luceneVersion,
         "org.apache.lucene" % "lucene-analyzers-common" % luceneVersion,
         "org.ow2.asm" % "asm-commons" % "5.1",
@@ -169,7 +169,7 @@ object EnsimeBuild extends Build {
         buildInfoOptions += BuildInfoOption.BuildTime
       )
 
-  val luceneVersion = "4.7.2"
+  val luceneVersion = "4.10.4"
   val streamsVersion = "2.0.4"
   lazy val server = Project("server", file("server")).dependsOn(
     core, swanky, jerky,

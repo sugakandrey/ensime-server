@@ -27,7 +27,8 @@ class DatabaseService(dir: File) extends SLF4JLogging {
     val ds = new HikariDataSource()
     ds.setDriverClassName(driver)
     ds.setJdbcUrl(url)
-    val threads = ds.getMaximumPoolSize()
+    ds.setMaximumPoolSize(10)
+    val threads = ds.getMaximumPoolSize
     val executor = AsyncExecutor("Slick", numThreads = threads, queueSize = -1)
     (ds, Database.forDataSource(ds, executor = executor))
   }

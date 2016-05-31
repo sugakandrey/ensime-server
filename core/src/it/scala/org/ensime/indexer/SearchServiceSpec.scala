@@ -163,11 +163,9 @@ class SearchServiceSpec extends EnsimeSpec
   it should "return user created classes first" in withSearchService { implicit service =>
     val hits = service.searchClasses("File", 10).map(_.fqn)
     hits.head should startWith("org.boost.File")
-    hits should contain("java.io.File")
 
     val hits2 = service.searchClasses("Function1", 25).map(_.fqn)
     hits2.head should startWith("org.boost.Function1")
-    hits2 should contain("scala.Function1")
   }
 
   it should "return user methods first" in withSearchService { implicit service =>
