@@ -1,11 +1,10 @@
 build:
-  image: ensime/ensime:v1.x-cache
+  image: ensime/ensime:v2.x-cache
   pull: true
   environment:
     - SONATYPE_USERNAME=$$SONATYPE_USERNAME
     - SONATYPE_PASSWORD=$$SONATYPE_PASSWORD
-    - EMACS=/opt/emacs-24.5/bin/emacs
-    - ENSIME_SERVER_VERSION=1.0.0-SNAPSHOT
+    - ENSIME_SERVER_VERSION=2.0.0-SNAPSHOT
     - AKKA_TEST_TIMEFACTOR=10
     - SBT_TASK_LIMIT=6
     - COURSIER_MODE=update-local-changing,missing
