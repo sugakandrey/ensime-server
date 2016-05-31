@@ -11,7 +11,6 @@ import org.ensime.util._
 import org.ensime.util.file._
 import org.scalatest._
 import org.scalatest.tagobjects.Retryable
-import scala.util.Properties
 import scala.concurrent.duration._
 
 sealed trait FileWatcherMessage
@@ -404,14 +403,12 @@ abstract class FileWatcherSpec extends EnsimeSpec
   type Fish = PartialFunction[Any, Boolean]
 
   def waitForBaseRegistered(tk: TestKit) = {
-    if (!Properties.isJava6) {
-      val baseCreated: Fish = {
-        case BaseRegistered() => true //f == dir
-        // case e => { logEvent("Bad ", dir, e); false }
-        case e => false
-      }
-      tk.fishForMessage(5 seconds)(baseCreated)
+    val baseCreated: Fish = {
+      case BaseRegistered() => true //f == dir
+      // case e => { logEvent("Bad ", dir, e); false }
+      case e => false
     }
+    tk.fishForMessage(5 seconds)(baseCreated)
   }
 
   def ignoreAdded(tk: TestKit) = {
@@ -454,17 +451,9 @@ abstract class FileWatcherSpec extends EnsimeSpec
 
 class ApacheFileWatcherSpec extends FileWatcherSpec {
   override def createClassWatcher(base: File)(implicit vfs: EnsimeVFS, tk: TestKit): Watcher =
-    if (Properties.isJava6)
-      new ApachePollingFileWatcher(base, ClassfileSelector, true, listeners)
-    else {
-      (new ClassJava7WatcherBuilder()).build(base, listeners)
-    }
+    (new ClassJava7WatcherBuilder()).build(base, listeners)
 
   override def createJarWatcher(jar: File)(implicit vfs: EnsimeVFS, tk: TestKit): Watcher =
-    if (Properties.isJava6)
-      new ApachePollingFileWatcher(jar.getParentFile, JarSelector, false, listeners)
-    else {
-      (new JarJava7WatcherBuilder()).build(jar, listeners)
-    }
+    (new JarJava7WatcherBuilder()).build(jar, listeners)
 
 }

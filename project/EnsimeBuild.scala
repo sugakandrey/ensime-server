@@ -136,13 +136,12 @@ object EnsimeBuild extends Build {
       commonSettings, commonItSettings
     ).settings(
       unmanagedJars in Compile += JavaTools,
-      EnsimeKeys.unmanagedSourceArchives += (baseDirectory in ThisBuild).value / "openjdk-langtools/openjdk6-langtools-src.zip",
+      EnsimeKeys.unmanagedSourceArchives += (baseDirectory in ThisBuild).value / "openjdk-langtools/openjdk7-langtools-src.zip",
       libraryDependencies ++= Seq(
         "org.ensime" %% "java7-file-watcher" % "1.0.0",
-        "com.h2database" % "h2" % "1.4.191", // 1.4.192 uses Java 7
+        "com.h2database" % "h2" % "1.4.192",
         "com.typesafe.slick" %% "slick" % "3.1.1",
-        "com.zaxxer" % "HikariCP-java6" % "2.3.13",
-        // lucene 4.8+ needs Java 7: http://www.gossamer-threads.com/lists/lucene/general/225300
+        "com.zaxxer" % "HikariCP" % "2.3.13",
         "org.apache.lucene" % "lucene-core" % luceneVersion,
         "org.apache.lucene" % "lucene-analyzers-common" % luceneVersion,
         "org.ow2.asm" % "asm-commons" % "5.1",
