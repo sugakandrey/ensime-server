@@ -1,5 +1,5 @@
 // Copyright 2016 Sam Halliday
-// Licence: http://www.apache.org/licenses/LICENSE-2.0
+// License: http://www.apache.org/licenses/LICENSE-2.0
 import com.typesafe.sbt.SbtScalariform._
 import java.util.concurrent.atomic.AtomicLong
 import sbt.Keys._

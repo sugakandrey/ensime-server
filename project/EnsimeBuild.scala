@@ -10,6 +10,7 @@ import sbtassembly.AssemblyKeys._
 import scala.util.{ Properties, Try }
 import org.ensime.EnsimePlugin.JdkDir
 import sbtbuildinfo.BuildInfoPlugin, BuildInfoPlugin.autoImport._
+import de.heikoseeberger.sbtheader.{ HeaderKey, HeaderPlugin }
 
 object EnsimeBuild extends Build {
   lazy override val settings = super.settings ++ Seq(
@@ -38,7 +39,9 @@ object EnsimeBuild extends Build {
       "org.apache.lucene" % "lucene-core" % luceneVersion
     ),
 
-    EnsimeKeys.scalariform := ScalariformKeys.preferences.value
+    EnsimeKeys.scalariform := ScalariformKeys.preferences.value,
+
+    HeaderKey.headers := Copyright.GplMap
 
   // https://github.com/sbt/sbt/issues/2459 --- misses shapeless in core/it:test
   // updateOptions := updateOptions.value.withCachedResolution(true)
@@ -46,7 +49,7 @@ object EnsimeBuild extends Build {
 
   lazy val commonItSettings = inConfig(It)(
     Defaults.testSettings ++ Sensible.testSettings
-  ) ++ scalariformSettingsWithIt ++ Seq(
+  ) ++ scalariformSettingsWithIt ++ HeaderPlugin.settingsFor(It) ++ Seq(
       javaOptions in It ++= Seq(
         "-Dlogback.configurationFile=../logback-it.xml"
       )
@@ -89,7 +92,8 @@ object EnsimeBuild extends Build {
     libraryDependencies ++= Seq(
       "org.scalariform" %% "scalariform" % "0.1.8"
     ),
-      licenses := Seq(Apache2)
+    licenses := Seq(Apache2),
+    HeaderKey.headers := Copyright.ApacheMap
   )
 
   // the JSON protocol

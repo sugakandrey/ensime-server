@@ -16,7 +16,7 @@ build:
     - git log | head -n 20
     - host `curl -s http://httpbin.org/ip | jq -r '.origin'` || true ;
     - sbt ++$SCALA_VERSION ensimeConfig ;
-      sbt ++$SCALA_VERSION clean test:compile it:compile doc ;
+      sbt ++$SCALA_VERSION createHeaders test:createHeaders it:createHeaders test:compile it:compile doc;
       if $(! git diff --exit-code --quiet) ; then
         echo "Code formatting does not meet the project's standards:" ;
         git --no-pager diff ;

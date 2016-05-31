@@ -1,8 +1,7 @@
 // sbt-ensime is needed for the integration tests
 addSbtPlugin("org.ensime" % "sbt-ensime" % "0.5.0")
 
-// BUG https://github.com/sbt/sbt-header/issues/31
-//addSbtPlugin("de.heikoseeberger" % "sbt-header" % "1.5.0")
+addSbtPlugin("de.heikoseeberger" % "sbt-header" % "1.5.1")
 
 addSbtPlugin("org.scalariform" % "sbt-scalariform" % "1.5.1")
 
