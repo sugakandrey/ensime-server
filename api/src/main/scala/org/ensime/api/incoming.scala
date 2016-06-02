@@ -1,5 +1,5 @@
 // Copyright: 2010 - 2016 https://github.com/ensime/ensime-server/graphs
-// Licence: http://www.apache.org/licenses/LICENSE-2.0
+// License: http://www.apache.org/licenses/LICENSE-2.0
 package org.ensime.api
 
 import java.io.File

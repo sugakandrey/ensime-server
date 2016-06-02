@@ -1,5 +1,5 @@
 // Copyright: 2010 - 2016 https://github.com/ensime/ensime-server/graphs
-// Licence: http://www.gnu.org/licenses/gpl-3.0.en.html
+// License: http://www.gnu.org/licenses/gpl-3.0.en.html
 package org.ensime.indexer.lucene
 
 import java.io._
@@ -18,7 +18,7 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 
 object SimpleLucene {
-  private val LuceneVersion = Version.LUCENE_47
+  private val LuceneVersion = Version.LUCENE_4_10_4
   // from DirectDocValuesFormat.MAX_SORTED_SET_ORDS = 2147483391 but
   // it's kind of an insane number, so let's pick something halfway
   // sensible.
@@ -55,7 +55,7 @@ class SimpleLucene(path: File, analyzers: Map[String, Analyzer]) extends SLF4JLo
   class LowercaseAnalyzer extends Analyzer {
     override protected def createComponents(fieldName: String, reader: Reader) = {
       val source = new KeywordTokenizer(reader)
-      val filtered = new LowerCaseFilter(SimpleLucene.LuceneVersion, source)
+      val filtered = new LowerCaseFilter(source)
       new Analyzer.TokenStreamComponents(source, filtered)
     }
   }
@@ -111,10 +111,7 @@ class SimpleLucene(path: File, analyzers: Map[String, Analyzer]) extends SLF4JLo
    * 10,000 deletes to take about 1 second and inserts about 100ms.
    * Each call to this method constitutes a batch UPDATE operation.
    */
-  def update(delete: Seq[Query], create: Seq[Document], commit: Boolean = true): Unit = this.synchronized {
-    // Lucene 4.7.2 concurrency bugs: best to synchronise writes
-    // https://issues.apache.org/jira/browse/LUCENE-5923
-
+  def update(delete: Seq[Query], create: Seq[Document], commit: Boolean = true): Unit = {
     if (delete.nonEmpty) {
       writer.deleteDocuments(delete.toArray: _*)
       if (commit) writer.commit()

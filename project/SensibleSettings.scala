@@ -1,5 +1,5 @@
 // Copyright 2016 Sam Halliday
-// Licence: http://www.apache.org/licenses/LICENSE-2.0
+// License: http://www.apache.org/licenses/LICENSE-2.0
 import com.typesafe.sbt.SbtScalariform._
 import java.util.concurrent.atomic.AtomicLong
 import sbt.Keys._
@@ -21,7 +21,7 @@ object Sensible {
 
     scalacOptions in Compile ++= Seq(
       "-encoding", "UTF-8",
-      "-target:jvm-1.6",
+      "-target:jvm-1.7",
       "-feature",
       "-deprecation",
       "-language:postfixOps",
@@ -42,10 +42,10 @@ object Sensible {
         else Nil
       },
     javacOptions in (Compile, compile) ++= Seq(
-      "-source", "1.6", "-target", "1.6", "-Xlint:all", "-Werror",
+      "-source", "1.7", "-target", "1.7", "-Xlint:all", "-Werror",
       "-Xlint:-options", "-Xlint:-path", "-Xlint:-processing"
     ),
-    javacOptions in doc ++= Seq("-source", "1.6"),
+    javacOptions in doc ++= Seq("-source", "1.7"),
 
     javaOptions := Seq("-Xss2m", "-XX:MaxPermSize=256m", "-Xms384m", "-Xmx384m"),
     javaOptions += "-Dfile.encoding=UTF8",

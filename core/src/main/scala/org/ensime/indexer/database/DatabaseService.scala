@@ -1,5 +1,5 @@
 // Copyright: 2010 - 2016 https://github.com/ensime/ensime-server/graphs
-// Licence: http://www.gnu.org/licenses/gpl-3.0.en.html
+// License: http://www.gnu.org/licenses/gpl-3.0.en.html
 package org.ensime.indexer.database
 
 import java.sql.Timestamp
@@ -27,7 +27,8 @@ class DatabaseService(dir: File) extends SLF4JLogging {
     val ds = new HikariDataSource()
     ds.setDriverClassName(driver)
     ds.setJdbcUrl(url)
-    val threads = ds.getMaximumPoolSize()
+    ds.setMaximumPoolSize(10)
+    val threads = ds.getMaximumPoolSize
     val executor = AsyncExecutor("Slick", numThreads = threads, queueSize = -1)
     (ds, Database.forDataSource(ds, executor = executor))
   }

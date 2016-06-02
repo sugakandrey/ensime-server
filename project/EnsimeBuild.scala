@@ -10,6 +10,7 @@ import sbtassembly.AssemblyKeys._
 import scala.util.{ Properties, Try }
 import org.ensime.EnsimePlugin.JdkDir
 import sbtbuildinfo.BuildInfoPlugin, BuildInfoPlugin.autoImport._
+import de.heikoseeberger.sbtheader.{ HeaderKey, HeaderPlugin }
 
 object EnsimeBuild extends Build {
   lazy override val settings = super.settings ++ Seq(
@@ -38,7 +39,9 @@ object EnsimeBuild extends Build {
       "org.apache.lucene" % "lucene-core" % luceneVersion
     ),
 
-    EnsimeKeys.scalariform := ScalariformKeys.preferences.value
+    EnsimeKeys.scalariform := ScalariformKeys.preferences.value,
+
+    HeaderKey.headers := Copyright.GplMap
 
   // https://github.com/sbt/sbt/issues/2459 --- misses shapeless in core/it:test
   // updateOptions := updateOptions.value.withCachedResolution(true)
@@ -46,7 +49,7 @@ object EnsimeBuild extends Build {
 
   lazy val commonItSettings = inConfig(It)(
     Defaults.testSettings ++ Sensible.testSettings
-  ) ++ scalariformSettingsWithIt ++ Seq(
+  ) ++ scalariformSettingsWithIt ++ HeaderPlugin.settingsFor(It) ++ Seq(
       javaOptions in It ++= Seq(
         "-Dlogback.configurationFile=../logback-it.xml"
       )
@@ -89,7 +92,8 @@ object EnsimeBuild extends Build {
     libraryDependencies ++= Seq(
       "org.scalariform" %% "scalariform" % "0.1.8"
     ),
-      licenses := Seq(Apache2)
+    licenses := Seq(Apache2),
+    HeaderKey.headers := Copyright.ApacheMap
   )
 
   // the JSON protocol
@@ -136,13 +140,12 @@ object EnsimeBuild extends Build {
       commonSettings, commonItSettings
     ).settings(
       unmanagedJars in Compile += JavaTools,
-      EnsimeKeys.unmanagedSourceArchives += (baseDirectory in ThisBuild).value / "openjdk-langtools/openjdk6-langtools-src.zip",
+      EnsimeKeys.unmanagedSourceArchives += (baseDirectory in ThisBuild).value / "openjdk-langtools/openjdk7-langtools-src.zip",
       libraryDependencies ++= Seq(
         "org.ensime" %% "java7-file-watcher" % "1.0.0",
-        "com.h2database" % "h2" % "1.4.191", // 1.4.192 uses Java 7
+        "com.h2database" % "h2" % "1.4.192",
         "com.typesafe.slick" %% "slick" % "3.1.1",
-        "com.zaxxer" % "HikariCP-java6" % "2.3.13",
-        // lucene 4.8+ needs Java 7: http://www.gossamer-threads.com/lists/lucene/general/225300
+        "com.zaxxer" % "HikariCP" % "2.4.6",
         "org.apache.lucene" % "lucene-core" % luceneVersion,
         "org.apache.lucene" % "lucene-analyzers-common" % luceneVersion,
         "org.ow2.asm" % "asm-commons" % "5.1",
@@ -166,7 +169,7 @@ object EnsimeBuild extends Build {
         buildInfoOptions += BuildInfoOption.BuildTime
       )
 
-  val luceneVersion = "4.7.2"
+  val luceneVersion = "4.10.4"
   val streamsVersion = "2.0.4"
   lazy val server = Project("server", file("server")).dependsOn(
     core, swanky, jerky,

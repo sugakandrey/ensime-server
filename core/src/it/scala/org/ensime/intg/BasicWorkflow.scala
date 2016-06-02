@@ -1,5 +1,5 @@
 // Copyright: 2010 - 2016 https://github.com/ensime/ensime-server/graphs
-// Licence: http://www.gnu.org/licenses/gpl-3.0.en.html
+// License: http://www.gnu.org/licenses/gpl-3.0.en.html
 package org.ensime.intg
 
 import org.ensime.api._
@@ -90,11 +90,12 @@ class BasicWorkflow extends EnsimeSpec
           project ! PublicSymbolSearchReq(List("scala", "util", "Random"), 2)
           expectMsgPF() {
             case SymbolSearchResults(List(
-              TypeSearchResult("scala.util.Random", "Random", DeclaredAs.Class, Some(_)),
-              TypeSearchResult("scala.util.Random$", "Random$", DeclaredAs.Class, Some(_)))) =>
-            case SymbolSearchResults(List(
-              TypeSearchResult("java.util.Random", "Random", DeclaredAs.Class, Some(_)),
-              TypeSearchResult("scala.util.Random", "Random", DeclaredAs.Class, Some(_)))) =>
+              TypeSearchResult(full1, short1, DeclaredAs.Class, Some(_)),
+              TypeSearchResult(full2, short2, DeclaredAs.Class, Some(_))
+              )) if full1.contains("Random") &&
+              short1.contains("Random") &&
+              full2.contains("Random") &&
+              short2.contains("Random") =>
             // this is a pretty ropey test at the best of times
           }
 
