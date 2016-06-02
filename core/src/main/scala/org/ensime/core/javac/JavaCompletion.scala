@@ -85,11 +85,11 @@ trait JavaCompletion { this: JavaCompiler =>
           scopeMemberCandidates(c, s, defaultPrefix, caseSens, constructing)
         }
       }) map { scopeCandidates =>
-        val typeSearchResult = typeSearch.flatMap(Await.result(_, Duration.Inf)).getOrElse(List())
+        val typeSearchResult = typeSearch.flatMap(Await.result(_, Duration.Inf)).getOrElse(Nil)
         scopeCandidates ++ typeSearchResult
       }
 
-    }).getOrElse(List())
+    }).getOrElse(Nil)
     CompletionInfoList(defaultPrefix, candidates.sortWith({ (c1, c2) =>
       c1.relevance > c2.relevance ||
         (c1.relevance == c2.relevance &&
@@ -127,7 +127,7 @@ trait JavaCompletion { this: JavaCompiler =>
     val pkg = selectedPackageName(select)
     val candidates = (Option(compilation.elements.getPackageElement(pkg)) map { p: PackageElement =>
       p.getEnclosedElements().flatMap { e => filterElement(compilation, e, prefix, caseSense, true, false) }
-    }).getOrElse(List())
+    }).getOrElse(Nil)
     candidates.toList
   }
 
@@ -143,9 +143,9 @@ trait JavaCompletion { this: JavaCompiler =>
         case e: ExecutableElement if !typesOnly => List(methodInfo(e, relevance + 5))
         case e: VariableElement if !typesOnly => List(fieldInfo(e, relevance + 10))
         case e: TypeElement => if (constructors) constructorInfos(c, e, relevance + 5) else List(typeInfo(e, relevance))
-        case _ => List()
+        case _ => Nil
       }
-    } else List()
+    } else Nil
   }
 
   private def scopeMemberCandidates(

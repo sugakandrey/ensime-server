@@ -14,7 +14,7 @@ trait EnsimeTestData {
     }
   }
 
-  val typeInfo = new BasicTypeInfo("type1", DeclaredAs.Method, "FOO.type1", List(), List(), None)
+  val typeInfo = new BasicTypeInfo("type1", DeclaredAs.Method, "FOO.type1", Nil, Nil, None)
 
   val interfaceInfo = new InterfaceInfo(typeInfo, Some("DEF"))
   val typeInspectInfo = new TypeInspectInfo(typeInfo, List(interfaceInfo))
@@ -43,7 +43,7 @@ trait EnsimeTestData {
 
   val rangePos2 = new ERangePosition(batchSourceFile, 85, 80, 100)
 
-  val packageInfo = new PackageInfo("name", "fullName", List())
+  val packageInfo = new PackageInfo("name", "fullName", Nil)
 
   val refactorFailure = RefactorFailure(7, "message")
 

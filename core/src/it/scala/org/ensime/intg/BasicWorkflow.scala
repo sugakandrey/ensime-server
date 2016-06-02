@@ -166,11 +166,11 @@ class BasicWorkflow extends EnsimeSpec
           expectMsgPF() {
             case SymbolInfo("copy", "copy", Some(OffsetSourcePosition(`barFile`, 59)),
               ArrowTypeInfo("(String, Int) => Foo", "(java.lang.String, scala.Int) => org.example.Bar.Foo",
-                BasicTypeInfo("Foo", DeclaredAs.Class, "org.example.Bar.Foo", List(), List(), None),
+                BasicTypeInfo("Foo", DeclaredAs.Class, "org.example.Bar.Foo", Nil, Nil, None),
                 List(ParamSectionInfo(
                   List(
-                    ("bar", BasicTypeInfo("String", DeclaredAs.Class, "java.lang.String", List(), List(), None)),
-                    ("baz", BasicTypeInfo("Int", DeclaredAs.Class, "scala.Int", List(), List(), None))), false)))) =>
+                    ("bar", BasicTypeInfo("String", DeclaredAs.Class, "java.lang.String", Nil, Nil, None)),
+                    ("baz", BasicTypeInfo("Int", DeclaredAs.Class, "scala.Int", Nil, Nil, None))), false)))) =>
           }
 
           // C-c C-v p Inspect source of current package
