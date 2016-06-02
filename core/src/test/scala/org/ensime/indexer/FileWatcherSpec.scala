@@ -31,10 +31,12 @@ abstract class FileWatcherSpec extends EnsimeSpec
     with IsolatedTestKitFixture with IsolatedEnsimeVFSFixture {
 
   // variant that watches a jar file
-  def createJarWatcher(jar: File)(implicit vfs: EnsimeVFS, tk: TestKit): Watcher
+  def createJarWatcher(jar: File)(implicit vfs: EnsimeVFS, tk: TestKit): Watcher =
+    (new JarJava7WatcherBuilder()).build(jar, listeners)
 
   // variant that recursively watches a directory of classes
-  def createClassWatcher(base: File)(implicit vfs: EnsimeVFS, tk: TestKit): Watcher
+  def createClassWatcher(base: File)(implicit vfs: EnsimeVFS, tk: TestKit): Watcher =
+    (new ClassJava7WatcherBuilder()).build(base, listeners)
 
   /**
    * The Linux ext2+ filesystems have a timestamp precision of 1
@@ -447,13 +449,4 @@ abstract class FileWatcherSpec extends EnsimeSpec
       override def baseRegistered(): Unit = { tk.testActor ! BaseRegistered() }
     }
   )
-}
-
-class ApacheFileWatcherSpec extends FileWatcherSpec {
-  override def createClassWatcher(base: File)(implicit vfs: EnsimeVFS, tk: TestKit): Watcher =
-    (new ClassJava7WatcherBuilder()).build(base, listeners)
-
-  override def createJarWatcher(jar: File)(implicit vfs: EnsimeVFS, tk: TestKit): Watcher =
-    (new JarJava7WatcherBuilder()).build(jar, listeners)
-
 }
