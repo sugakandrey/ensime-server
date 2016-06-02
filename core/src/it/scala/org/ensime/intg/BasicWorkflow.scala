@@ -131,15 +131,14 @@ class BasicWorkflow extends EnsimeSpec
           // loaded by the pres compiler
           project ! SymbolAtPointReq(Left(fooFile), 276)
           expectMsgPF() {
-            case SymbolInfo("testMethod", "testMethod", Some(OffsetSourcePosition(`fooFile`, 114)), ArrowTypeInfo("(Int, String) => Int", "(scala.Int, java.lang.String) => scala.Int", BasicTypeInfo("Int", DeclaredAs.Class, "scala.Int", Nil, Nil, None), List(ParamSectionInfo(List(("i", BasicTypeInfo("Int", DeclaredAs.Class, "scala.Int", Nil, Nil, None)), (s, BasicTypeInfo("String", DeclaredAs.Class, "java.lang.String", Nil, Nil, None))), false))), true) =>
+            case SymbolInfo("testMethod", "testMethod", Some(OffsetSourcePosition(`fooFile`, 114)), ArrowTypeInfo("(Int, String) => Int", "(scala.Int, java.lang.String) => scala.Int", BasicTypeInfo("Int", DeclaredAs.Class, "scala.Int", Nil, Nil, None), List(ParamSectionInfo(List(("i", BasicTypeInfo("Int", DeclaredAs.Class, "scala.Int", Nil, Nil, None)), (s, BasicTypeInfo("String", DeclaredAs.Class, "java.lang.String", Nil, Nil, None))), false)))) =>
           }
 
           // M-.  external symbol
           project ! SymbolAtPointReq(Left(fooFile), 190)
           expectMsgPF() {
             case SymbolInfo("Map", "Map", Some(OffsetSourcePosition(_, _)),
-              BasicTypeInfo("Map", DeclaredAs.Object, "scala.collection.immutable.Map", Nil, Nil, None),
-              false) =>
+              BasicTypeInfo("Map", DeclaredAs.Object, "scala.collection.immutable.Map", Nil, Nil, None)) =>
           }
 
           project ! SymbolAtPointReq(Left(fooFile), 343)
@@ -149,8 +148,7 @@ class BasicWorkflow extends EnsimeSpec
                 List(
                   BasicTypeInfo("String", DeclaredAs.Class, "java.lang.String", Nil, Nil, None),
                   BasicTypeInfo("Int", DeclaredAs.Class, "scala.Int", Nil, Nil, None)),
-                Nil, None),
-              false) =>
+                Nil, None)) =>
           }
 
           project ! SymbolAtPointReq(Left(barFile), 150)
@@ -161,20 +159,18 @@ class BasicWorkflow extends EnsimeSpec
                 List(ParamSectionInfo(
                   List(
                     ("bar", BasicTypeInfo("String", DeclaredAs.Class, "java.lang.String", Nil, Nil, None)),
-                    ("baz", BasicTypeInfo("Int", DeclaredAs.Class, "scala.Int", Nil, Nil, None))), false))),
-              true) =>
+                    ("baz", BasicTypeInfo("Int", DeclaredAs.Class, "scala.Int", Nil, Nil, None))), false)))) =>
           }
 
           project ! SymbolAtPointReq(Left(barFile), 193)
           expectMsgPF() {
             case SymbolInfo("copy", "copy", Some(OffsetSourcePosition(`barFile`, 59)),
               ArrowTypeInfo("(String, Int) => Foo", "(java.lang.String, scala.Int) => org.example.Bar.Foo",
-                BasicTypeInfo("Foo", DeclaredAs.Class, "org.example.Bar.Foo", List(), List(), None),
+                BasicTypeInfo("Foo", DeclaredAs.Class, "org.example.Bar.Foo", Nil, Nil, None),
                 List(ParamSectionInfo(
                   List(
-                    ("bar", BasicTypeInfo("String", DeclaredAs.Class, "java.lang.String", List(), List(), None)),
-                    ("baz", BasicTypeInfo("Int", DeclaredAs.Class, "scala.Int", List(), List(), None))), false))),
-              true) =>
+                    ("bar", BasicTypeInfo("String", DeclaredAs.Class, "java.lang.String", Nil, Nil, None)),
+                    ("baz", BasicTypeInfo("Int", DeclaredAs.Class, "scala.Int", Nil, Nil, None))), false)))) =>
           }
 
           // C-c C-v p Inspect source of current package

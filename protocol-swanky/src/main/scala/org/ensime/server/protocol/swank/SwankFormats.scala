@@ -375,20 +375,6 @@ object SwankProtocolResponse {
     }
   }
 
-  implicit object CompletionSignatureFormat extends SexpFormat[CompletionSignature] {
-    private implicit val Tuple2Format: SexpFormat[(String, String)] = cachedImplicit
-    def write(cs: CompletionSignature): Sexp =
-      SexpList(cs.sections.toSexp, cs.result.toSexp, cs.hasImplicit.toSexp)
-    def read(sexp: Sexp): CompletionSignature = sexp match {
-      case SexpList(a :: b :: c :: Nil) => CompletionSignature(
-        a.convertTo[List[List[(String, String)]]],
-        b.convertTo[String],
-        c.convertTo[Boolean]
-      )
-      case _ => deserializationError(sexp)
-    }
-  }
-
   // watch out for recursive references here...
   implicit object TypeInfoFormat extends TraitFormatAlt[TypeInfo] {
     // a bit weird, but that's how we've been doing it

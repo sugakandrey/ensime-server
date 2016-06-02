@@ -476,22 +476,22 @@ class JerkFormatsSpec extends EnsimeSpec with SprayJsonTestSupport with EnsimeTe
 
     roundtrip(
       completionInfo: EnsimeServerMessage,
-      """{"typehint":"CompletionInfo","typeInfo":{"name":"type1","fullName":"FOO.type1","typehint":"BasicTypeInfo","typeArgs":[],"members":[],"declAs":{"typehint":"Method"}},"name":"name","typeSig":{"sections":[[["abc","def"],["hij","lmn"]]],"result":"ABC", "hasImplicit": false},"relevance":90,"isCallable":false,"toInsert":"BAZ"}"""
+      """{"name":"name","typeInfo":{"name":"type1","fullName":"FOO.type1","typehint":"BasicTypeInfo","typeArgs":[],"members":[],"declAs":{"typehint":"Method"}},"typehint":"CompletionInfo","relevance":90,"toInsert":"BAZ"}"""
     )
 
     roundtrip(
       completionInfo2: EnsimeServerMessage,
-      """{"typehint":"CompletionInfo","name":"name2","typeSig":{"sections":[[["abc","def"]]],"result":"ABC", "hasImplicit": false},"relevance":91,"isCallable":true}"""
+      """{"typehint":"CompletionInfo","name":"name2","relevance":91}"""
     )
 
     roundtrip(
       CompletionInfoList("fooBar", List(completionInfo)): EnsimeServerMessage,
-      """{"typehint":"CompletionInfoList","prefix":"fooBar","completions":[{"typeInfo":{"name":"type1","fullName":"FOO.type1","typehint":"BasicTypeInfo","typeArgs":[],"members":[],"declAs":{"typehint":"Method"}},"name":"name","typeSig":{"sections":[[["abc","def"],["hij","lmn"]]],"result":"ABC", "hasImplicit": false},"relevance":90,"isCallable":false,"toInsert":"BAZ"}]}"""
+      """{"typehint":"CompletionInfoList","prefix":"fooBar","completions":[{"typeInfo":{"name":"type1","fullName":"FOO.type1","typehint":"BasicTypeInfo","typeArgs":[],"members":[],"declAs":{"typehint":"Method"}},"name":"name","relevance":90,"toInsert":"BAZ"}]}"""
     )
 
     roundtrip(
-      new SymbolInfo("name", "localName", None, typeInfo, false): EnsimeServerMessage,
-      """{"typehint":"SymbolInfo","name":"name","localName":"localName","type":{"name":"type1","fullName":"FOO.type1","typehint":"BasicTypeInfo","typeArgs":[],"members":[],"declAs":{"typehint":"Method"}},"isCallable":false}"""
+      new SymbolInfo("name", "localName", None, typeInfo): EnsimeServerMessage,
+      """{"typehint":"SymbolInfo","name":"name","localName":"localName","type":{"name":"type1","fullName":"FOO.type1","typehint":"BasicTypeInfo","typeArgs":[],"members":[],"declAs":{"typehint":"Method"}}}"""
     )
 
     roundtrip(
@@ -575,12 +575,12 @@ class JerkFormatsSpec extends EnsimeSpec with SprayJsonTestSupport with EnsimeTe
 
     roundtrip(
       ImplicitInfos(List(ImplicitConversionInfo(5, 6, symbolInfo))): EnsimeServerMessage,
-      """{"typehint":"ImplicitInfos","infos":[{"typehint":"ImplicitConversionInfo","start":5,"end":6,"fun":{"name":"name","localName":"localName","type":{"name":"type1","fullName":"FOO.type1","typehint":"BasicTypeInfo","typeArgs":[],"members":[],"declAs":{"typehint":"Method"}},"isCallable":false}}]}"""
+      """{"typehint":"ImplicitInfos","infos":[{"typehint":"ImplicitConversionInfo","start":5,"end":6,"fun":{"name":"name","localName":"localName","type":{"name":"type1","fullName":"FOO.type1","typehint":"BasicTypeInfo","typeArgs":[],"members":[],"declAs":{"typehint":"Method"}}}}]}"""
     )
 
     roundtrip(
       ImplicitInfos(List(ImplicitParamInfo(5, 6, symbolInfo, List(symbolInfo, symbolInfo), true))): EnsimeServerMessage,
-      """{"typehint":"ImplicitInfos","infos":[{"params":[{"name":"name","localName":"localName","type":{"name":"type1","fullName":"FOO.type1","typehint":"BasicTypeInfo","typeArgs":[],"members":[],"declAs":{"typehint":"Method"}},"isCallable":false},{"name":"name","localName":"localName","type":{"name":"type1","fullName":"FOO.type1","typehint":"BasicTypeInfo","typeArgs":[],"members":[],"declAs":{"typehint":"Method"}},"isCallable":false}],"typehint":"ImplicitParamInfo","fun":{"name":"name","localName":"localName","type":{"name":"type1","fullName":"FOO.type1","typehint":"BasicTypeInfo","typeArgs":[],"members":[],"declAs":{"typehint":"Method"}},"isCallable":false},"funIsImplicit":true,"end":6,"start":5}]}"""
+      """{"typehint":"ImplicitInfos","infos":[{"params":[{"name":"name","localName":"localName","type":{"name":"type1","fullName":"FOO.type1","typehint":"BasicTypeInfo","typeArgs":[],"members":[],"declAs":{"typehint":"Method"}}},{"name":"name","localName":"localName","type":{"name":"type1","fullName":"FOO.type1","typehint":"BasicTypeInfo","typeArgs":[],"members":[],"declAs":{"typehint":"Method"}}}],"typehint":"ImplicitParamInfo","fun":{"name":"name","localName":"localName","type":{"name":"type1","fullName":"FOO.type1","typehint":"BasicTypeInfo","typeArgs":[],"members":[],"declAs":{"typehint":"Method"}}},"funIsImplicit":true,"end":6,"start":5}]}"""
     )
 
   }

@@ -16,19 +16,19 @@ class ClassfileIndexerSpec extends EnsimeSpec with IsolatedEnsimeVFSFixture {
 
   "ClassfileIndexer" should "support Java 6 class files" in withVFS { implicit vfs =>
     val (clazz, refs) = indexClassfile(vfs.vres("jdk6/Test.class"))
-    clazz.name shouldBe ClassName(PackageName(List()), "Test")
+    clazz.name shouldBe ClassName(PackageName(Nil), "Test")
     clazz.generics shouldBe None
     clazz.superClass shouldBe Some(ClassName(PackageName(List("java", "lang")), "Object"))
-    clazz.interfaces shouldBe List()
+    clazz.interfaces shouldBe Nil
     clazz.access shouldBe Default
     clazz.deprecated shouldBe false
     clazz.fields shouldBe Queue()
     clazz.methods shouldBe Queue(
       RawMethod(
         name = MethodName(
-          ClassName(PackageName(List()), "Test"),
+          ClassName(PackageName(Nil), "Test"),
           "main",
-          Descriptor(List(ArrayDescriptor(ClassName(PackageName(List("java", "lang")), "String"))), ClassName(PackageName(List()), "void"))
+          Descriptor(List(ArrayDescriptor(ClassName(PackageName(List("java", "lang")), "String"))), ClassName(PackageName(Nil), "void"))
         ),
         access = Public,
         generics = None,
@@ -38,7 +38,7 @@ class ClassfileIndexerSpec extends EnsimeSpec with IsolatedEnsimeVFSFixture {
     clazz.source shouldBe RawSource(Some("Test.java"), Some(1))
 
     refs shouldBe Set(
-      ClassName(PackageName(List()), "void"),
+      ClassName(PackageName(Nil), "void"),
       ClassName(PackageName(List("java", "lang")), "Object"),
       FieldName(ClassName(PackageName(List("java", "lang")), "System"), "out"),
       ClassName(PackageName(List("java", "lang")), "Object"),

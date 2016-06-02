@@ -268,7 +268,7 @@ class RichPresentationCompilerSpec extends EnsimeSpec
       val result = cc.completionsAt(p, 10, caseSens = false)
       forAtLeast(1, result.completions) { x =>
         x.name shouldBe "Vector"
-        x.isCallable shouldBe true
+        x.typeInfo.get shouldBe a[ArrowTypeInfo]
       }
     }
 
@@ -343,7 +343,7 @@ class RichPresentationCompilerSpec extends EnsimeSpec
     "case class pi@@po extends bidon { }"
   ) { (p, cc) =>
       val info = cc.askInspectTypeAt(p)
-      val supers = info.map(_.supers).getOrElse(List())
+      val supers = info.map(_.supers).getOrElse(Nil)
       val supersNames = supers.map(_.tpe.name).toList
       supersNames.toSet should ===(Set("pipo", "bidon", "Object", "Product", "Serializable", "Any"))
     }

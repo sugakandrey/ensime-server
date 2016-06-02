@@ -14,7 +14,7 @@ trait EnsimeTestData {
     }
   }
 
-  val typeInfo = new BasicTypeInfo("type1", DeclaredAs.Method, "FOO.type1", List(), List(), None)
+  val typeInfo = new BasicTypeInfo("type1", DeclaredAs.Method, "FOO.type1", Nil, Nil, None)
 
   val interfaceInfo = new InterfaceInfo(typeInfo, Some("DEF"))
   val typeInspectInfo = new TypeInspectInfo(typeInfo, List(interfaceInfo))
@@ -30,7 +30,7 @@ trait EnsimeTestData {
     )
   )
 
-  val symbolInfo = new SymbolInfo("name", "localName", None, typeInfo, false)
+  val symbolInfo = new SymbolInfo("name", "localName", None, typeInfo)
 
   val implicitInfos = List(
     ImplicitConversionInfo(5, 6, symbolInfo),
@@ -43,7 +43,7 @@ trait EnsimeTestData {
 
   val rangePos2 = new ERangePosition(batchSourceFile, 85, 80, 100)
 
-  val packageInfo = new PackageInfo("name", "fullName", List())
+  val packageInfo = new PackageInfo("name", "fullName", Nil)
 
   val refactorFailure = RefactorFailure(7, "message")
 
@@ -107,9 +107,9 @@ trait EnsimeTestData {
 
   val entityInfo: TypeInfo = new ArrowTypeInfo("Arrow1", "example.Arrow1", typeInfo, List(paramSectionInfo))
 
-  val completionInfo = CompletionInfo(Some(typeInfo), "name", CompletionSignature(List(List(("abc", "def"), ("hij", "lmn"))), "ABC", false), false, 90, Some("BAZ"))
+  val completionInfo = CompletionInfo(Some(typeInfo), "name", 90, Some("BAZ"))
 
-  val completionInfo2 = CompletionInfo(None, "name2", CompletionSignature(List(List(("abc", "def"))), "ABC", false), true, 91, None)
+  val completionInfo2 = CompletionInfo(None, "name2", 91, None)
 
   val completionInfoList = List(completionInfo, completionInfo2)
 

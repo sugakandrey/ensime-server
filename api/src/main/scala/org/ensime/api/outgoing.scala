@@ -286,8 +286,7 @@ final case class SymbolInfo(
     name: String,
     localName: String,
     declPos: Option[SourcePosition],
-    `type`: TypeInfo,
-    isCallable: Boolean
+    `type`: TypeInfo
 ) extends RpcResponse {
   def tpe = `type`
 }
@@ -306,18 +305,9 @@ final case class MethodBytecode(
   endLine: Int
 )
 
-@deprecating("not type safe")
-final case class CompletionSignature(
-  sections: List[List[(String, String)]],
-  result: String,
-  hasImplicit: Boolean
-)
-
 final case class CompletionInfo(
   typeInfo: Option[TypeInfo],
   name: String,
-  @deprecating("use `typeInfo`") typeSig: CompletionSignature,
-  @deprecating("not needed with `typeInfo`") isCallable: Boolean,
   relevance: Int,
   toInsert: Option[String]
 ) extends RpcResponse

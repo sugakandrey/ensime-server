@@ -74,13 +74,13 @@ class DebugTest extends EnsimeSpec
             project ! DebugBacktraceReq(threadId, 0, 3)
             expectMsgType[DebugBacktrace] should matchPattern {
               case DebugBacktrace(List(
-                DebugStackFrame(0, List(), 0, "breakpoints.Breakpoints", "mainTest",
+                DebugStackFrame(0, Nil, 0, "breakpoints.Breakpoints", "mainTest",
                   LineSourcePosition(`breakpointsFile`, 32), _),
                 DebugStackFrame(1, List(
                   DebugStackLocal(0, "args", "Array(length = 0)[<EMPTY>]", "java.lang.String[]")
                   ), 1, "breakpoints.Breakpoints$", "main",
                   LineSourcePosition(`breakpointsFile`, 42), _),
-                DebugStackFrame(2, List(), 1, "breakpoints.Breakpoints", "main",
+                DebugStackFrame(2, Nil, 1, "breakpoints.Breakpoints", "main",
                   LineSourcePosition(`breakpointsFile`, _), _)
                 ), `threadId`, "main") =>
             }

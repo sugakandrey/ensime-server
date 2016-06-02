@@ -19,18 +19,6 @@ trait ModelBuilders {
 
   import rootMirror.RootPackage
 
-  def completionSignatureForType(tpe: Type): CompletionSignature = {
-    if (isArrowType(tpe)) {
-      CompletionSignature(
-        tpe.paramss.map { sect =>
-          sect.map { p => (p.name.toString, fullName(p.tpe).underlying) }
-        },
-        fullName(tpe.finalResultType).underlying,
-        tpe.paramss.exists { sect => sect.exists(_.isImplicit) }
-      )
-    } else CompletionSignature(List.empty, fullName(tpe).underlying, false)
-  }
-
   def locateSymbolPos(sym: Symbol, needPos: PosNeeded): Option[SourcePosition] = {
     _locateSymbolPos(sym, needPos).orElse({
       sym.companionSymbol match {
@@ -243,8 +231,7 @@ trait ModelBuilders {
         name,
         localName,
         locateSymbolPos(sym, PosNeededYes),
-        TypeInfo(tpe, PosNeededAvail),
-        isArrowType(tpe)
+        TypeInfo(tpe, PosNeededAvail)
       )
     }
   }
@@ -257,8 +244,6 @@ trait ModelBuilders {
       CompletionInfo(
         Some(TypeInfo(tpe)),
         sym.nameString,
-        completionSignatureForType(tpe),
-        isArrowType(tpe.underlying),
         relevance,
         None
       )

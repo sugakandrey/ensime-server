@@ -322,7 +322,7 @@ object Keywords {
   )
 
   val keywordCompletions = keywords map { keyword =>
-    CompletionInfo(None, keyword, CompletionSignature(Nil, "", hasImplicit = false), false, 100, None)
+    CompletionInfo(None, keyword, 100, None)
   }
 }
 
@@ -338,7 +338,7 @@ trait Completion { self: RichPresentationCompiler =>
         memberSyms.flatMap { s =>
           val name = if (s.hasPackageFlag) { s.nameString } else { shortName(s).underlying }
           if (name.startsWith(prefix))
-            Some(CompletionInfo(None, name, CompletionSignature(Nil, "", false), isCallable = false, 50, None))
+            Some(CompletionInfo(None, name, 50, None))
           else
             None
         }.toList.sortBy(ci => (ci.relevance, ci.name))
@@ -375,8 +375,7 @@ object CompletionUtil {
         s.syms.map { s =>
           CompletionInfo(
             None,
-            s.localName, CompletionSignature(List.empty, s.name, false),
-            isCallable = false, 40, None
+            s.localName, 40, None
           )
         }
       case unknown =>
