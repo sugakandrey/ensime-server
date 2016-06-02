@@ -13,7 +13,7 @@ import akka.event.slf4j.SLF4JLogging
 import com.sun.source.tree.{ Scope, IdentifierTree, MemberSelectTree }
 import com.sun.source.util.{ JavacTask, TreePath }
 import com.sun.tools.javac.util.Abort
-import javax.lang.model.`type`.{ TypeMirror, TypeKind }
+import javax.lang.model.`type`.{ TypeMirror }
 import javax.lang.model.element.ExecutableElement
 import javax.tools._
 import org.ensime.api._
@@ -105,8 +105,7 @@ class JavaCompiler(
             fqn(c, path).map(_.toFqnString).getOrElse(name),
             name,
             findDeclPos(c, path),
-            tpeMirror.map(typeMirrorToTypeInfo).getOrElse(nullTpe),
-            tpeMirror.map(_.getKind == TypeKind.EXECUTABLE).getOrElse(false)
+            tpeMirror.map(typeMirrorToTypeInfo).getOrElse(nullTpe)
           ))
         }
         path.getLeaf match {

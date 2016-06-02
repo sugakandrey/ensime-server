@@ -228,27 +228,20 @@ trait JavaCompletion { this: JavaCompiler =>
     CompletionInfo(
       Some(methodToTypeInfo(e)),
       e.getSimpleName.toString,
-      CompletionSignature(
-        List(e.getParameters().map { p => (p.getSimpleName.toString, p.asType.toString) }.toList),
-        e.getReturnType.toString,
-        false
-      ),
-      true, relevance, None
+      relevance, None
     )
 
   private def fieldInfo(e: VariableElement, relevance: Int): CompletionInfo = {
     val s = e.getSimpleName.toString
     CompletionInfo(
-      None,
-      s, CompletionSignature(List(), e.asType.toString, false), false, relevance, None
+      None, s, relevance, None
     )
   }
 
   private def typeInfo(e: TypeElement, relevance: Int): CompletionInfo = {
     val s = e.getSimpleName.toString
     CompletionInfo(
-      None,
-      s, CompletionSignature(List(), e.asType.toString, false), false, relevance, None
+      None, s, relevance, None
     )
   }
 

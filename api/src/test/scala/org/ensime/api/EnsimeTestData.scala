@@ -30,7 +30,7 @@ trait EnsimeTestData {
     )
   )
 
-  val symbolInfo = new SymbolInfo("name", "localName", None, typeInfo, false)
+  val symbolInfo = new SymbolInfo("name", "localName", None, typeInfo)
 
   val implicitInfos = List(
     ImplicitConversionInfo(5, 6, symbolInfo),
@@ -107,9 +107,9 @@ trait EnsimeTestData {
 
   val entityInfo: TypeInfo = new ArrowTypeInfo("Arrow1", "example.Arrow1", typeInfo, List(paramSectionInfo))
 
-  val completionInfo = CompletionInfo(Some(typeInfo), "name", CompletionSignature(List(List(("abc", "def"), ("hij", "lmn"))), "ABC", false), false, 90, Some("BAZ"))
+  val completionInfo = CompletionInfo(Some(typeInfo), "name", 90, Some("BAZ"))
 
-  val completionInfo2 = CompletionInfo(None, "name2", CompletionSignature(List(List(("abc", "def"))), "ABC", false), true, 91, None)
+  val completionInfo2 = CompletionInfo(None, "name2", 91, None)
 
   val completionInfoList = List(completionInfo, completionInfo2)
 

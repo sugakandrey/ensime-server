@@ -323,7 +323,7 @@ class SwankFormatsSpec extends EnsimeSpec with EnsimeTestData {
     marshal(
       NewScalaNotesEvent(
         isFull = false,
-        List(new Note("foo.scala", "testMsg", NoteWarn, 50, 55, 77, 5))
+        List(Note("foo.scala", "testMsg", NoteWarn, 50, 55, 77, 5))
       ): EnsimeEvent,
       """(:scala-notes (:notes ((:file "foo.scala" :msg "testMsg" :severity warn :beg 50 :end 55 :line 77 :col 5))))"""
     )
@@ -491,26 +491,26 @@ class SwankFormatsSpec extends EnsimeSpec with EnsimeTestData {
 
     marshal(
       completionInfo: CompletionInfo,
-      """(:type-info (:arrow-type nil :name "type1" :decl-as method :full-name "FOO.type1") :name "name" :type-sig (((("abc" "def") ("hij" "lmn"))) "ABC" nil) :relevance 90 :to-insert "BAZ")"""
+      """(:type-info (:arrow-type nil :name "type1" :decl-as method :full-name "FOO.type1") :name "name" :relevance 90 :to-insert "BAZ")"""
     )
 
     marshal(
       completionInfo2: CompletionInfo,
-      """(:name "name2" :type-sig (((("abc" "def"))) "ABC" nil) :is-callable t :relevance 91)"""
+      """(:name "name2" :relevance 91)"""
     )
 
     marshal(
       CompletionInfoList("fooBar", List(completionInfo)): CompletionInfoList,
-      """(:prefix "fooBar" :completions ((:type-info (:arrow-type nil :name "type1" :decl-as method :full-name "FOO.type1") :name "name" :type-sig (((("abc" "def") ("hij" "lmn"))) "ABC" nil) :relevance 90 :to-insert "BAZ")))"""
+      """(:prefix "fooBar" :completions ((:type-info (:arrow-type nil :name "type1" :decl-as method :full-name "FOO.type1") :name "name" :relevance 90 :to-insert "BAZ")))"""
     )
 
     marshal(
-      new SymbolInfo("name", "localName", None, typeInfo, false): SymbolInfo,
+      SymbolInfo("name", "localName", None, typeInfo): SymbolInfo,
       """(:name "name" :local-name "localName" :type (:arrow-type nil :name "type1" :decl-as method :full-name "FOO.type1"))"""
     )
 
     marshal(
-      new NamedTypeMemberInfo("typeX", typeInfo, None, None, DeclaredAs.Method): EntityInfo,
+      NamedTypeMemberInfo("typeX", typeInfo, None, None, DeclaredAs.Method): EntityInfo,
       """(:name "typeX" :type (:arrow-type nil :name "type1" :decl-as method :full-name "FOO.type1") :decl-as method)"""
     )
 
@@ -535,7 +535,7 @@ class SwankFormatsSpec extends EnsimeSpec with EnsimeTestData {
     )
 
     marshal(
-      new TypeInspectInfo(typeInfo, List(interfaceInfo)): TypeInspectInfo,
+      TypeInspectInfo(typeInfo, List(interfaceInfo)): TypeInspectInfo,
       """(:type (:arrow-type nil :name "type1" :decl-as method :full-name "FOO.type1") :interfaces ((:type (:arrow-type nil :name "type1" :decl-as method :full-name "FOO.type1") :via-view "DEF")) :info-type typeInspect)"""
     )
 
@@ -552,12 +552,12 @@ class SwankFormatsSpec extends EnsimeSpec with EnsimeTestData {
 
   it should "marshal search related responses" in {
     marshal(
-      new SymbolSearchResults(List(methodSearchRes, typeSearchRes)): SymbolSearchResults,
+      SymbolSearchResults(List(methodSearchRes, typeSearchRes)): SymbolSearchResults,
       s"""((:type method :name "abc" :local-name "a" :decl-as method :pos (:type line :file "$abd" :line 10) :owner-name "ownerStr") (:type type :name "abc" :local-name "a" :decl-as trait :pos (:type line :file "$abd" :line 10)))"""
     )
 
     marshal(
-      new ImportSuggestions(List(List(methodSearchRes, typeSearchRes))): ImportSuggestions,
+      ImportSuggestions(List(List(methodSearchRes, typeSearchRes))): ImportSuggestions,
       s"""(((:type method :name "abc" :local-name "a" :decl-as method :pos (:type line :file "$abd" :line 10) :owner-name "ownerStr") (:type type :name "abc" :local-name "a" :decl-as trait :pos (:type line :file "$abd" :line 10))))"""
     )
 

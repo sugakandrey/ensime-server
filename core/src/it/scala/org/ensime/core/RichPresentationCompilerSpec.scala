@@ -268,7 +268,7 @@ class RichPresentationCompilerSpec extends EnsimeSpec
       val result = cc.completionsAt(p, 10, caseSens = false)
       forAtLeast(1, result.completions) { x =>
         x.name shouldBe "Vector"
-        x.isCallable shouldBe true
+        x.typeInfo.get shouldBe a[ArrowTypeInfo]
       }
     }
 
