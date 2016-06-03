@@ -92,14 +92,14 @@ class GraphService(dir: File) extends SLF4JLogging {
 
     val url = "plocal:" + dir.getAbsolutePath
     val db = new OrientGraphFactory(url).setupPool(pools, pools)
-
-    val g = db.getNoTx()
+    val g = db.getNoTx
 
     // is this just needed on schema creation or always?
     // https://github.com/orientechnologies/orientdb/issues/5322
     g.setUseLightweightEdges(true)
     g.setUseLog(false)
 
+    g.shutdown()
     // small speedup, but increases chance of concurrency issues
     db.declareIntent(new OIntentMassiveInsert())
 
@@ -114,8 +114,8 @@ class GraphService(dir: File) extends SLF4JLogging {
     log.info("creating the graph database...")
     dir.mkdirs()
 
-    val g = db.getNoTx()
-    val schema = g.getRawGraph().getMetadata().getSchema()
+    val g = db.getNoTx
+    val schema = g.getRawGraph.getMetadata.getSchema
 
     // TODO: typesafe syntax to support schema creation and
     //       indexed/unique vertices and edges
@@ -146,6 +146,10 @@ class GraphService(dir: File) extends SLF4JLogging {
       "class" -> "FileCheck")
 
     g.createEdgeType("DefinedIn")
+
+    //Unless `shutdown` is called this thread will hold our only db connection,
+    //potentially blocking any other threads
+    g.shutdown()
 
     log.info("... created the graph database")
   }
