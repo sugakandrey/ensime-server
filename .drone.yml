@@ -54,7 +54,7 @@ deploy:
       matrix:
         SCALA_VERSION: 2.11.8
   sftp:
-    host: docs.typelevel.org
+    host: ensime.typelevel.org
     username: typelevel
     destination_path: ensime.typelevel.org/
     files: 
