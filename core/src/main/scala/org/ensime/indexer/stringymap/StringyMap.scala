@@ -87,14 +87,17 @@ package object impl {
       }
 
       def fromProperties(m: StringyMap) = {
-        import scala.util.control.Exception._
+        import scala.util.{Try, Success, Failure}
         val value = m.get(key.value.name)
         /*
         This is a pretty hacky way to handle null => Empty option case, i'd love
         to have a more typesafe way to do this.
          */
         val errorMessage = s"Missing key ${key.value.name} in $m"
-        val resolved = failAsValue(classOf[NullPointerException])(Left(errorMessage))(Right(prim.fromValue(value)))
+        val resolved = Try(prim.fromValue(value)) match {
+          case Success(v) => Right(v)
+          case Failure(exc) => Left(errorMessage)
+        }
         for {
           remaining <- remV.value.fromProperties(m).right
           current <- resolved.right

@@ -35,7 +35,7 @@ object FileCheck extends ((String, Timestamp) => FileCheck) {
   def apply(f: FileObject): FileCheck = {
     val name = f.getName.getURI
     val ts = if (f.exists()) new Timestamp(f.getContent.getLastModifiedTime)
-    else new Timestamp(0L)
+    else new Timestamp(-1L)
     FileCheck(name, ts)
   }
 }
