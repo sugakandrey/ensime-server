@@ -34,7 +34,8 @@ final case class FileCheck(filename: String, timestamp: Timestamp) {
 object FileCheck extends ((String, Timestamp) => FileCheck) {
   def apply(f: FileObject): FileCheck = {
     val name = f.getName.getURI
-    val ts = new Timestamp(f.getContent.getLastModifiedTime)
+    val ts = if (f.exists()) new Timestamp(f.getContent.getLastModifiedTime)
+    else new Timestamp(0L)
     FileCheck(name, ts)
   }
 }
@@ -174,6 +175,13 @@ class GraphService(dir: File) extends SLF4JLogging {
   implicit val UniqueFileCheckV = LensId("filename", lens[FileCheck] >> 'filename)
   implicit val UniqueFqnSymbolV = LensId("fqn", lens[FqnSymbol] >> 'fqn)
 
+  private implicit val FqnIndexLens = new Lens[FqnIndex, String] {
+    override def get(index: FqnIndex): String = index.fqn
+
+    override def set(index: FqnIndex)(fqn: String): FqnIndex = ???
+  }
+  implicit val UniqueFqnIndexV = LensId("fqn", FqnIndexLens)
+
   def outOfDate(f: FileObject)(implicit vfs: EnsimeVFS): Future[Boolean] = withGraphAsync { implicit g =>
     RichGraph.readUniqueV[FileCheck, String](f.getName.getURI) match {
       case None => true
@@ -197,10 +205,36 @@ class GraphService(dir: File) extends SLF4JLogging {
     Some(symbols.size)
   }
 
-  def removeFiles(files: List[FileObject]): Future[Int] = Future { ??? }
+  /**
+   * Removes given `files` from the graph.
+   *
+   * @param files to be removed
+   * @return [[Future]] value containing the amount of files removed
+   */
+  def removeFiles(files: List[FileObject]): Future[Int] = withGraphAsync { implicit g =>
+    RichGraph.removeV(files.map(FileCheck(_)))
+  }
 
-  def find(fqn: String): Future[Option[FqnSymbol]] = Future { ??? }
-  def find(fqns: List[FqnIndex]): Future[List[FqnSymbol]] = Future { ??? }
+  /**
+   * Finds the [[FqnSymbol]] uniquely identified by `fqn`.
+   *
+   * @param fqn of the symbol to be found
+   * @return an [[Option]] value containing [[FqnSymbol]] with given fqn, or None if none exists.
+   */
+  def find(fqn: String): Future[Option[FqnSymbol]] = withGraphAsync { implicit g =>
+    RichGraph.readUniqueV[FqnSymbol, String](fqn).map(_.toDomain)
+  }
+
+  /**
+   * Finds all [[FqnSymbol]]'s identified by unique `fqns`.
+   *
+   * @param fqns of the symbols to be found
+   * @return [[Future]] value, containing the list of [[FqnSymbol]]s found.
+   */
+  def find(fqns: List[FqnIndex]): Future[List[FqnSymbol]] = withGraphAsync { implicit g =>
+    fqns.flatMap(fqn =>
+      RichGraph.readUniqueV[FqnSymbol, String](fqn.fqn).map(_.toDomain))
+  }
 
   // NOTE: only commits this thread's work
   def commit(): Future[Unit] = withGraphAsync { implicit graph =>

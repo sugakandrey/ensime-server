@@ -165,6 +165,41 @@ package object syntax {
       }
     }
 
+    /**
+     * Removes a vertex, representing `t`, from the graph.
+     *
+     * @return `true` if the graph contained the specified element
+     */
+    def removeV[T, P](
+      t: T
+    )(
+      implicit
+      graph: OrientBaseGraph,
+      s: BigDataFormat[T],
+      u: BigDataFormatId[T, P],
+      p: SPrimitive[P]
+    ): Boolean = readUniqueV(u.value(t)) match {
+      case Some(vertexT) =>
+        graph.removeVertex(vertexT.underlying); true
+      case None => false
+    }
+
+    /**
+     * Removes all vertices, representing domain objects in `ts`, from graph.
+     *
+     * @param ts elements to be deleted
+     * @return amount of vertices deleted
+     */
+    def removeV[T, P](
+      ts: Seq[T]
+    )(
+      implicit
+      graph: OrientBaseGraph,
+      s: BigDataFormat[T],
+      u: BigDataFormatId[T, P],
+      p: SPrimitive[P]
+    ): Int = ts.map(removeV(_)).count(_ == true)
+
     def allV[T](
       implicit
       graph: OrientBaseGraph,

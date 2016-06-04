@@ -87,16 +87,18 @@ package object impl {
       }
 
       def fromProperties(m: StringyMap) = {
-        m.get(key.value.name) match {
-          case null =>
-            // TODO: could include more info in the error
-            Left(s"missing key ${key.value.name}")
-          case value =>
-            val resolved = prim.fromValue(value)
-            remV.value.fromProperties(m).right.map { remaining =>
-              field[Key](resolved) :: remaining
-            }
-        }
+        import scala.util.control.Exception._
+        val value = m.get(key.value.name)
+        /*
+        This is a pretty hacky way to handle null => Empty option case, i'd love
+        to have a more typesafe way to do this.
+         */
+        val errorMessage = s"Missing key ${key.value.name} in $m"
+        val resolved = failAsValue(classOf[NullPointerException])(Left(errorMessage))(Right(prim.fromValue(value)))
+        for {
+          remaining <- remV.value.fromProperties(m).right
+          current <- resolved.right
+        } yield field[Key](current) :: remaining
       }
     }
 
@@ -138,7 +140,7 @@ package object syntax {
 
   implicit class RichBigResult[R](val e: BigResult[R]) extends AnyVal {
     def getOrThrowError: R = e match {
-      case Left(error) => throw new IllegalArgumentException(error.mkString(","))
+      case Left(error) => throw new IllegalArgumentException(error)
       case Right(r) => r
     }
   }
