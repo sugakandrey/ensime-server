@@ -49,6 +49,9 @@ object Sensible {
 
     javaOptions := Seq("-Xss2m", "-XX:MaxPermSize=256m", "-Xms384m", "-Xmx384m"),
     javaOptions += "-Dfile.encoding=UTF8",
+    //this is needed by OrientDB versions 2.2.0+, 512g is recommended on their github wiki
+    //https://github.com/orientechnologies/orientdb-docs/blob/master/Release-2.2.0.md
+    javaOptions += "-XX:MaxDirectMemorySize=512g",
     javaOptions ++= Seq("-XX:+UseConcMarkSweepGC", "-XX:+CMSIncrementalMode"),
     javaOptions in run ++= yourkitAgent, // interferes with sockets
 
@@ -127,6 +130,7 @@ object Sensible {
   val logbackVersion = "1.7.21"
   val quasiquotesVersion = "2.0.1"
   val guavaVersion = "19.0"
+  val orientVersion = "2.2.0"
 
   val macroParadise = Seq(
     compilerPlugin("org.scalamacros" % "paradise" % "2.0.1" cross CrossVersion.full)

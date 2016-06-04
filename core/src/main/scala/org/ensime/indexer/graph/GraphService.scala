@@ -44,7 +44,6 @@ final case class FqnSymbol(
     file: String, // the underlying file
     path: String, // the VFS handle (e.g. classes in jars)
     fqn: String,
-    descriptor: Option[String], // for methods
     internal: Option[String], // for fields
     source: Option[String], // VFS
     line: Option[Int],
@@ -57,7 +56,7 @@ final case class FqnSymbol(
 
   // legacy: note that we can't distinguish class/trait
   def declAs: DeclaredAs =
-    if (descriptor.isDefined) DeclaredAs.Method
+    if (fqn.contains("(")) DeclaredAs.Method
     else if (internal.isDefined) DeclaredAs.Field
     else DeclaredAs.Class
 }
@@ -137,7 +136,6 @@ class GraphService(dir: File) extends SLF4JLogging {
     fileCheck.createProperty("file", OType.STRING)
     fileCheck.createProperty("path", OType.STRING)
     fileCheck.createProperty("fqn", OType.STRING)
-    fileCheck.createProperty("descriptor", OType.STRING)
     fileCheck.createProperty("internal", OType.STRING)
     fileCheck.createProperty("source", OType.STRING)
     fileCheck.createProperty("line", OType.INTEGER)

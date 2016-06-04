@@ -10,7 +10,7 @@ import org.apache.commons.vfs2.FileObject
 import org.ensime.api._
 import org.ensime.core.{ RichPresentationCompiler, FqnToSymbol }
 import org.ensime.indexer.{ MethodName, PackageName }
-import org.ensime.indexer.graph.GraphService._
+import org.ensime.indexer.graph._
 import org.ensime.util.file._
 import org.ensime.vfs._
 

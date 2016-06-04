@@ -147,7 +147,7 @@ object EnsimeBuild extends Build {
         // could trim down our OrientDB dependency to the minimum and
         // also investigate what the most recent Java 6 supported
         // release is.
-        "com.orientechnologies" % "orientdb-graphdb" % "2.1.17",
+        "com.orientechnologies" % "orientdb-graphdb" % Sensible.orientVersion,
         "com.zaxxer" % "HikariCP-java6" % "2.3.13",
         // lucene 4.8+ needs Java 7: http://www.gossamer-threads.com/lists/lucene/general/225300
         "org.apache.lucene" % "lucene-core" % luceneVersion,

@@ -87,7 +87,7 @@ package object impl {
       }
 
       def fromProperties(m: StringyMap) = {
-        import scala.util.{Try, Success, Failure}
+        import scala.util.{ Try, Success, Failure }
         val value = m.get(key.value.name)
         /*
         This is a pretty hacky way to handle null => Empty option case, i'd love

@@ -13,7 +13,6 @@ import akka.event.slf4j.SLF4JLogging
 import org.apache.commons.vfs2._
 import org.ensime.api._
 import org.ensime.indexer.graph._
-import org.ensime.indexer.graph.GraphService._
 import org.ensime.util.file._
 import org.ensime.vfs._
 
