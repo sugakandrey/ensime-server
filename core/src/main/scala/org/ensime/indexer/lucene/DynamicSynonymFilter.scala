@@ -2,8 +2,6 @@
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 package org.ensime.indexer.lucene
 
-import java.io.Reader
-
 import org.apache.lucene.analysis.Analyzer.TokenStreamComponents
 import org.apache.lucene.analysis.{ Analyzer, TokenFilter, TokenStream }
 import org.apache.lucene.analysis.core.KeywordTokenizer
@@ -18,8 +16,8 @@ import scala.collection.mutable
  * the term itself and its synonyms.
  */
 trait DynamicSynonymAnalyzer extends Analyzer with SynonymEngine {
-  override final def createComponents(fieldName: String, reader: Reader) = {
-    val source = new KeywordTokenizer(reader)
+  override final def createComponents(fieldName: String): TokenStreamComponents = {
+    val source = new KeywordTokenizer()
     val result = new DynamicSynonymFilter(source, this)
     new TokenStreamComponents(source, result)
   }

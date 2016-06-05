@@ -28,7 +28,8 @@ class DynamicSynonymFilterSpec extends EnsimeSpec {
 
   private def applyEngineToTerm(term: String, engine: SynonymEngine): List[String] = {
     val reader = new StringReader(term)
-    val source = new KeywordTokenizer(reader)
+    val source = new KeywordTokenizer()
+    source.setReader(reader)
     val filter = new DynamicSynonymFilter(source, engine)
 
     val words: mutable.ListBuffer[String] = mutable.ListBuffer()

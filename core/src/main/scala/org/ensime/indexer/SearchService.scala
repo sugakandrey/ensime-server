@@ -45,6 +45,8 @@ class SearchService(
   /**
    * Changelog:
    *
+   * 2.0 - upgrade Lucene, format not backwards compatible.
+   *
    * 1.4 - remove redundant descriptors, doh!
    *
    * 1.3 - methods include descriptors in (now unique) FQNs
@@ -59,9 +61,9 @@ class SearchService(
    *
    * 1.0 - initial schema
    */
-  private val version = "1.4"
+  private val version = "2.0"
 
-  private val index = new IndexService(config.cacheDir / ("index-" + version))
+  private val index = new IndexService((config.cacheDir / ("index-" + version)).toPath)
   private val db = new DatabaseService(config.cacheDir / ("sql-" + version))
 
   import ExecutionContext.Implicits.global

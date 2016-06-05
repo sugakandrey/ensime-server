@@ -27,10 +27,10 @@ abstract class Serializer[T](tpe: Typeable[T])
   def addFields(doc: Document, t: T): Unit
 
   final def createQuery(e: T): Query = {
-    new BooleanQuery {
-      add(TypeTerm, MUST)
-      add(new TermQuery(new Term("ID", id(e))), MUST)
-    }
+    new BooleanQuery.Builder().
+      add(TypeTerm, MUST).
+      add(new TermQuery(new Term("ID", id(e))), MUST).
+      build()
   }
 }
 

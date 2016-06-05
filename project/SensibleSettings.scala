@@ -123,7 +123,7 @@ object Sensible {
 
   val scalaModulesVersion = "1.0.4"
   val akkaVersion = "2.3.15"
-  val scalatestVersion = "2.2.6"
+  val scalatestVersion = "3.0.0-RC1"
   val logbackVersion = "1.7.21"
   val quasiquotesVersion = "2.0.1"
   val guavaVersion = "19.0"
@@ -152,7 +152,7 @@ object Sensible {
     "org.scalamock" %% "scalamock-scalatest-support" % "3.2.2" % config,
     // scalacheck 1.13.0 is incompatible with scalatest 2.2
     // https://github.com/rickynils/scalacheck/issues/217
-    "org.scalacheck" %% "scalacheck" % "1.12.5" % config,
+    "org.scalacheck" %% "scalacheck" % "1.13.1" % config,
     "com.typesafe.akka" %% "akka-testkit" % akkaVersion % config,
     "com.typesafe.akka" %% "akka-slf4j" % akkaVersion % config
   ) ++ logback.map(_ % config)

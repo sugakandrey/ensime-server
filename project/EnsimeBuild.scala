@@ -168,7 +168,7 @@ object EnsimeBuild extends Build {
         buildInfoOptions += BuildInfoOption.BuildTime
       )
 
-  val luceneVersion = "4.10.4"
+  val luceneVersion = "5.5.1"
   val streamsVersion = "2.0.4"
   lazy val server = Project("server", file("server")).dependsOn(
     core, swanky, jerky,

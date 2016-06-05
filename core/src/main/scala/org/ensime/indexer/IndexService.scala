@@ -2,7 +2,9 @@
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 package org.ensime.indexer
 
-import java.io.{ File, FileNotFoundException }
+import java.io.{ FileNotFoundException }
+import java.nio.file.Path
+import org.apache.lucene.search.Query
 
 import scala.collection.JavaConversions._
 
@@ -22,7 +24,7 @@ object IndexService extends SLF4JLogging {
 
   class FqnAnalyzer extends DynamicSynonymAnalyzer {
     private def cases(s: String) = List(s, s.toLowerCase)
-    def synonyms(term: String): Set[String] = {
+    override def synonyms(term: String): Set[String] = {
       val (path, name) = term.replaceAll("\\(.*", "").split('.').toList.initLast
       def camel(s: String) = s.filter(_.isUpper)
       def spacey(s: String) = List(s, s.replace('.', ' '))
@@ -71,13 +73,13 @@ object IndexService extends SLF4JLogging {
    * Like `PrefixQuery` but gives a higher value to exact matches.
    * [Stack Overflow](http://stackoverflow.com/questions/17723025)
    */
-  class BoostedPrefixQuery(t: Term) extends BooleanQuery {
-    add(new PrefixQuery(t), Occur.SHOULD)
-    add(new TermQuery(t), Occur.SHOULD)
-  }
+  def boostedPrefixQuery(t: Term): Query = new BooleanQuery.Builder().
+    add(new PrefixQuery(t), Occur.SHOULD).
+    add(new TermQuery(t), Occur.SHOULD).
+    build()
 }
 
-class IndexService(path: File) {
+class IndexService(path: Path) {
   import org.ensime.indexer.IndexService._
 
   private val analyzers = Map("fqn" -> new FqnAnalyzer)
@@ -115,10 +117,10 @@ class IndexService(path: File) {
   }
 
   def searchClasses(query: String, max: Int): List[ClassIndex] = {
-    val q = new BooleanQuery {
-      add(new BoostedPrefixQuery(new Term("fqn", query)), Occur.MUST)
-      add(ClassIndexT, Occur.MUST)
-    }
+    val q = new BooleanQuery.Builder().
+      add(boostedPrefixQuery(new Term("fqn", query)), Occur.MUST).
+      add(ClassIndexT, Occur.MUST).
+      build()
     lucene.search(q, max).map(_.toEntity[ClassIndex]).distinct
   }
 
@@ -130,13 +132,16 @@ class IndexService(path: File) {
   }
 
   def buildTermClassMethodQuery(query: String): BooleanQuery = {
-    new BooleanQuery {
-      add(new BoostedPrefixQuery(new Term("fqn", query)), Occur.MUST)
-      add(new BooleanQuery {
-        add(ClassIndexT, Occur.SHOULD)
-        add(FieldIndexT, Occur.MUST_NOT)
-        add(MethodIndexT, Occur.SHOULD)
-      }, Occur.MUST)
-    }
+    new BooleanQuery.Builder().
+      add(boostedPrefixQuery(new Term("fqn", query)), Occur.MUST).
+      add(
+        new BooleanQuery.Builder().
+          add(ClassIndexT, Occur.SHOULD).
+          add(FieldIndexT, Occur.MUST_NOT).
+          add(MethodIndexT, Occur.SHOULD).
+          build(),
+        Occur.MUST
+      ).
+        build()
   }
 }

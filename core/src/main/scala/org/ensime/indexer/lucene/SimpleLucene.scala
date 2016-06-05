@@ -2,7 +2,7 @@
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 package org.ensime.indexer.lucene
 
-import java.io._
+import java.nio.file.{ Files, Path }
 
 import akka.event.slf4j.SLF4JLogging
 import org.apache.lucene.analysis._
@@ -18,7 +18,6 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 
 object SimpleLucene {
-  private val LuceneVersion = Version.LUCENE_4_10_4
   // from DirectDocValuesFormat.MAX_SORTED_SET_ORDS = 2147483391 but
   // it's kind of an insane number, so let's pick something halfway
   // sensible.
@@ -43,18 +42,16 @@ object SimpleLucene {
  * representations of the same column, or for allowing allow/deny
  * filtering rules based on tags.
  */
-class SimpleLucene(path: File, analyzers: Map[String, Analyzer]) extends SLF4JLogging {
-  import org.ensime.indexer.lucene.SimpleLucene._
-
-  path.mkdirs()
+class SimpleLucene(path: Path, analyzers: Map[String, Analyzer]) extends SLF4JLogging {
+  Files.createDirectories(path)
 
   // http://blog.thetaphi.de/2012/07/use-lucenes-mmapdirectory-on-64bit.html
   private val directory = FSDirectory.open(path)
 
   // our fallback analyzer
   class LowercaseAnalyzer extends Analyzer {
-    override protected def createComponents(fieldName: String, reader: Reader) = {
-      val source = new KeywordTokenizer(reader)
+    override protected def createComponents(fieldName: String) = {
+      val source = new KeywordTokenizer()
       val filtered = new LowerCaseFilter(source)
       new Analyzer.TokenStreamComponents(source, filtered)
     }
@@ -63,7 +60,7 @@ class SimpleLucene(path: File, analyzers: Map[String, Analyzer]) extends SLF4JLo
     new LowercaseAnalyzer,
     analyzers.asJava
   )
-  private val config = new IndexWriterConfig(LuceneVersion, analyzer)
+  private val config = new IndexWriterConfig(analyzer)
   //  config.setRAMBufferSizeMB(512)
 
   private val writer = new IndexWriter(directory, config)
@@ -84,7 +81,7 @@ class SimpleLucene(path: File, analyzers: Map[String, Analyzer]) extends SLF4JLo
   def search(query: Query, limit: Int): List[Document] = {
     val searcher = new IndexSearcher(reader())
 
-    val collector = TopScoreDocCollector.create(limit, true)
+    val collector = TopScoreDocCollector.create(limit)
     searcher.search(query, collector)
 
     val results = mutable.ListBuffer.empty[Document]

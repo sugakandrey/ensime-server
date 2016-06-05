@@ -113,14 +113,14 @@ class DatabaseService(dir: File) extends SLF4JLogging {
 
 object DatabaseService {
   final case class FileCheck(id: Option[Int], filename: String, timestamp: Timestamp) {
-    def file(implicit vfs: EnsimeVFS) = vfs.vfile(filename)
-    def lastModified = timestamp.getTime
-    def changed(implicit vfs: EnsimeVFS) = file.getContent.getLastModifiedTime != lastModified
+    def file(implicit vfs: EnsimeVFS): FileObject = vfs.vfile(filename)
+    def lastModified: Long = timestamp.getTime
+    def changed(implicit vfs: EnsimeVFS): Boolean = !file.exists() || file.getContent.getLastModifiedTime != lastModified
   }
   object FileCheck extends ((Option[Int], String, Timestamp) => FileCheck) {
     def apply(f: FileObject): FileCheck = {
       val name = f.getName.getURI
-      val ts = new Timestamp(f.getContent.getLastModifiedTime)
+      val ts = new Timestamp(if (!f.exists()) -1L else f.getContent.getLastModifiedTime)
       FileCheck(None, name, ts)
     }
   }

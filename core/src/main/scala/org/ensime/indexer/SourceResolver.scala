@@ -3,11 +3,13 @@
 package org.ensime.indexer
 
 import akka.event.slf4j.SLF4JLogging
+import java.io.File
 import org.apache.commons.vfs2._
 
 import org.ensime.api._
 import org.ensime.vfs._
 
+import org.ensime.util.file._
 import org.ensime.util.list._
 import org.ensime.util.map._
 
@@ -19,11 +21,14 @@ class SourceResolver(
     vfs: EnsimeVFS
 ) extends FileChangeListener with SLF4JLogging {
 
-  // it's not worth doing incremental updates - this is cheap
-  // (but it would be nice to have a "debounce" throttler)
-  def fileAdded(f: FileObject) = update()
-  def fileRemoved(f: FileObject) = update()
+  def fileAdded(f: FileObject) = if (relevant(f)) update()
+  def fileRemoved(f: FileObject) = if (relevant(f)) update()
   def fileChanged(f: FileObject) = {}
+
+  def relevant(f: FileObject): Boolean = f.getName.isFile && {
+    val file = new File(f.getName.getURI)
+    (file.isScala || file.isJava) && !file.getPath.contains(".ensime_cache")
+  }
 
   // we only support the case where RawSource has a Some(filename)
   def resolve(clazz: PackageName, source: RawSource): Option[FileObject] =
