@@ -32,11 +32,14 @@ final case class PackageName(path: List[String]) extends FullyQualifiedName {
     case FieldName(c, _) => contains(c)
     case MethodName(c, _, _) => contains(c)
   }
+
   def fqnString = path.mkString(".")
   def parent = PackageName(path.init)
 }
 
-final case class ClassName(pack: PackageName, name: String) extends FullyQualifiedName with DescriptorType {
+final case class ClassName(pack: PackageName, name: String)
+    extends FullyQualifiedName with DescriptorType {
+
   def contains(o: FullyQualifiedName) = o match {
     case ClassName(op, on) if pack == op && on.startsWith(name) =>
       (on == name) || on.startsWith(name + "$")
@@ -127,6 +130,54 @@ final case class MethodName(
   def fqnString = owner.fqnString + "." + name + descriptor.descriptorString
 }
 
+// Generics signature
+
+sealed trait GenericArg
+sealed trait SignatureType
+sealed trait BoundType
+sealed trait RealTypeSignature
+
+object UpperBound extends BoundType
+
+object LowerBound extends BoundType
+
+final case class GenericClass(
+  genericParam: Seq[GenericParam],
+  superClasses: Seq[GenericClassName]
+) extends SignatureType
+
+final case class GenericParam(
+  name: String,
+  classNames: Seq[GenericClassName]
+) extends SignatureType
+
+final case class GenericClassName(
+  className: ClassName,
+  genericArg: Seq[GenericArg] = Seq.empty,
+  innerClass: Seq[InnerClassName] = Seq.empty
+) extends SignatureType with RealTypeSignature
+
+final case class InnerClassName(
+  name: String,
+  genericArg: Seq[GenericArg] = Seq.empty
+)
+
+object ExtendsObjectGenericArg
+  extends GenericArg
+
+final case class SpecifiedGenericArg(
+  boundType: Option[BoundType],
+  genericSignature: SignatureType
+) extends GenericArg
+
+final case class GenericArray(className: RealTypeSignature)
+  extends SignatureType with RealTypeSignature
+
+final case class GenericVar(name: String)
+  extends SignatureType with RealTypeSignature
+
+// Descriptors
+
 sealed trait DescriptorType {
   def internalString: String
 }
@@ -145,7 +196,7 @@ final case class Descriptor(params: List[DescriptorType], ret: DescriptorType) {
 
 final case class RawClassfile(
   name: ClassName,
-  generics: Option[String],
+  generics: Option[GenericClass],
   superClass: Option[ClassName],
   interfaces: List[ClassName],
   access: Access,

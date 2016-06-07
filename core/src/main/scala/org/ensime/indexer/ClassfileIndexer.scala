@@ -50,9 +50,15 @@ trait ClassfileIndexer {
       superName: String, interfaces: Array[String]
     ): Unit = {
 
+      val signatureClass = if (signature != null && signature.nonEmpty) {
+        Some(SignatureParser.parseGeneric(signature))
+      } else {
+        None
+      }
+
       clazz = RawClassfile(
         ClassName.fromInternal(name),
-        Option(signature),
+        signatureClass,
         Option(superName).map(ClassName.fromInternal),
         interfaces.toList.map(ClassName.fromInternal),
         Access(access),
