@@ -9,6 +9,7 @@ import scala.Predef.{ any2stringadd => _, _ }
 import scala.concurrent._
 
 import akka.event.slf4j.SLF4JLogging
+import com.orientechnologies.orient.core.Orient
 import com.orientechnologies.orient.core.config.OGlobalConfiguration
 import com.orientechnologies.orient.core.intent.OIntentMassiveInsert
 import com.orientechnologies.orient.core.metadata.schema.OType
@@ -27,9 +28,9 @@ import shapeless.cachedImplicit
 
 // FIXME: these domain objects are remnants of the DatabaseService and should be remodelled
 final case class FileCheck(filename: String, timestamp: Timestamp) {
-  def file(implicit vfs: EnsimeVFS) = vfs.vfile(filename)
-  def lastModified = timestamp.getTime
-  def changed(implicit vfs: EnsimeVFS) = file.getContent.getLastModifiedTime != lastModified
+  def file(implicit vfs: EnsimeVFS): FileObject = vfs.vfile(filename)
+  def lastModified: Long = timestamp.getTime
+  def changed(implicit vfs: EnsimeVFS): Boolean = file.getContent.getLastModifiedTime != lastModified
 }
 object FileCheck extends ((String, Timestamp) => FileCheck) {
   def apply(f: FileObject): FileCheck = {
@@ -92,6 +93,9 @@ class GraphService(dir: File) extends SLF4JLogging {
 
     val url = "plocal:" + dir.getAbsolutePath
     val db = new OrientGraphFactory(url).setupPool(pools, pools)
+    // The placement of this fix needs futher thought, if placed before actual GraphFactory creation it wil work for me locally,
+    // but causes NoClassDefFound during orient initialization on testing machine@fommmil.com
+    Orient.setRegisterDatabaseByPath(true)
     val g = db.getNoTx
 
     // is this just needed on schema creation or always?
