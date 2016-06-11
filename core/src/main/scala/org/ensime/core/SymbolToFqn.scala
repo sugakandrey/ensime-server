@@ -23,22 +23,7 @@ import org.slf4j.Logger
  */
 trait SymbolToFqn { self: Global with PresentationCompilerBackCompat =>
   def logger: Logger
-
-  import ClassName._
-  private val ScalaPackageName = PackageName(List("scala"))
-  private val normaliseClass: ClassName => ClassName = Map(
-    ClassName(PackageName(List("scala", "runtime")), "BoxedUnit") -> PrimitiveVoid,
-    ClassName(ScalaPackageName, "<byname>") -> ClassName(ScalaPackageName, "Function0"),
-    ClassName(ScalaPackageName, "Boolean") -> PrimitiveBoolean,
-    ClassName(ScalaPackageName, "Byte") -> PrimitiveByte,
-    ClassName(ScalaPackageName, "Char") -> PrimitiveChar,
-    ClassName(ScalaPackageName, "Short") -> PrimitiveShort,
-    ClassName(ScalaPackageName, "Int") -> PrimitiveInt,
-    ClassName(ScalaPackageName, "Long") -> PrimitiveLong,
-    ClassName(ScalaPackageName, "Float") -> PrimitiveFloat,
-    ClassName(ScalaPackageName, "Double") -> PrimitiveDouble,
-    ClassName(ScalaPackageName, "Void") -> PrimitiveVoid
-  ).withDefault(identity)
+  import FqnUtils._
 
   private def packageName(sym: Symbol): PackageName = {
     PackageName(sym.ownerChain.takeWhile(!_.isRootSymbol).reverse.map(_.encodedName))
@@ -65,7 +50,7 @@ trait SymbolToFqn { self: Global with PresentationCompilerBackCompat =>
   }
 
   private def methodName(sym: MethodSymbol): MethodName = {
-    val owner = sym.ownerChain.dropWhile(_.isMethod).head
+    val owner = sym.enclClass
     val clazz = className(owner)
     val name = sym.encodedName
 
