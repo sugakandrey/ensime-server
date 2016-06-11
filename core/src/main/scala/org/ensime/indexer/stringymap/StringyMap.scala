@@ -1,5 +1,5 @@
 // Copyright: 2010 - 2016 https://github.com/ensime/ensime-server/graphs
-// Licence: http://www.gnu.org/licenses/gpl-3.0.en.html
+// License: http://www.gnu.org/licenses/gpl-3.0.en.html
 /**
  * TypeClass (api/impl/syntax) for marshalling objects into
  * `java.util.HashMap<String,Object>` (yay, big data!).

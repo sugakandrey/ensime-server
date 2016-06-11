@@ -1,5 +1,5 @@
 // Copyright: 2010 - 2016 https://github.com/ensime/ensime-server/graphs
-// Licence: http://www.gnu.org/licenses/gpl-3.0.en.html
+// License: http://www.gnu.org/licenses/gpl-3.0.en.html
 package org.ensime.indexer.graph
 
 import java.sql.Timestamp
@@ -209,29 +209,20 @@ class GraphService(dir: File) extends SLF4JLogging {
 
   /**
    * Removes given `files` from the graph.
-   *
-   * @param files to be removed
-   * @return [[Future]] value containing the amount of files removed
    */
   def removeFiles(files: List[FileObject]): Future[Int] = withGraphAsync { implicit g =>
     RichGraph.removeV(files.map(FileCheck(_)))
   }
 
   /**
-   * Finds the [[FqnSymbol]] uniquely identified by `fqn`.
-   *
-   * @param fqn of the symbol to be found
-   * @return an [[Option]] value containing [[FqnSymbol]] with given fqn, or None if none exists.
+   * Finds the FqnSymbol uniquely identified by `fqn`.
    */
   def find(fqn: String): Future[Option[FqnSymbol]] = withGraphAsync { implicit g =>
     RichGraph.readUniqueV[FqnSymbol, String](fqn).map(_.toDomain)
   }
 
   /**
-   * Finds all [[FqnSymbol]]'s identified by unique `fqns`.
-   *
-   * @param fqns of the symbols to be found
-   * @return [[Future]] value, containing the list of [[FqnSymbol]]s found.
+   * Finds all FqnSymbol's identified by unique `fqns`.
    */
   def find(fqns: List[FqnIndex]): Future[List[FqnSymbol]] = withGraphAsync { implicit g =>
     fqns.flatMap(fqn =>
