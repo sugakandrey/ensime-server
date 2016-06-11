@@ -90,4 +90,9 @@ class FqnToSymbolSpec extends EnsimeSpec
     )
   }
 
+  it should "convert class FQNs with special characters to symbols" in withPresCompiler { (config, cc) =>
+    val fqn = clazz(Seq("scala"), "Predef$$less$colon$less")
+    cc.askSymbolByFqn(fqn).get should not be an[cc.NoSymbol]
+  }
+
 }
