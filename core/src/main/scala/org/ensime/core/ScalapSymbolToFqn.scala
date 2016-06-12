@@ -23,10 +23,10 @@ trait ScalapSymbolToFqn {
     FieldName(aClass, name)
   }
 
-  private def descriptorType(t: Type): DescriptorType = {
-    val c = normaliseClass(className(t.dealias.erasure.typeSymbol))
+  private def descriptorType(t: TypeRefType): DescriptorType = {
+    val c = normaliseClass(t.toClassName)
     if (c.fqnString == "scala.Array") {
-      ArrayDescriptor(descriptorType(t.asInstanceOf[TypeRefType].typeArgs.head))
+      ArrayDescriptor(descriptorType(t.typeArgs.head.asInstanceOf[TypeRefType]))
     } else c
   }
 
@@ -36,15 +36,22 @@ trait ScalapSymbolToFqn {
     val name = ms.name
 
     val descriptor = {
-      val typeInfo = ms.infoType
+      val typeInfo = ms.infoType match {
+        case PolyType(typeRef, _) => typeRef
+        case mt @ MethodType(_, _) => mt
+        case nmt @ NullaryMethodType(_) => nmt
+        case whatever => log.debug(s"Got $whatever as method.infoType"); ???
+      }
+
       val params = typeInfo match {
         case MethodType(_, paramSymbols) =>
-          paramSymbols.collect { case s: MethodSymbol => descriptorType(s.infoType) }.toList
+          paramSymbols.collect { case s: MethodSymbol => descriptorType(s.infoType.asInstanceOf[TypeRefType]) }.toList
         case NullaryMethodType(_) => Nil
       }
       val ret = typeInfo match {
-        case NullaryMethodType(resultType) => descriptorType(resultType)
-        case MethodType(resultType, _) => descriptorType(resultType)
+        case NullaryMethodType(resType @ TypeRefType(_, _, _)) => descriptorType(resType)
+        case MethodType(refined @ RefinedType(_, _), _) => throw new UnsupportedOperationException("TODO: Refined return type")
+        case MethodType(resType @ TypeRefType(_, _, _), _) => descriptorType(resType)
       }
       Descriptor(params, ret)
     }

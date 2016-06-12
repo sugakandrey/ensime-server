@@ -9,8 +9,8 @@ import org.ensime.vfs._
 class ScalapSymbolToFqnSpec extends EnsimeSpec
     with IsolatedRichPresentationCompilerFixture
     with RichPresentationCompilerTestUtils
-    with ReallyRichPresentationCompilerFixture
-    with ScalapSymbolToFqn {
+    with ReallyRichPresentationCompilerFixture {
+  import ReallyRichPresentationCompilerFixture._
 
   override def original: EnsimeConfig = EnsimeConfigFixture.ShapelessTestProject
 
