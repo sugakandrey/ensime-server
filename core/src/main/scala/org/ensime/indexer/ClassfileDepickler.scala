@@ -47,7 +47,7 @@ class ClassfileDepickler(file: FileObject) extends ScalapSymbolToFqn {
 
   def getMethods: Seq[MethodName] = withScalaSig { sig =>
     sig.symbols.collect {
-      case ms: MethodSymbol if ms.isMethod => methodName(ms)
+      case ms: MethodSymbol if ms.isMethod && ms.parent.forall(!_.name.contains("<refinement>")) => methodName(ms)
     }(breakOut)
   }
 

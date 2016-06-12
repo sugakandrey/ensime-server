@@ -1,9 +1,13 @@
 package org.ensime.core
 
+import org.ensime.indexer.{ ClassName, PackageName }
+import org.slf4j.{ Logger, LoggerFactory }
+
 import scala.annotation.tailrec
 import scala.tools.scalap.scalax.rules.scalasig._
 
 object ScalaSigApi {
+  def log: Logger = LoggerFactory.getLogger(this.getClass)
 
   implicit class RichSymbol(val sym: Symbol) {
     /**
@@ -12,6 +16,7 @@ object ScalaSigApi {
     def isTopLevel: Boolean = sym.parent match {
       case Some(ext: ExternalSymbol) => true
       case Some(_) => false
+      case None => ???
     }
 
     /**
@@ -41,8 +46,36 @@ object ScalaSigApi {
   }
 
   implicit class RichType(val t: Type) {
-    def dealias: Type = ???
-    def erasure: Type = ???
-    def typeSymbol: Symbol = ???
+    def getPackage: String = t match {
+      case ThisType(sym @ ExternalSymbol(_, _, _)) => sym.path
+      case ThisType(sym) => sym.enclosingPackage
+      case TypeRefType(prefix, _, _) => prefix.getPackage
+      case SingleType(typeRef, _) => typeRef.getPackage
+      case _ => log.debug(s"Called packageName on type: ${t.getClass} $t"); ???
+    }
+
+    @tailrec
+    final def nested(acc: List[String] = Nil): List[String] = t match {
+      case ThisType(ExternalSymbol(_, _, _)) => acc
+      case ThisType(sym @ ClassSymbol(_, _)) => sym.name :: acc
+      case TypeRefType(prefix, sym, _) => prefix.nested(sym.name :: acc)
+      case SingleType(typeRef, sym) => typeRef.nested(sym.name :: acc)
+      case _ => log.debug(s"Got $t as a type in methodType.nested()"); ???
+    }
   }
+
+  implicit class RichTypeRefType(val t: TypeRefType) {
+    def toClassName: ClassName = {
+      val TypeRefType(prefix, sym, _) = t
+      val aPackage = prefix.getPackage
+      val packageName = PackageName(aPackage.split("\\.").toList)
+
+      val className = sym match {
+        case es @ ExternalSymbol(name, _, _) => es.path.substring(aPackage.length + 1).replaceAll("\\.", "\\$")
+        case _ => s"${prefix.nested().mkString("$")}$$${sym.name}"
+      }
+      ClassName(packageName, className)
+    }
+  }
+
 }
