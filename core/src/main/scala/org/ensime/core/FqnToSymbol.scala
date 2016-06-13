@@ -47,14 +47,21 @@ trait FqnToSymbol { self: Global with SymbolToFqn =>
         }
 
     case ClassName(p, name) =>
-      val (outer, inner) = name.split("\\$").toList.initLast
+      import scala.reflect.NameTransformer
+      val symbolicName = NameTransformer.decode(name)
+      val (outer, inner) = symbolicName.split("\\$").toList.initLast
 
       // $ is used to select Term names, no $ at end is a Type name
       val container = outer.foldLeft(toSymbol(p)) {
-        (owner, name) => owner.info.member(newTermName(name))
+        (owner, name) =>
+          val encodedName = NameTransformer.encode(name)
+          val term = owner.info.member(newTermName(encodedName))
+          if (term != NoSymbol) term
+          else owner.info.member(newTypeName(encodedName))
       }
 
-      val select = if (name.endsWith("$")) newTermName(inner) else newTypeName(inner)
+      val encodedInner = NameTransformer.encode(inner)
+      val select = if (name.endsWith("$")) newTermName(encodedInner) else newTypeName(encodedInner)
       container.info.member(select)
 
     case f @ FieldName(c, name) =>
