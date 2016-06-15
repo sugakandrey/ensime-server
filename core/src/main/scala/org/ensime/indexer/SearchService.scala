@@ -122,9 +122,9 @@ class SearchService(
       }
     }.toSet ++ config.javaLibs.map(vfs.vfile)
 
-    def indexBase(base: FileObject, fileCheck: Option[FileCheck]): Future[Option[Int]] = {
+    def indexBase(base: FileObject, fileCheck: Option[FileCheck]): Future[Int] = {
       val outOfDate = fileCheck.map(_.changed).getOrElse(true)
-      if (!outOfDate) Future.successful(None)
+      if (!outOfDate) Future.successful(0)
       else {
         val boost = isUserFile(base.getName())
         val check = FileCheck(base)
@@ -141,7 +141,7 @@ class SearchService(
       val basesWithChecks: Set[(FileObject, Option[FileCheck])] = bases.map { base =>
         (base, checksLookup.get(base.getName().getURI()))
       }
-      Future.sequence(basesWithChecks.map { case (file, check) => indexBase(file, check) }).map(_.flatten.sum)
+      Future.sequence(basesWithChecks.map { case (file, check) => indexBase(file, check) }).map(_.sum)
     }
 
     def commitIndex(): Future[Unit] = {
@@ -169,7 +169,7 @@ class SearchService(
 
   def refreshResolver(): Unit = resolver.update()
 
-  def persist(check: FileCheck, symbols: List[FqnSymbol], commitIndex: Boolean, boost: Boolean): Future[Option[Int]] = {
+  def persist(check: FileCheck, symbols: List[FqnSymbol], commitIndex: Boolean, boost: Boolean): Future[Int] = {
     val iwork = Future { blocking { index.persist(check, symbols, commitIndex, boost) } }
     val dwork = db.persist(check, symbols)
     iwork.flatMap { _ => dwork }

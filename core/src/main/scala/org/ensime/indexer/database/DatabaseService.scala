@@ -85,11 +85,17 @@ class DatabaseService(dir: File) extends SLF4JLogging {
     )
   }
 
-  def persist(check: FileCheck, symbols: Seq[FqnSymbol]): Future[Option[Int]] =
-    if (symbols.isEmpty) Future.successful(Option(0))
-    else db.run(
-      (fileChecksCompiled += check) andThen (fqnSymbolsCompiled ++= symbols)
-    )
+  def persist(check: FileCheck, symbols: Seq[FqnSymbol]): Future[Int] =
+    if (symbols.isEmpty) Future.successful(0)
+    else {
+      val batches = symbols.grouped(10000)
+      db.run(
+        (fileChecksCompiled += check)
+      ) flatMap { _ =>
+          val foo = batches.map { batch => db.run(fqnSymbolsCompiled ++= batch) }
+          Future.sequence(foo).map { inserts => inserts.flatten.sum }
+        }
+    }
 
   private val findCompiled = Compiled {
     fqn: Rep[String] => fqnSymbols.filter(_.fqn === fqn).take(1)
