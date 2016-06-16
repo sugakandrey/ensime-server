@@ -26,6 +26,8 @@ class TypeToScalaNameSpec extends EnsimeSpec
       "    val ar@arrow1@row1: Int => String = (i: Int) => met@call1@hod1(i)",
       "    def met@method2@hod2(i: Int, j: Long): String = i.toString",
       "    val arrow2: Int => Long => String = (i: Int, j: Long) => met@call2@hod2(i, j)",
+      "    def rep@repeated@eated(i: Int, s: String, l: Long*): Long = l.head",
+      "    val lon@long@g: Long = rep@callrepeated@eated(123, \"hello\", 1L, 2L, 3L)",
       "    val arrow0: () => Int = null ; ar@call0@row0()",
       "    def tu@tuple2@ple2: (String, Int) = null",
       "    def hl@hlist@ist: Int :: String :: HNil = null",
@@ -38,6 +40,8 @@ class TypeToScalaNameSpec extends EnsimeSpec
             label match {
               case "int" =>
                 BasicTypeInfo("Int", Class, "scala.Int", Nil, Nil, None)
+              case "long" =>
+                BasicTypeInfo("Long", Class, "scala.Long", Nil, Nil, None)
               case "method1" | "method2" =>
                 // the return type
                 BasicTypeInfo("String", Class, "java.lang.String", Nil, Nil, None)
@@ -64,7 +68,25 @@ class TypeToScalaNameSpec extends EnsimeSpec
                     List(("_0", BasicTypeInfo("Int", Class, "scala.Int", Nil, Nil, None))), false
                   ))
                 )
-
+              case "repeated" =>
+                BasicTypeInfo("Long", Class, "scala.Long", Nil, Nil, None)
+              case "callrepeated" =>
+                ArrowTypeInfo(
+                  "(Int, String, Long*) => Long",
+                  "(scala.Int, java.lang.String, scala.Long*) => scala.Long",
+                  BasicTypeInfo(
+                    "Long",
+                    Class,
+                    "scala.Long",
+                    Nil, Nil, None
+                  ),
+                  List(ParamSectionInfo(List(
+                    ("i", BasicTypeInfo("Int", Class, "scala.Int", Nil, Nil, None)),
+                    ("s", BasicTypeInfo("String", Class, "java.lang.String", Nil, Nil, None)),
+                    ("l", BasicTypeInfo("Long*", Class, "scala.Long*",
+                      List(BasicTypeInfo("Long", Class, "scala.Long", Nil, Nil, None)), Nil, None))
+                  ), false))
+                )
               case "call0" =>
                 ArrowTypeInfo(
                   "() => Int",

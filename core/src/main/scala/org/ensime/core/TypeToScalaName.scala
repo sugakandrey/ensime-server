@@ -14,6 +14,8 @@ final class ScalaName(val underlying: String) extends AnyVal {
 }
 
 trait TypeToScalaName { self: Global with Helpers =>
+  import definitions._
+
   def scalaName(tpe: Type, full: Boolean): ScalaName = tpe match {
     case _: MethodType | _: PolyType =>
       val tparams = tpe.paramss.map { sect =>
@@ -36,6 +38,11 @@ trait TypeToScalaName { self: Global with Helpers =>
         else tpe.typeSymbol.nameString
 
       new ScalaName(parts.init.mkString(" ")) + s" $name ${parts.last}"
+
+    case TypeRef(_, RepeatedParamClass | JavaRepeatedParamClass, typeArgs) =>
+      // Safe to assume that args is of length 1 as repeated params means Seq[args]
+      val parts = typeArgs.map(scalaName(_, full).underlying)
+      new ScalaName(parts.mkString + "*")
 
     case _ =>
       val name = tpe match {
