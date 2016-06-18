@@ -2,7 +2,7 @@ import SonatypeSupport._
 import com.typesafe.sbt.SbtScalariform._
 import java.io._
 import org.ensime.EnsimePlugin.JdkDir
-import org.ensime.Imports.EnsimeKeys
+import org.ensime.Imports.EnsimeKeys._
 import sbt.{ IntegrationTest => It, _ }
 import sbt.Keys._
 import sbtassembly.{ AssemblyKeys, MergeStrategy, PathList }
@@ -38,8 +38,6 @@ object EnsimeBuild extends Build {
     dependencyOverrides ++= Set(
       "org.apache.lucene" % "lucene-core" % luceneVersion
     ),
-
-    EnsimeKeys.scalariform := ScalariformKeys.preferences.value,
 
     HeaderKey.headers := Copyright.GplMap
 
@@ -140,7 +138,7 @@ object EnsimeBuild extends Build {
       commonSettings, commonItSettings
     ).settings(
       unmanagedJars in Compile += JavaTools,
-      EnsimeKeys.unmanagedSourceArchives += (baseDirectory in ThisBuild).value / "openjdk-langtools/openjdk7-langtools-src.zip",
+      ensimeUnmanagedSourceArchives += (baseDirectory in ThisBuild).value / "openjdk-langtools/openjdk7-langtools-src.zip",
       libraryDependencies ++= Seq(
         "com.h2database" % "h2" % "1.4.192",
         "com.typesafe.slick" %% "slick" % "3.1.1",
@@ -202,8 +200,8 @@ object EnsimeBuild extends Build {
 
   lazy val testingSimpleJar = Project("testingSimpleJar", file("testing/simpleJar")).settings(
     exportJars := true,
-    EnsimeKeys.useTarget in Compile := Some((artifactPath in (Compile, packageBin)).value),
-    EnsimeKeys.useTarget in Test := Some((artifactPath in (Test, packageBin)).value)
+    ensimeUseTarget in Compile := Some((artifactPath in (Compile, packageBin)).value),
+    ensimeUseTarget in Test := Some((artifactPath in (Test, packageBin)).value)
   )
 
   lazy val testingImplicits = Project("testingImplicits", file("testing/implicits")) settings (
