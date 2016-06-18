@@ -148,7 +148,7 @@ final case class GenericClass(
 
 final case class GenericParam(
   name: String,
-  classNames: Seq[GenericClassName]
+  classNames: Seq[RealTypeSignature]
 ) extends SignatureType
 
 final case class GenericClassName(
@@ -167,7 +167,7 @@ object ExtendsObjectGenericArg
 
 final case class SpecifiedGenericArg(
   boundType: Option[BoundType],
-  genericSignature: SignatureType
+  genericSignature: RealTypeSignature
 ) extends GenericArg
 
 final case class GenericArray(className: RealTypeSignature)

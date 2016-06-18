@@ -47,7 +47,7 @@ class SignatureParser(val input: ParserInput) extends ClassParser {
 
   // class SomeClass[T <: SomeTrait] will have two : in signature
   private def GenericSigParam: Rule1[GenericParam] = rule {
-    GenericName ~ ':' ~ oneOrMore(optional(':') ~ GenericClassSig) ~> GenericParam.apply _
+    GenericName ~ ':' ~ oneOrMore(optional(':') ~ FieldTypeSignature) ~> GenericParam.apply _
   }
 
   private def GenericName: Rule1[String] = rule {
@@ -114,7 +114,7 @@ class SignatureParser(val input: ParserInput) extends ClassParser {
     '+'
   }
 
-  private def FieldTypeSignature: Rule1[SignatureType] = rule {
+  private def FieldTypeSignature: Rule1[RealTypeSignature] = rule {
     GenericClassSig | GenericArraySig | TypeVar
   }
 
