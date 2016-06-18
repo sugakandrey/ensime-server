@@ -33,6 +33,8 @@ class TypeToScalaNameSpec extends EnsimeSpec
       "    def hl@hlist@ist: Int :: String :: HNil = null",
       "    def re@refined@fined = 1.narrow",
       "    def ex@exciting@citing = 'f' ->> 23.narrow",
+      "    def by@byname@name(i: Int, s: => (Int, String)): String = s._2",
+      "    val s: String = by@bynamecall@name(15, (16, \"hello\"))",
       "}"
     ) { (p, label, cc) =>
         withClue(label) {
@@ -147,6 +149,30 @@ class TypeToScalaNameSpec extends EnsimeSpec
                   Class,
                   "scala.Int(23) with shapeless.labelled.KeyTag[scala.Char('f'), scala.Int(23)]",
                   Nil, Nil, None
+                )
+
+              case "byname" =>
+                BasicTypeInfo(
+                  "String",
+                  Class,
+                  "java.lang.String",
+                  Nil, Nil, None
+                )
+
+              case "bynamecall" =>
+                ArrowTypeInfo(
+                  "(Int, => (Int, String)) => String",
+                  "(scala.Int, => (scala.Int, java.lang.String)) => java.lang.String",
+                  BasicTypeInfo("String", Class, "java.lang.String", Nil, Nil, None),
+                  List(ParamSectionInfo(List(
+                    ("i", BasicTypeInfo("Int", Class, "scala.Int", Nil, Nil, None)),
+                    ("s", ArrowTypeInfo("=> (Int, String)", "=> (scala.Int, java.lang.String)",
+                      BasicTypeInfo("(Int, String)", Class, "(scala.Int, java.lang.String)",
+                        List(
+                          BasicTypeInfo("Int", Class, "scala.Int", Nil, Nil, None),
+                          BasicTypeInfo("String", Class, "java.lang.String", Nil, Nil, None)
+                        ), Nil, None), Nil))
+                  ), false))
                 )
             }
           }

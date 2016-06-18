@@ -44,6 +44,10 @@ trait TypeToScalaName { self: Global with Helpers =>
       val parts = typeArgs.map(scalaName(_, full).underlying)
       new ScalaName(parts.mkString + "*")
 
+    case TypeRef(_, ByNameParamClass, typeArgs) =>
+      val parts = typeArgs.map(scalaName(_, full).underlying)
+      new ScalaName(s"=> ${parts.mkString}")
+
     case _ =>
       val name = tpe match {
         case c: ConstantType =>

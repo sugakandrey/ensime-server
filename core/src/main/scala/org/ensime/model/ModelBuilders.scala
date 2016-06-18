@@ -273,6 +273,10 @@ trait ModelBuilders {
             else tparams.init.zipWithIndex.map { case (tpe, idx) => ("_" + idx, TypeInfo(tpe)) }
           ArrowTypeInfo(shortName(tpe).underlying, fullName(tpe).underlying, result, ParamSectionInfo(params, isImplicit = false) :: Nil)
 
+        case TypeRef(_, definitions.ByNameParamClass, args) =>
+          val result = TypeInfo(args.head)
+          ArrowTypeInfo(shortName(tpe).underlying, fullName(tpe).underlying, result, Nil)
+
         case tpe: MethodType => apply(tpe, tpe.paramss.map(ParamSectionInfoBuilder.apply), tpe.finalResultType)
         case tpe: PolyType => apply(tpe, tpe.paramss.map(ParamSectionInfoBuilder.apply), tpe.finalResultType)
         case _ => nullInfo()
