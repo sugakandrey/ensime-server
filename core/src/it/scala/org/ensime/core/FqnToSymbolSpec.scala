@@ -59,6 +59,23 @@ class FqnToSymbolSpec extends EnsimeSpec
 
     verify(clazz(Seq("java", "lang"), "String"), "java.lang.String")
     verify(clazz(Seq("scala"), "Some$"), "scala.Some")
+
+    runForPositionInCompiledSource(
+      config, cc,
+      "package com.example",
+      "class A {}",
+      "object A { ",
+      "  object F@foo@oo {}",
+      "  class B@bar@ar {}",
+      "}"
+    ) { (p, label, cc) =>
+        cc.askSymbolByFqn(cc.askSymbolFqn(p).get).get shouldBe {
+          label match {
+            case "foo" => cc.askSymbolByScalaName("com.example.A.Foo")
+            case "bar" => cc.askSymbolByScalaName("com.example.A.Bar")
+          }
+        }.get
+      }
   }
 
   it should "convert field FQNs to symbols" in withPresCompiler { (config, cc) =>
@@ -105,15 +122,15 @@ class FqnToSymbolSpec extends EnsimeSpec
         cc.askSymbolByFqn(cc.askSymbolFqn(p).get).get shouldBe {
           label match {
             case "outer_symbolic" =>
-              cc.askSymbolByScalaName("com.example.$less$hash$greater.$greater$greater$eq.$less$colon$less").get
+              cc.askSymbolByScalaName("com.example.$less$hash$greater.$greater$greater$eq.$less$colon$less")
             case "inner_symbolic" =>
-              cc.askSymbolByScalaName("com.example.$less$hash$greater.$greater$greater$eq.$less$colon$less#$eq$colon$eq").get
+              cc.askSymbolByScalaName("com.example.$less$hash$greater.$greater$greater$eq.$less$colon$less#$eq$colon$eq")
             case "sym_object" =>
-              cc.askSymbolByScalaName("com.example.$less$hash$greater.$greater$greater$eq.$tilde$tilde$tilde").get
+              cc.askSymbolByScalaName("com.example.$less$hash$greater.$greater$greater$eq.$tilde$tilde$tilde")
             case "bar" =>
-              cc.askSymbolByScalaName("com.example.$less$hash$greater.$greater$greater$eq.$tilde$tilde$tilde.Bar").get
+              cc.askSymbolByScalaName("com.example.$less$hash$greater.$greater$greater$eq.$tilde$tilde$tilde.Bar")
           }
-        }
+        }.get
       }
   }
 
