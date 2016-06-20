@@ -1,14 +1,71 @@
 package org.ensime.core
 
+import java.io.{ ByteArrayOutputStream, PrintStream }
+import java.nio.charset.StandardCharsets
+
+import org.ensime.api.DeclaredAs
 import org.ensime.indexer._
 
 import scala.tools.scalap.scalax.rules.scalasig._
 
 trait ScalapSymbolToFqn {
   import ScalaSigApi._
-  import FqnUtils._
 
-  protected def className(sym: Symbol): ClassName = {
+  private def withScalaSigPrinter(code: ScalaSigPrinter => Any): String = {
+    val baos = new ByteArrayOutputStream()
+    val ps = new PrintStream(baos)
+    val printer = new ScalaSigPrinter(ps, true)
+    code(printer)
+    new String(baos.toByteArray, StandardCharsets.UTF_8)
+  }
+
+  private def getAccess(sym: Symbol): Access =
+    if (sym.isPrivate) Private
+    else if (sym.isProtected) Protected
+    else Public
+
+  def rawScalaClass(sym: ClassSymbol): RawScalaClass = {
+    val javaName = className(sym)
+    val aPackage = sym.enclosingPackage
+    val scalaName = sym.ownerChain.sliding(2, 1).map {
+      case x :: y :: Nil =>
+        val sep = if (x.isModule) "." else "#"
+        x.name + sep
+      case last :: Nil => last.name
+    }.mkString
+    val access = getAccess(sym)
+
+    val declaredAs =
+      if (sym.isTrait) DeclaredAs.Trait
+      else if (sym.isModule) DeclaredAs.Object
+      else DeclaredAs.Class
+
+    val typeSignature = withScalaSigPrinter { printer =>
+      printer.printType(sym.infoType)(printer.TypeFlags(true))
+    }
+
+    val fields = sym.children.collect {
+      case ms: MethodSymbol if !ms.isMethod && ms.isLocal =>
+        rawScalaField(ms)
+    }
+
+    val methods = sym.children.collect {
+      case ms: MethodSymbol if ms.isMethod =>
+        rawScalaMethod(ms)
+    }
+
+    RawScalaClass(
+      javaName,
+      aPackage + scalaName,
+      typeSignature,
+      access,
+      declaredAs,
+      fields,
+      methods
+    )
+  }
+
+  private def className(sym: Symbol): ClassName = {
     val nested = sym.ownerChain
     val pkg = PackageName(sym.enclosingPackage.split("\\.").toList)
     val name = nested.map(_.name).mkString("$")
@@ -17,53 +74,28 @@ trait ScalapSymbolToFqn {
     ClassName(pkg, name + postfix)
   }
 
-  protected def fieldName(ms: MethodSymbol): FieldName = {
+  private def rawScalaField(ms: MethodSymbol): RawScalaField = {
     val aClass = className(ms.symbolInfo.owner)
     val name = ms.name
-    FieldName(aClass, name)
-  }
+    val javaName = FieldName(aClass, name)
+    val scalaName = ms.path
+    val access = getAccess(ms)
 
-  private def descriptorType(t: TypeRefType): DescriptorType = {
-    val c = normaliseClass(t.toClassName)
-    if (c.fqnString == "scala.Array") {
-      ArrayDescriptor(descriptorType(t.typeArgs.head.asInstanceOf[TypeRefType]))
-    } else c
-  }
-
-  protected def methodName(ms: MethodSymbol): MethodName = {
-    val owner = ms.ownerChain.dropWhile(_.isMethod).head
-    val aClass = className(owner)
-    val name = ms.name
-
-    val descriptor = {
-      val typeInfo = ms.infoType match {
-        case PolyType(typeRef, _) => typeRef
-        case mt @ MethodType(_, _) => mt
-        case nmt @ NullaryMethodType(_) => nmt
-        case whatever => log.debug(s"Got $whatever as method.infoType"); ???
-      }
-
-      val params = typeInfo match {
-        case MethodType(_, paramSymbols) =>
-          paramSymbols.collect { case s: MethodSymbol => descriptorType(s.infoType.asInstanceOf[TypeRefType]) }.toList
-        case NullaryMethodType(_) => Nil
-      }
-      val ret = typeInfo match {
-        case NullaryMethodType(resType @ TypeRefType(_, _, _)) => descriptorType(resType)
-        case MethodType(refined @ RefinedType(_, _), _) => throw new UnsupportedOperationException("TODO: Refined return type")
-        case MethodType(resType @ TypeRefType(_, _, _), _) => descriptorType(resType)
-      }
-      Descriptor(params, ret)
+    val typeInfo = withScalaSigPrinter { printer =>
+      printer.printType(ms.infoType)(printer.TypeFlags(true))
     }
 
-    MethodName(aClass, name, descriptor)
+    RawScalaField(javaName, scalaName, typeInfo, access)
   }
 
-  def toFqn(sym: Symbol): FullyQualifiedName = sym match {
-    case cs: ClassSymbol => className(sym)
-    case os: ObjectSymbol => className(os)
-    case ms: MethodSymbol if ms.isMethod => methodName(ms)
-    case fs: MethodSymbol => fieldName(fs)
+  private def rawScalaMethod(ms: MethodSymbol): RawScalaMethod = {
+    val scalaName = ms.path
+    val access = getAccess(ms)
+    val signature = withScalaSigPrinter { printer =>
+      printer.printMethodType(ms.infoType, printResult = true)(printer.TypeFlags(true))
+    }
+
+    RawScalaMethod(scalaName, signature, access)
   }
 
 }

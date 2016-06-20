@@ -33,21 +33,9 @@ class ClassfileDepickler(file: FileObject) extends ScalapSymbolToFqn {
     }(breakOut)
   }
 
-  def getClasses: Seq[ClassName] = withScalaSig { sig =>
+  def getClasses: Seq[RawScalaClass] = withScalaSig { sig =>
     sig.symbols.collect {
-      case s: ClassSymbol if !s.name.contains("<local child>") => className(s)
-    }(breakOut)
-  }
-
-  def getFields: Seq[FieldName] = withScalaSig { sig =>
-    sig.symbols.collect {
-      case s: MethodSymbol if !s.isMethod && s.isLocal => fieldName(s)
-    }(breakOut)
-  }
-
-  def getMethods: Seq[MethodName] = withScalaSig { sig =>
-    sig.symbols.collect {
-      case ms: MethodSymbol if ms.isMethod && ms.parent.forall(!_.name.contains("<refinement>")) => methodName(ms)
+      case s: ClassSymbol if !(s.name.contains("<local child>") || s.name.contains("<refinement>")) => rawScalaClass(s)
     }(breakOut)
   }
 

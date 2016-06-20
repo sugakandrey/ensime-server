@@ -2,8 +2,9 @@
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 package org.ensime.indexer
 
-import scala.collection.immutable.Queue
+import org.ensime.api.DeclaredAs
 
+import scala.collection.immutable.Queue
 import org.objectweb.asm.Opcodes._
 
 sealed trait Access
@@ -228,4 +229,27 @@ final case class RawMethod(
   access: Access,
   generics: Option[String],
   line: Option[Int]
+)
+
+final case class RawScalaClass(
+  javaName: ClassName,
+  scalaName: String,
+  typeSignature: String,
+  access: Access,
+  declaredAs: DeclaredAs,
+  fields: Seq[RawScalaField],
+  methods: Seq[RawScalaMethod]
+)
+
+final case class RawScalaField(
+  javaName: FieldName,
+  scalaName: String,
+  typeInfo: String,
+  access: Access
+)
+
+final case class RawScalaMethod(
+  scalaName: String,
+  signature: String,
+  access: Access
 )
