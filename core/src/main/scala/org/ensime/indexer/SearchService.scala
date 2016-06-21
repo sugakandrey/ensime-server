@@ -334,15 +334,15 @@ class IndexingQueueActor(searchService: SearchService) extends Actor with ActorL
           else searchService.extractSymbolsFromClassOrJar(f).map(f -> )
       }).onComplete {
         case Failure(t) =>
-          log.error(s"failed to index batch of ${batch.size} files", t)
+          log.error(t, s"failed to index batch of ${batch.size} files")
         case Success(indexed) =>
           searchService.delete(indexed.map(_._1)(collection.breakOut)).onComplete {
             case Failure(t) =>
               searchService.semaphore.release()
-              log.error(s"failed to remove stale entries in ${batch.size} files", t)
+              log.error(t, s"failed to remove stale entries in ${batch.size} files")
             case Success(_) => indexed.foreach {
               case (file, syms) =>
-                val boost = searchService.isUserFile((file.getName))
+                val boost = searchService.isUserFile(file.getName)
                 val persisting = searchService.persist(FileCheck(file), syms, commitIndex = true, boost = boost)
 
                 persisting.onComplete {
@@ -350,7 +350,7 @@ class IndexingQueueActor(searchService: SearchService) extends Actor with ActorL
                 }
 
                 persisting.onComplete {
-                  case Failure(t) => log.error(s"failed to persist entries in $file", t)
+                  case Failure(t) => log.error(t, s"failed to persist entries in $file")
                   case Success(_) =>
                 }
             }

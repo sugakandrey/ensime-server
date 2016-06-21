@@ -240,7 +240,7 @@ class DebugTest extends EnsimeSpec
                 summary should startWith("Instance of scala.collection.immutable.$colon$colon")
                 exactly(1, debugFields) should matchPattern {
                   case DebugClassField(_, head, "java.lang.Object", summary) if (
-                    (head == "head" || head == "scala$collection$immutable$$colon$colon$$hd") &&
+                    (head == "head" || head == "hd") &&
                     summary.startsWith("Instance of java.lang.Integer")
                   ) =>
                 }
@@ -301,6 +301,33 @@ class DebugTest extends EnsimeSpec
             objArrayText should include("Instance of variables.One")
             objArrayText should include("Instance of java.lang.Boolean")
             objArrayText should include("Instance of java.lang.Integer")
+          }
+      }
+    }
+  }
+
+  they should "be retrievable for the BugFromGitter scenario" taggedAs Debugger in withEnsimeConfig { implicit config =>
+    withTestKit { implicit testkit =>
+      withProject { (project, asyncHelper) =>
+        implicit val p = (project, asyncHelper)
+        withDebugSession(
+          "variables.BugFromGitter",
+          "variables/BugFromGitter.scala",
+          31
+        ) { (threadId, variablesFile) =>
+            getVariableAsString(threadId, "actualTimes").text should be("10")
+
+            getVariableAsString(threadId, "name").text should be("\"Rory\"")
+
+            getVariableAsString(threadId, "times").text should be("5")
+
+            getVariableAsString(threadId, "arrayTest").text should be("Array(length = 4)[1,2,3,...]")
+
+            getVariableAsString(threadId, "listTest").text should
+              startWith("Instance of scala.collection.immutable.$colon$colon")
+
+            getVariableAsString(threadId, "person").text should
+              startWith("Instance of variables.Person")
           }
       }
     }

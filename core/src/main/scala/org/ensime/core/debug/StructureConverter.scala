@@ -21,12 +21,12 @@ class StructureConverter(private val sourceMap: SourceMap) {
    * @return The equivalent Ensime message
    */
   def convertValue(valueInfo: ValueInfoProfile): DebugValue = {
-    valueInfo match {
+    valueInfo.cache() match {
       case v if v.isNull => newDebugNull()
       case v if v.isVoid => convertVoid(v)
       case v if v.isArray => convertArray(v.toArrayInfo)
       case v if v.isString => convertString(v.toStringInfo)
-      case v if v.isObject => convertObject(v.toObjectInfo)
+      case v if v.isObject => convertObject(v.toObjectInfo.cache())
       case v if v.isPrimitive => convertPrimitive(v.toPrimitiveInfo)
     }
   }
@@ -140,7 +140,7 @@ class StructureConverter(private val sourceMap: SourceMap) {
           //       fields (from object instance)
           f.tryToValueInfo.orElse(
             obj.tryField(f.name).flatMap(_.tryToValueInfo)
-          ).map(_.toPrettyString).getOrElse("???")
+          ).map(_.cache()).map(_.toPrettyString).getOrElse("???")
         ))).getOrElse(Nil).toList ++ fields
 
       tpe = tpe.flatMap(_.superclassOption)
@@ -156,7 +156,7 @@ class StructureConverter(private val sourceMap: SourceMap) {
    */
   def convertStackFrame(frame: FrameInfoProfile): DebugStackFrame = {
     val locals = ignoreErr(
-      frame.indexedLocalVariables.map(convertStackLocal).toList,
+      frame.indexedLocalVariables.map(_.cache()).map(convertStackLocal).toList,
       List.empty
     )
 
@@ -184,6 +184,7 @@ class StructureConverter(private val sourceMap: SourceMap) {
   private def convertStackLocal(
     variableInfo: VariableInfoProfile
   ): DebugStackLocal = {
+    variableInfo.cache()
     DebugStackLocal(
       variableInfo.offsetIndex,
       variableInfo.name,
