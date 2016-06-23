@@ -5,7 +5,7 @@ package org.ensime.core
 import scala.tools.nsc.interactive.Global
 
 import org.ensime.indexer._
-import org.ensime.util.list._
+import scala.reflect.NameTransformer
 import org.slf4j.Logger
 
 /**
@@ -30,13 +30,39 @@ trait FqnToSymbol { self: Global with SymbolToFqn =>
     (sym, name) => sym.info.member(name)
   }
 
-  def toSymbol(scalaName: String, rootSymbol: Symbol = RootClass): Symbol = {
+  def toSymbol(scalaName: String, assumeTerm: Option[Boolean] = None, rootSymbol: Symbol = RootClass): Symbol = {
     if (rootSymbol == RootClass) primitiveSymbolByName.get(scalaName)
     else None
   } getOrElse {
+    assumeTerm.map(term => segToSym(nme.segments(scalaName, assumeTerm = term), rootSymbol))
+  }.getOrElse {
     val term = segToSym(nme.segments(scalaName, assumeTerm = true), rootSymbol)
     if (term != NoSymbol) term
     else segToSym(nme.segments(scalaName, assumeTerm = false), rootSymbol)
+  }
+
+  private def traverseSymbolTree(sym: Symbol, name: Seq[String], isTermName: Boolean): Symbol = {
+    def chooseValid(termName: Symbol, typeName: Symbol): Symbol =
+      if (termName != NoSymbol) termName
+      else typeName
+
+    def traverseDepthFirst(sym: Symbol, names: Seq[String]): Symbol = {
+      if (sym == NoSymbol) NoSymbol
+      else {
+        val currentNamePart = NameTransformer.encode(names.head)
+        val termName = sym.info.member(newTermName(currentNamePart))
+        val typeName = sym.info.member(newTypeName(currentNamePart))
+        if (names.length == 1) {
+          if (isTermName) termName else typeName
+        } else {
+          chooseValid(
+            traverseDepthFirst(termName, names.tail),
+            traverseDepthFirst(typeName, names.tail)
+          )
+        }
+      }
+    }
+    traverseDepthFirst(sym, name)
   }
 
   def toSymbol(fqn: FullyQualifiedName): Symbol = fqn match {
@@ -47,22 +73,12 @@ trait FqnToSymbol { self: Global with SymbolToFqn =>
         }
 
     case ClassName(p, name) =>
-      import scala.reflect.NameTransformer
       val symbolicName = NameTransformer.decode(name)
-      val (outer, inner) = symbolicName.split("\\$").toList.initLast
+      val names = symbolicName.split("\\$").toList
 
-      // $ is used to select Term names, no $ at end is a Type name
-      val container = outer.foldLeft(toSymbol(p)) {
-        (owner, name) =>
-          val encodedName = NameTransformer.encode(name)
-          val term = owner.info.member(newTermName(encodedName))
-          if (term != NoSymbol) term
-          else owner.info.member(newTypeName(encodedName))
-      }
-
-      val encodedInner = NameTransformer.encode(inner)
-      val select = if (name.endsWith("$")) newTermName(encodedInner) else newTypeName(encodedInner)
-      container.info.member(select)
+      val isTermName = name.endsWith("$")
+      val container = traverseSymbolTree(toSymbol(p), names, isTermName)
+      container
 
     case f @ FieldName(c, name) =>
       val field = toSymbol(c).info.member(newTermName(name))

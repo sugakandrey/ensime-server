@@ -63,16 +63,21 @@ class FqnToSymbolSpec extends EnsimeSpec
     runForPositionInCompiledSource(
       config, cc,
       "package com.example",
-      "class A {}",
-      "object A { ",
-      "  object F@foo@oo {}",
+      "object A {}",
+      "class A { ",
+      "  object F@foo@oo {",
+      "    class Qux { class Te@test@st }",
+      "    object Qux { }",
+      "}",
+      "  class Foo",
       "  class B@bar@ar {}",
       "}"
     ) { (p, label, cc) =>
         cc.askSymbolByFqn(cc.askSymbolFqn(p).get).get shouldBe {
           label match {
-            case "foo" => cc.askSymbolByScalaName("com.example.A.Foo")
-            case "bar" => cc.askSymbolByScalaName("com.example.A.Bar")
+            case "test" => cc.askSymbolByScalaName("com.example.A#Foo.Qux#Test")
+            case "foo" => cc.askSymbolByScalaName("com.example.A#Foo")
+            case "bar" => cc.askSymbolByScalaName("com.example.A#Bar")
           }
         }.get
       }
