@@ -102,8 +102,8 @@ trait RichCompilerControl extends CompilerControl with RefactoringControl with C
     askOption(symbolAt(p).map(toFqn)).flatten
   def askTypeFqn(p: Position): Option[FullyQualifiedName] =
     askOption(typeAt(p).map { tpe => toFqn(tpe.typeSymbol) }).flatten
-  def askSymbolByScalaName(name: String): Option[Symbol] =
-    askOption(toSymbol(name))
+  def askSymbolByScalaName(name: String, assumeTerm: Option[Boolean] = None): Option[Symbol] =
+    askOption(toSymbol(name, assumeTerm))
   def askSymbolByFqn(fqn: FullyQualifiedName): Option[Symbol] =
     askOption(toSymbol(fqn))
   def askSymbolAt(p: Position): Option[Symbol] =
@@ -139,7 +139,7 @@ trait RichCompilerControl extends CompilerControl with RefactoringControl with C
           members, firstName, matchEntire = true, caseSens = true
         ).map { _.sym }
         val restOfPath = nameSegs.drop(1).mkString(".")
-        val syms = roots.map { toSymbol(restOfPath, _) }
+        val syms = roots.map { toSymbol(restOfPath, None, _) }
         syms.find(_.tpe != NoType).map { sym => TypeInfo(sym.tpe) }
       }
     ) yield infos).flatten
