@@ -27,12 +27,10 @@ trait ScalapSymbolToFqn {
   def rawScalaClass(sym: ClassSymbol): RawScalaClass = {
     val javaName = className(sym)
     val aPackage = sym.enclosingPackage
-    val scalaName = sym.ownerChain.sliding(2, 1).map {
-      case x :: y :: Nil =>
-        val sep = if (x.isModule) "." else "#"
-        x.name + sep
-      case last :: Nil => last.name
-    }.mkString
+    val ownerChain = sym.ownerChain
+    val name =
+      ownerChain.init.map(s => s.name + (if (s.isModule) "." else "#")).mkString + ownerChain.last.name
+
     val access = getAccess(sym)
 
     val declaredAs =
@@ -44,19 +42,21 @@ trait ScalapSymbolToFqn {
       printer.printType(sym.infoType)(printer.TypeFlags(true))
     }
 
+    val scalaName = aPackage + "." + name
+    val parentPrefix = if (sym.isModule) scalaName + "." else scalaName + "#"
     val fields = sym.children.collect {
       case ms: MethodSymbol if !ms.isMethod && ms.isLocal =>
-        rawScalaField(ms)
+        rawScalaField(ms, parentPrefix)
     }
 
     val methods = sym.children.collect {
       case ms: MethodSymbol if ms.isMethod =>
-        rawScalaMethod(ms)
+        rawScalaMethod(ms, parentPrefix)
     }
 
     RawScalaClass(
       javaName,
-      aPackage + scalaName,
+      scalaName,
       typeSignature,
       access,
       declaredAs,
@@ -74,11 +74,11 @@ trait ScalapSymbolToFqn {
     ClassName(pkg, name + postfix)
   }
 
-  private def rawScalaField(ms: MethodSymbol): RawScalaField = {
+  private def rawScalaField(ms: MethodSymbol, parentPrefix: String): RawScalaField = {
     val aClass = className(ms.symbolInfo.owner)
     val name = ms.name
     val javaName = FieldName(aClass, name)
-    val scalaName = ms.path
+    val scalaName = parentPrefix + name
     val access = getAccess(ms)
 
     val typeInfo = withScalaSigPrinter { printer =>
@@ -88,8 +88,8 @@ trait ScalapSymbolToFqn {
     RawScalaField(javaName, scalaName, typeInfo, access)
   }
 
-  private def rawScalaMethod(ms: MethodSymbol): RawScalaMethod = {
-    val scalaName = ms.path
+  private def rawScalaMethod(ms: MethodSymbol, parentPrefix: String): RawScalaMethod = {
+    val scalaName = parentPrefix + ms.name
     val access = getAccess(ms)
     val signature = withScalaSigPrinter { printer =>
       printer.printMethodType(ms.infoType, printResult = true)(printer.TypeFlags(true))
