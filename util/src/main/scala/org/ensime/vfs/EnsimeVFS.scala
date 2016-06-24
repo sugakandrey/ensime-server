@@ -101,6 +101,7 @@ object `package` {
         zip.asInstanceOf[ZipFile].close()
 
       vfs.getFilesCache.clear(fs)
+      vfs.closeFileSystem(fs)
     }
   }
 }
