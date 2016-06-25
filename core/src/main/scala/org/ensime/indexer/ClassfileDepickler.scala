@@ -35,7 +35,7 @@ class ClassfileDepickler(file: FileObject) extends ScalapSymbolToFqn {
 
   def getClasses: Seq[RawScalaClass] = withScalaSig { sig =>
     sig.symbols.collect {
-      case s: ClassSymbol if !(s.name.contains("<local child>") || s.name.contains("<refinement>")) => rawScalaClass(s)
+      case s: ClassSymbol if !(s.name.contains("<local child>") || s.name.contains("<refinement>") || s.name.contains("anon")) => rawScalaClass(s)
     }(breakOut)
   }
 
