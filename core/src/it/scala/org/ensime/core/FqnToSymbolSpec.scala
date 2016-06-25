@@ -112,6 +112,33 @@ class FqnToSymbolSpec extends EnsimeSpec
     )
   }
 
+  it should "resolve overloaded symbols correctly" in withPresCompiler { (config, cc) =>
+    runForPositionInCompiledSource(
+      config, cc,
+      "package com.example",
+      "class Foo(val test: Boolean) {",
+      "  object bar {",
+      "     class B@baz@az",
+      "  }",
+      "  def bar(i: Int): Unit = ???",
+      "  object test {",
+      "    def q@qux@ux(): Unit = ???",
+      "  }",
+      "  def test(s: String): Unit = ???",
+      "}"
+    ) { (p, label, cc) =>
+        cc.askSymbolByFqn(cc.askSymbolFqn(p).get).get shouldBe {
+          label match {
+            case "baz" =>
+              cc.askSymbolByScalaName("com.example.Foo#bar.Baz")
+            case "qux" =>
+              println(cc.askSymbolFqn(p).get)
+              cc.askSymbolByScalaName("com.example.Foo#test.qux")
+          }
+        }.get
+      }
+  }
+
   it should "convert class FQNs with special characters to symbols" in withPresCompiler { (config, cc) =>
     runForPositionInCompiledSource(
       config, cc,

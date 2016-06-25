@@ -3,8 +3,9 @@
 package org.ensime.core
 
 import scala.tools.nsc.interactive.Global
-
 import org.ensime.indexer._
+import org.ensime.api.DeclaredAs
+
 import scala.reflect.NameTransformer
 import org.slf4j.Logger
 
@@ -27,14 +28,27 @@ trait FqnToSymbol { self: Global with SymbolToFqn =>
   )
 
   private def segToSym(seg: List[Name], root: Symbol): Symbol = seg.foldLeft(root) {
-    (sym, name) => sym.info.member(name)
+    (sym, name) => resolveOverloaded(sym.info.member(name))
   }
 
-  def toSymbol(scalaName: String, assumeTerm: Option[Boolean] = None, rootSymbol: Symbol = RootClass): Symbol = {
+  private def resolveOverloaded(sym: Symbol): Symbol = sym match {
+    case term: TermSymbol if term.isOverloaded =>
+      val OverloadedType(_, alternatives) = term.info.asInstanceOf[OverloadedType]
+      alternatives.find(_.isModule).getOrElse(term)
+    case _ => sym
+  }
+
+  def toSymbol(scalaName: String, declaredAs: Option[DeclaredAs] = None, rootSymbol: Symbol = RootClass): Symbol = {
     if (rootSymbol == RootClass) primitiveSymbolByName.get(scalaName)
     else None
   } getOrElse {
-    assumeTerm.map(term => segToSym(nme.segments(scalaName, assumeTerm = term), rootSymbol))
+    declaredAs.map { decl =>
+      val assumeTerm = decl match {
+        case DeclaredAs.Class | DeclaredAs.Trait => false
+        case _ => true
+      }
+      segToSym(nme.segments(scalaName, assumeTerm = assumeTerm), rootSymbol)
+    }
   }.getOrElse {
     val term = segToSym(nme.segments(scalaName, assumeTerm = true), rootSymbol)
     if (term != NoSymbol) term
@@ -56,13 +70,13 @@ trait FqnToSymbol { self: Global with SymbolToFqn =>
           if (isTermName) termName else typeName
         } else {
           chooseValid(
-            traverseDepthFirst(termName, names.tail),
-            traverseDepthFirst(typeName, names.tail)
+            traverseDepthFirst(resolveOverloaded(termName), names.tail),
+            traverseDepthFirst(resolveOverloaded(typeName), names.tail)
           )
         }
       }
     }
-    traverseDepthFirst(sym, name)
+    resolveOverloaded(traverseDepthFirst(sym, name))
   }
 
   def toSymbol(fqn: FullyQualifiedName): Symbol = fqn match {
@@ -73,7 +87,19 @@ trait FqnToSymbol { self: Global with SymbolToFqn =>
         }
 
     case ClassName(p, name) =>
-      val symbolicName = NameTransformer.decode(name)
+      /**
+       * the {{{ if (name.startsWith("$") || name.contains("$$")) }}} hack is needed to properly resolve names
+       * in cases like this:
+       * {{{
+       *   package object foo {
+       *     object eq
+       *   }
+       * }}}
+       * where the actual classname is of form `foo$eq` which should not be decoded to `foo=`
+       */
+      val symbolicName =
+        if (name.startsWith("$") || name.contains("$$")) NameTransformer.decode(name)
+        else name
       val names = symbolicName.split("\\$").toList
 
       val isTermName = name.endsWith("$")

@@ -102,8 +102,8 @@ trait RichCompilerControl extends CompilerControl with RefactoringControl with C
     askOption(symbolAt(p).map(toFqn)).flatten
   def askTypeFqn(p: Position): Option[FullyQualifiedName] =
     askOption(typeAt(p).map { tpe => toFqn(tpe.typeSymbol) }).flatten
-  def askSymbolByScalaName(name: String, assumeTerm: Option[Boolean] = None): Option[Symbol] =
-    askOption(toSymbol(name, assumeTerm))
+  def askSymbolByScalaName(name: String, declaredAs: Option[DeclaredAs] = None): Option[Symbol] =
+    askOption(toSymbol(name, declaredAs))
   def askSymbolByFqn(fqn: FullyQualifiedName): Option[Symbol] =
     askOption(toSymbol(fqn))
   def askSymbolAt(p: Position): Option[Symbol] =
