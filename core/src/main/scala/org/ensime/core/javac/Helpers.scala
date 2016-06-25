@@ -95,4 +95,5 @@ trait Helpers extends UnsafeHelpers with SLF4JLogging {
       case _ => None
     }
   }
+
 }

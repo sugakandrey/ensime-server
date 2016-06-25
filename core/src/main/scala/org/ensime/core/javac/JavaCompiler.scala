@@ -10,11 +10,10 @@ import scala.collection.JavaConverters._
 
 import akka.actor.ActorRef
 import akka.event.slf4j.SLF4JLogging
-import com.sun.source.tree.{ Scope, IdentifierTree, MemberSelectTree }
+import com.sun.source.tree.Scope
 import com.sun.source.util.{ JavacTask, TreePath }
 import com.sun.tools.javac.util.Abort
 import javax.lang.model.`type`.{ TypeMirror }
-import javax.lang.model.element.ExecutableElement
 import javax.tools._
 import org.ensime.api._
 import org.ensime.core.DocSigPair
@@ -24,12 +23,18 @@ import org.ensime.util.file._
 import org.ensime.vfs._
 
 class JavaCompiler(
-    val config: EnsimeConfig,
-    val reportHandler: ReportHandler,
-    val indexer: ActorRef,
-    val search: SearchService,
-    val vfs: EnsimeVFS
-) extends JavaDocFinding with JavaCompletion with JavaSourceFinding with Helpers with SLF4JLogging {
+  val config: EnsimeConfig,
+  val reportHandler: ReportHandler,
+  val indexer: ActorRef,
+  val search: SearchService,
+  val vfs: EnsimeVFS
+) extends JavaDocFinding
+    with JavaCompletionsAtPoint
+    with JavaTypeAtPoint
+    with JavaSymbolAtPoint
+    with JavaSourceFinding
+    with Helpers
+    with SLF4JLogging {
 
   private val listener = new JavaDiagnosticListener()
   private val silencer = new SilencedDiagnosticListener()
@@ -86,47 +91,11 @@ class JavaCompiler(
     infos.headOption.flatMap { c => findInCompiledUnit(c, fqn) }
   }
 
-  def askTypeAtPoint(file: SourceFileInfo, offset: Int): Option[TypeInfo] = {
-    pathToPoint(file, offset) flatMap {
-      case (c: Compilation, path: TreePath) =>
-        getTypeMirror(c, offset).map(typeMirrorToTypeInfo)
-    }
-  }
-
-  def askSymbolAtPoint(file: SourceFileInfo, offset: Int): Option[SymbolInfo] = {
-    pathToPoint(file, offset) flatMap {
-      case (c: Compilation, path: TreePath) =>
-        def withName(name: String): Option[SymbolInfo] = {
-
-          val tpeMirror = Option(c.trees.getTypeMirror(path))
-          val nullTpe = BasicTypeInfo("NA", DeclaredAs.Nil, "NA", List.empty, List.empty, None)
-
-          Some(SymbolInfo(
-            fqn(c, path).map(_.toFqnString).getOrElse(name),
-            name,
-            findDeclPos(c, path),
-            tpeMirror.map(typeMirrorToTypeInfo).getOrElse(nullTpe)
-          ))
-        }
-        path.getLeaf match {
-          case t: IdentifierTree => withName(t.getName.toString)
-          case t: MemberSelectTree => withName(t.getIdentifier.toString)
-          case _ => None
-        }
-    }
-  }
-
   def askDocSignatureAtPoint(file: SourceFileInfo, offset: Int): Option[DocSigPair] = {
     pathToPoint(file, offset) flatMap {
       case (c: Compilation, path: TreePath) =>
         docSignature(c, path)
     }
-  }
-
-  def askCompletionsAtPoint(
-    file: SourceFileInfo, offset: Int, maxResults: Int, caseSens: Boolean
-  ): CompletionInfoList = {
-    completionsAt(file, offset, maxResults, caseSens)
   }
 
   protected def pathToPoint(file: SourceFileInfo, offset: Int): Option[(Compilation, TreePath)] = {
@@ -145,20 +114,8 @@ class JavaCompiler(
     }
   }
 
-  protected def typeMirrorToTypeInfo(tm: TypeMirror): TypeInfo =
-    BasicTypeInfo(tm.toString, DeclaredAs.Class, tm.toString, Nil, Nil, None)
-
-  protected def methodToTypeInfo(e: ExecutableElement): TypeInfo =
-    ArrowTypeInfo(
-      e.getSimpleName.toString, e.toString,
-      typeMirrorToTypeInfo(e.getReturnType),
-      ParamSectionInfo(
-        e.getParameters.asScala.map { param =>
-          param.getSimpleName.toString -> typeMirrorToTypeInfo(param.asType)
-        },
-        isImplicit = false
-      ) :: Nil
-    )
+  // protected def typeMirrorToTypeInfo(tm: TypeMirror): TypeInfo =
+  //   BasicTypeInfo(tm.toString(), DeclaredAs.Class, tm.toString, Nil, Nil, None)
 
   private def getTypeMirror(c: Compilation, offset: Int): Option[TypeMirror] = {
     val path: Option[TreePath] = PathFor(c, offset)
