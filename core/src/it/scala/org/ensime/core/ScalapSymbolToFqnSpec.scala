@@ -11,15 +11,14 @@ class ScalapSymbolToFqnSpec extends EnsimeSpec
     with RichPresentationCompilerTestUtils
     with ReallyRichPresentationCompilerFixture {
 
-  override def original: EnsimeConfig = EnsimeConfigFixture.ShapelessTestProject
+  override def original: EnsimeConfig = EnsimeConfigFixture.FqnsTestProject
 
-  private def verify(javaName: FullyQualifiedName, scalaName: String, isTerm: Boolean, cc: RichPresentationCompiler): Unit = {
+  private def verify(javaName: FullyQualifiedName, scalaName: String, declaredAs: DeclaredAs, cc: RichPresentationCompiler): Unit = {
     val byJavaName = cc.askSymbolByFqn(javaName).get
-    val byScalaName = cc.askSymbolByScalaName(scalaName, Some(isTerm)).get
+    val byScalaName = cc.askSymbolByScalaName(scalaName, Some(declaredAs)).get
     byJavaName should not be a[cc.NoSymbol]
     javaName match {
       case FieldName(_, _) => byJavaName shouldBe a[cc.TermSymbol]
-      case MethodName(_, _, _) => byJavaName shouldBe a[cc.MethodSymbol]
       case _ =>
     }
     byScalaName.fullName should ===(byJavaName.fullName)
@@ -32,36 +31,38 @@ class ScalapSymbolToFqnSpec extends EnsimeSpec
     val definedClassNames = new ClassfileDepickler(predef).getClasses
     definedClassNames.length should ===(22)
     definedClassNames.foreach { scalaClass =>
-      val isObject = scalaClass.declaredAs == DeclaredAs.Object
-      verify(scalaClass.javaName, scalaClass.scalaName, isObject, cc)
+      verify(scalaClass.javaName, scalaClass.scalaName, scalaClass.declaredAs, cc)
     }
   }
 
   it should "find and resolve field names in Predef" in withPresCompiler { (_, cc) =>
     val vfs = cc.vfs
-    val search = cc.search
 
     val predef = vfs.vres("scala/Predef.class")
     val fieldNames = new ClassfileDepickler(predef).getClasses.flatMap(_.fields)
     fieldNames.foreach { field =>
-      verify(field.javaName, field.scalaName, isTerm = true, cc)
+      verify(field.javaName, field.scalaName, DeclaredAs.Field, cc)
     }
   }
 
-  it should "index shapeless jar" in withPresCompiler { (config, cc) =>
+  it should "index all class file in typelevel libraries" in withPresCompiler { (config, cc) =>
     val vfs = cc.vfs
-    val shapelessFile = config.allJars.find(_.getName.contains("shapeless"))
-    val jar = vfs.vjar(shapelessFile.get)
-    val classFiles = jar.findFiles(ClassfileSelector) match {
-      case null => Nil
-      case files => files.toList
-    }
-    val classes = classFiles.flatMap(new ClassfileDepickler(_).getClasses)
-    classes.foreach { scalaClass =>
-      val isObject = scalaClass.declaredAs == DeclaredAs.Object
-      verify(scalaClass.javaName, scalaClass.scalaName, isObject, cc)
-      scalaClass.fields.foreach { field =>
-        verify(field.javaName, field.scalaName, isTerm = true, cc)
+    val jars = config.allJars
+    jars.foreach { file =>
+      val jar = vfs.vjar(file)
+      val classes = (jar.findFiles(ClassfileSelector) match {
+        case null => Nil
+        case files => files.toList
+      }).flatMap(new ClassfileDepickler(_).getClasses)
+      classes.foreach { scalaClass =>
+        verify(scalaClass.javaName, scalaClass.scalaName, scalaClass.declaredAs, cc)
+        scalaClass.fields.foreach { field =>
+          verify(field.javaName, field.scalaName, DeclaredAs.Field, cc)
+        }
+        scalaClass.methods.foreach { method =>
+          val methodSym = cc.askSymbolByScalaName(method.scalaName, Some(DeclaredAs.Method)).get
+          methodSym shouldBe a[cc.TermSymbol]
+        }
       }
     }
   }
