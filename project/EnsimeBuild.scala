@@ -219,6 +219,13 @@ object EnsimeBuild extends Build {
     libraryDependencies ++= Sensible.shapeless(scalaVersion.value)
   )
 
+  lazy val testingFqns = Project("testingFqns", file("testing/fqns")).settings (
+    libraryDependencies ++= Sensible.shapeless(scalaVersion.value) ++ Seq(
+      "org.typelevel" %% "cats" % "0.6.0" % Test intransitive(),
+      "org.spire-math" %% "spire" % "0.11.0" % Test intransitive()
+    )
+  )
+
   lazy val testingDebug = Project("testingDebug", file("testing/debug")).settings(
     scalacOptions in Compile := Seq()
   )
