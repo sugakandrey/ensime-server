@@ -6,6 +6,7 @@ import java.nio.charset.StandardCharsets
 import org.ensime.api.DeclaredAs
 import org.ensime.indexer._
 
+import scala.tools.scalap.scalax.rules.ScalaSigParserError
 import scala.tools.scalap.scalax.rules.scalasig._
 
 trait ScalapSymbolToFqn {
@@ -15,8 +16,12 @@ trait ScalapSymbolToFqn {
     val baos = new ByteArrayOutputStream()
     val ps = new PrintStream(baos)
     val printer = new ScalaSigPrinter(ps, true)
-    code(printer)
-    new String(baos.toByteArray, StandardCharsets.UTF_8)
+    try {
+      code(printer)
+      new String(baos.toByteArray, StandardCharsets.UTF_8)
+    } catch {
+      case e: ScalaSigParserError => ""
+    }
   }
 
   private def getAccess(sym: Symbol): Access =
