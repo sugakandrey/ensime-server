@@ -114,9 +114,6 @@ class JavaCompiler(
     }
   }
 
-  // protected def typeMirrorToTypeInfo(tm: TypeMirror): TypeInfo =
-  //   BasicTypeInfo(tm.toString(), DeclaredAs.Class, tm.toString, Nil, Nil, None)
-
   private def getTypeMirror(c: Compilation, offset: Int): Option[TypeMirror] = {
     val path: Option[TreePath] = PathFor(c, offset)
     // Uncomment to debug the AST path.
