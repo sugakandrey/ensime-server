@@ -105,7 +105,7 @@ class IndexService(path: Path) {
     if (boost) {
       fqns foreach { fqn =>
         val currentBoost = fqn.boost("fqn")
-        fqn.boostText("fqn", currentBoost + 1f)
+        fqn.boostText("fqn", currentBoost + .5f)
       }
     }
 
