@@ -53,5 +53,8 @@ object `package` {
     def boostText(f: String, boost: Float) = {
       d.getField(f).asInstanceOf[TextField].setBoost(boost)
     }
+
+    def boost(f: String): Float =
+      d.getField(f).asInstanceOf[TextField].boost()
   }
 }
