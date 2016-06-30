@@ -6,7 +6,7 @@ import java.io.{ File, FileInputStream, InputStream }
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 
-import scala.collection.JavaConverters._
+import scala.collection.JavaConversions._
 
 import akka.actor.ActorRef
 import akka.event.slf4j.SLF4JLogging
@@ -39,37 +39,19 @@ class JavaCompiler(
   private val listener = new JavaDiagnosticListener()
   private val silencer = new SilencedDiagnosticListener()
   private val cp = (config.allJars ++ config.targetClasspath).mkString(File.pathSeparator)
-  private var workingSet = new ConcurrentHashMap[String, JavaFileObject]()
+  private val workingSet = new ConcurrentHashMap[String, JavaFileObject]()
 
-  // Cache the filemanager so we can re-use jars on the classpath. This has
-  // *very* large performance implications: ensime-server/issues/1262
-  //
-  // Warning from docs: "An object of this interface is not required to
-  //   support multi-threaded access, that is, be synchronized."
-  var sharedFileManager: Option[JavaFileManager] = None
+  lazy val compiler = ToolProvider.getSystemJavaCompiler()
+  lazy val fileManager: JavaFileManager = compiler.getStandardFileManager(listener, null, DefaultCharset)
 
   def getTask(
     lint: String,
     listener: DiagnosticListener[JavaFileObject],
     files: java.lang.Iterable[JavaFileObject]
   ): JavacTask = {
-    val compiler = ToolProvider.getSystemJavaCompiler()
-
-    // Try to re-use file manager.
-    // Note: we can't re-use the compiler, as that will
-    // explode with 'Compilation in progress' on jdk6.
-    // see comments on ensime-server/pull/1108
-    val fileManager = sharedFileManager match {
-      case Some(fm) => fm
-      case _ =>
-        val fm = compiler.getStandardFileManager(listener, null, DefaultCharset)
-        sharedFileManager = Some(fm)
-        fm
-    }
-
     compiler.getTask(null, fileManager, listener, List(
       "-cp", cp, "-Xlint:" + lint, "-proc:none"
-    ).asJava, null, files).asInstanceOf[JavacTask]
+    ), null, files).asInstanceOf[JavacTask]
   }
 
   def internSource(sf: SourceFileInfo): JavaFileObject = {
@@ -140,9 +122,16 @@ class JavaCompiler(
     val inputJfos = inputs.map { sf => internSource(sf).toUri }.toSet
     val task = getTask("none", silencer, workingSet.values)
     val t = System.currentTimeMillis()
+
     try {
-      val units = task.parse().asScala.filter { unit => inputJfos.contains(unit.getSourceFile.toUri) }
+
+      val units = task.parse().filter(
+        unit => inputJfos.contains(
+          unit.getSourceFile.toUri
+        )
+      )
         .map(Compilation(task, _)).toVector
+
       task.analyze()
       log.info("Parsed and analyzed for trees: " + (System.currentTimeMillis() - t) + "ms")
       units
