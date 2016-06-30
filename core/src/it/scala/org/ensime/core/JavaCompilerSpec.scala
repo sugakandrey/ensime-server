@@ -320,4 +320,43 @@ class JavaCompilerSpec extends EnsimeSpec
       }
   }
 
+  it should "support Java 7 syntax features" in {
+    withJavaCompiler { (_, config, cc, store, search) =>
+      runForPositionInCompiledSource(config, cc, """
+        | import java.io.File;
+        | import java.util.HashMap;
+        | import java.util.Map;
+        | import java.io.FileInputStream;
+        | import java.io.DataOutputStream;
+        | import java.io.IOException;
+        | import java.lang.ArrayIndexOutOfBoundsException;
+        | class Java7Test {
+        |   private void main() {
+        |     Map<Long, String> aMap = new HashMap<>(); // diamond operator
+        |     aM@0@ap.put(1L, "ONE");
+        |     String one = aMap.get(1L);
+        |     switch(o@1@ne) { // switch over strings
+        |       case "O@2@NE":
+        |         break;
+        |       default:
+        |        break
+        |     }
+        |     int m@3@illion = 1_000_000; //numeric literals with underscores
+        |     try(FileOutputStream f@4@os = new FileOutputStream("movies.txt"); //resource mamagement
+        |       DataOutputStream dos = new DataOutputStream(fos)) {
+        |     } catch(ArrayIndexOutOfBoundsException | IOException e@5@x) { } //multi catch block
+        |   }
+        |}""".stripMargin) { (sf, offset, label, cc) =>
+        val info = cc.askTypeAtPoint(sf, offset).get
+        label match {
+          case "0" => info.name shouldBe "java.util.Map<java.lang.Long,java.lang.String>"
+          case "1" => info.name shouldBe "java.lang.String"
+          case "2" => info.name shouldBe "java.lang.String"
+          case "3" => info.name shouldBe "int"
+          case "4" => info.name shouldBe "FileOutputStream"
+          case "5" => info.name shouldBe "java.lang.Exception"
+        }
+      }
+    }
+  }
 }
