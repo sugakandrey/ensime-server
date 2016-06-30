@@ -26,8 +26,11 @@ trait JavaSymbolAtPoint { requires: JavaCompiler =>
           typeInfo <- Option(c.trees.getTypeMirror(path))
             .map(typeMirrorToTypeInfo(identifierName, _))
         } yield {
+
           SymbolInfo(
-            fqn(c, path).map(_.toFqnString).getOrElse(identifierName),
+            fqn(c, path)
+              .map(toSymbolName(_))
+              .getOrElse(identifierName),
             identifierName,
             findDeclPos(c, path),
             typeInfo

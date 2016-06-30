@@ -21,6 +21,7 @@ import org.ensime.indexer.SearchService
 import org.ensime.util.ReportHandler
 import org.ensime.util.file._
 import org.ensime.vfs._
+import org.ensime.indexer.FullyQualifiedName
 
 class JavaCompiler(
   val config: EnsimeConfig,
@@ -86,7 +87,7 @@ class JavaCompiler(
     typecheckAll()
   }
 
-  def askLinkPos(fqn: JavaFqn, file: SourceFileInfo): Option[SourcePosition] = {
+  def askLinkPos(fqn: FullyQualifiedName, file: SourceFileInfo): Option[SourcePosition] = {
     val infos = typecheckForUnits(List(file))
     infos.headOption.flatMap { c => findInCompiledUnit(c, fqn) }
   }
