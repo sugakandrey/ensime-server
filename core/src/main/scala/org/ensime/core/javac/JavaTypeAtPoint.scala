@@ -3,8 +3,9 @@
 package org.ensime.core.javac
 
 import com.sun.source.util.TreePath
-import org.ensime.api.{ BasicTypeInfo, TypeInfo, ArrowTypeInfo, ParamSectionInfo }
+import org.ensime.api.{ TypeInfo, ArrowTypeInfo, ParamSectionInfo }
 import org.ensime.api.{ SourceFileInfo, DeclaredAs }
+import org.ensime.model.BasicTypeInfo
 
 import javax.lang.model.`type`.{ TypeMirror, ExecutableType }
 
@@ -21,7 +22,7 @@ trait JavaTypeAtPoint { requires: JavaCompiler =>
 
   private def typeMirrorToTypeInfo(t: TypeMirror): TypeInfo = t match {
     case t: ExecutableType => executableTypeToTypeInfo(t)
-    case t => BasicTypeInfo(t.toString, DeclaredAs.Class, t.toString, Nil, Nil, None)
+    case t => BasicTypeInfo(t.toString, DeclaredAs.Class, t.toString)
 
   }
 
@@ -49,7 +50,7 @@ trait JavaTypeAtPoint { requires: JavaCompiler =>
             s"arg$index" -> typeMirrorToTypeInfo(param)
         },
         isImplicit = false
-      ) :: Nil
+      ) :: Nil, Nil
     )
   }
 }

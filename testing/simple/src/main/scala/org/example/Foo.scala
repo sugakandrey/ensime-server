@@ -30,3 +30,8 @@ class Qux {
   List(1, 2, 3).head + 2
   val x = Bar.Bla
 }
+
+object WithPolyMethod {
+  def poly[A, B](a: A, b: B): (A, B) = (a, b)
+  val _ = poly(1, true)
+}

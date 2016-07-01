@@ -15,8 +15,9 @@ import com.sun.source.util.TreePath
 import javax.lang.model.`type`.TypeMirror
 import javax.lang.model.element.{ Element, ExecutableElement, PackageElement, TypeElement, VariableElement }
 import javax.lang.model.util.ElementFilter
-import org.ensime.api._
+import org.ensime.api, api.{ BasicTypeInfo => _, _ }
 import org.ensime.core.CompletionUtil
+import org.ensime.model.BasicTypeInfo
 import org.ensime.util.file._
 import scala.collection.JavaConversions._
 
@@ -238,7 +239,7 @@ trait JavaCompletionsAtPoint { requires: JavaCompiler =>
   private def shortMethodName(t: ExecutableElement): String = methodName(t)(_.toString.split("\\.").last)
 
   private def typeMirrorToTypeInfo(t: TypeMirror): TypeInfo =
-    BasicTypeInfo(t.toString, DeclaredAs.Class, t.toString, Nil, Nil, None)
+    BasicTypeInfo(t.toString, DeclaredAs.Class, t.toString)
 
   private def methodInfo(e: ExecutableElement, relevance: Int): CompletionInfo = {
 
@@ -253,7 +254,7 @@ trait JavaCompletionsAtPoint { requires: JavaCompiler =>
       ParamSectionInfo(
         params,
         isImplicit = false
-      ) :: Nil
+      ) :: Nil, Nil
     )
 
     CompletionInfo(

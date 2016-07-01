@@ -451,6 +451,7 @@ sealed trait TypeInfo extends EntityInfo {
   def typeArgs: Iterable[TypeInfo]
   def members: Iterable[EntityInfo]
   def pos: Option[SourcePosition]
+  def typeParams: List[TypeInfo]
 
   final def declaredAs = declAs
   final def args = typeArgs
@@ -462,14 +463,16 @@ final case class BasicTypeInfo(
   fullName: String,
   typeArgs: Iterable[TypeInfo],
   members: Iterable[EntityInfo],
-  pos: Option[SourcePosition]
+  pos: Option[SourcePosition],
+  typeParams: List[TypeInfo]
 ) extends TypeInfo
 
 final case class ArrowTypeInfo(
     name: String,
     fullName: String,
     resultType: TypeInfo,
-    paramSections: Iterable[ParamSectionInfo]
+    paramSections: Iterable[ParamSectionInfo],
+    typeParams: List[TypeInfo]
 ) extends TypeInfo {
   def declAs = DeclaredAs.Nil
   def typeArgs = List.empty

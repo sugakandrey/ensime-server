@@ -3,9 +3,10 @@
 package org.ensime.core.javac
 
 import com.sun.source.util.TreePath
-import org.ensime.api.{ BasicTypeInfo, TypeInfo, ArrowTypeInfo, ParamSectionInfo }
+import org.ensime.api.{ TypeInfo, ArrowTypeInfo, ParamSectionInfo }
 import org.ensime.api.{ SourceFileInfo, DeclaredAs }
 import org.ensime.api.SymbolInfo
+import org.ensime.model.BasicTypeInfo
 
 import javax.lang.model.`type`.{ TypeMirror, ExecutableType }
 import com.sun.source.tree.{ IdentifierTree, MemberSelectTree }
@@ -41,11 +42,11 @@ trait JavaSymbolAtPoint { requires: JavaCompiler =>
 
   private def typeMirrorToTypeInfo(identifierName: String, t: TypeMirror): TypeInfo = t match {
     case t: ExecutableType => executableTypeToTypeInfo(identifierName, t)
-    case t => BasicTypeInfo(t.toString, DeclaredAs.Class, t.toString, Nil, Nil, None)
+    case t => BasicTypeInfo(t.toString, DeclaredAs.Class, t.toString)
   }
 
   private def typeMirrorToTypeInfo(t: TypeMirror): TypeInfo =
-    BasicTypeInfo(t.toString, DeclaredAs.Class, t.toString, Nil, Nil, None)
+    BasicTypeInfo(t.toString, DeclaredAs.Class, t.toString)
 
   private def name(identifierName: String, t: ExecutableType)(formatType: TypeMirror => String): String = {
 
@@ -76,7 +77,7 @@ trait JavaSymbolAtPoint { requires: JavaCompiler =>
             s"arg$index" -> typeMirrorToTypeInfo(param)
         },
         isImplicit = false
-      ) :: Nil
+      ) :: Nil, Nil
     )
   }
 }
