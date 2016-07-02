@@ -9,8 +9,9 @@ object ScalaSigApi {
   def log: Logger = LoggerFactory.getLogger(this.getClass)
 
   implicit class RichSymbol(val sym: Symbol) {
+
     /**
-     * @return true if this [[Symbol]] is top level class or object, false otherwise
+     * @return true if this symbol is top level class or object, false otherwise
      */
     def isTopLevel: Boolean = sym.parent match {
       case Some(ext: ExternalSymbol) => true
@@ -19,7 +20,7 @@ object ScalaSigApi {
     }
 
     /**
-     * @return top level parent of this [[Symbol]]
+     * @return top level parent of this symbol
      */
     def topLevelParent: Symbol = sym.parent match {
       case Some(ext: ExternalSymbol) => sym
@@ -39,7 +40,7 @@ object ScalaSigApi {
     }
 
     /**
-     * @return Dot separated, full javaName of enclosing package
+     * @return Dot separated, name of enclosing package
      */
     def enclosingPackage: String = sym.topLevelParent.parent.fold("")(_.path)
   }

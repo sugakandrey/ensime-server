@@ -132,7 +132,6 @@ class FqnToSymbolSpec extends EnsimeSpec
             case "baz" =>
               cc.askSymbolByScalaName("com.example.Foo#bar.Baz")
             case "qux" =>
-              println(cc.askSymbolFqn(p).get)
               cc.askSymbolByScalaName("com.example.Foo#test.qux")
           }
         }.get

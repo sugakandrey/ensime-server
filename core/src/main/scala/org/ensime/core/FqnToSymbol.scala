@@ -95,9 +95,9 @@ trait FqnToSymbol { self: Global with SymbolToFqn =>
        *     object eq
        *   }
        * }}}
-       * where the actual classname is of form `foo$eq` which should not be decoded to `foo=`
-       */
-      val symbolicName =
+        * where the actual classname is of form `foo$eq`, which is not equivalent to `foo=`
+        */
+  val symbolicName =
         if (name.startsWith("$") || name.contains("$$")) NameTransformer.decode(name)
         else name
       val names = symbolicName.split("\\$").toList
