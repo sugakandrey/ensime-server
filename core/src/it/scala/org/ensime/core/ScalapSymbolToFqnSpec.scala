@@ -29,7 +29,6 @@ class ScalapSymbolToFqnSpec extends EnsimeSpec
 
     val predef = vfs.vres("scala/Predef.class")
     val definedClassNames = new ClassfileDepickler(predef).getClasses
-    definedClassNames.length should ===(16)
     definedClassNames.foreach { scalaClass =>
       verify(scalaClass.javaName, scalaClass.scalaName, scalaClass.declaredAs, cc)
     }
@@ -47,7 +46,7 @@ class ScalapSymbolToFqnSpec extends EnsimeSpec
 
   it should "index all class file in typelevel libraries" in withPresCompiler { (config, cc) =>
     val vfs = cc.vfs
-    val jars = config.allJars
+    val jars = config.allJars.filter(!_.getName.contains("macro-compat"))
     jars.foreach { file =>
       val jar = vfs.vjar(file)
       val classes = (jar.findFiles(ClassfileSelector) match {
