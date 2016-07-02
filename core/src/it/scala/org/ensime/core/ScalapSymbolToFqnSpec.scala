@@ -29,7 +29,7 @@ class ScalapSymbolToFqnSpec extends EnsimeSpec
 
     val predef = vfs.vres("scala/Predef.class")
     val definedClassNames = new ClassfileDepickler(predef).getClasses
-    definedClassNames.length should ===(22)
+    definedClassNames.length should ===(16)
     definedClassNames.foreach { scalaClass =>
       verify(scalaClass.javaName, scalaClass.scalaName, scalaClass.declaredAs, cc)
     }
