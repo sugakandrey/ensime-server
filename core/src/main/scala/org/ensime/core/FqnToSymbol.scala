@@ -87,17 +87,7 @@ trait FqnToSymbol { self: Global with SymbolToFqn =>
         }
 
     case ClassName(p, name) =>
-      /**
-       * the {{{ if (name.startsWith("$") || name.contains("$$")) }}} hack is needed to properly resolve names
-       * in cases like this:
-       * {{{
-       *   package object foo {
-       *     object eq
-       *   }
-       * }}}
-        * where the actual classname is of form `foo$eq`, which is not equivalent to `foo=`
-        */
-  val symbolicName =
+      val symbolicName =
         if (name.startsWith("$") || name.contains("$$")) NameTransformer.decode(name)
         else name
       val names = symbolicName.split("\\$").toList
