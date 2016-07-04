@@ -520,6 +520,11 @@ class SwankFormatsSpec extends EnsimeSpec with EnsimeTestData {
     )
 
     marshal(
+      entityInfoTypeParams: EntityInfo,
+      entityInfoTypeParamsStr
+    )
+
+    marshal(
       typeInfo: EntityInfo,
       typeInfoStr
     )

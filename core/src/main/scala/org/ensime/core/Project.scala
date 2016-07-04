@@ -75,7 +75,7 @@ class Project(
         if (propOrFalse("ensime.exitAfterIndex"))
           context.parent ! ShutdownRequest("Index only run", isError = false)
       case Failure(problem) =>
-        log.warning(problem.toString)
+        log.warning(s"Refresh failed: ${problem.toString}")
         throw problem
     }(context.dispatcher)
     indexer = context.actorOf(Indexer(searchService), "indexer")

@@ -17,7 +17,8 @@ class RequestHandler(
 ) extends Actor with ActorLogging {
 
   override def preStart(): Unit = {
-    log.debug(envelope.req.toString)
+    if (log.isDebugEnabled)
+      log.debug(envelope.req.toString)
     envelope.req match {
       // multi-phase queries
       case DocUriAtPointReq(_, _) | DocUriForSymbolReq(_, _, _) =>

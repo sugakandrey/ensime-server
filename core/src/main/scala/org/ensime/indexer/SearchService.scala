@@ -123,9 +123,9 @@ class SearchService(
       }
     }.toSet ++ config.javaLibs.map(vfs.vfile)
 
-    def indexBase(base: FileObject, fileCheck: Option[FileCheck]): Future[Option[Int]] = {
+    def indexBase(base: FileObject, fileCheck: Option[FileCheck]): Future[Int] = {
       val outOfDate = fileCheck.map(_.changed).getOrElse(true)
-      if (!outOfDate) Future.successful(None)
+      if (!outOfDate) Future.successful(0)
       else {
         val boost = isUserFile(base.getName())
         val check = FileCheck(base)
@@ -142,7 +142,7 @@ class SearchService(
       val basesWithChecks: Set[(FileObject, Option[FileCheck])] = bases.map { base =>
         (base, checksLookup.get(base.getName().getURI()))
       }
-      Future.sequence(basesWithChecks.map { case (file, check) => indexBase(file, check) }).map(_.flatten.sum)
+      Future.sequence(basesWithChecks.map { case (file, check) => indexBase(file, check) }).map(_.sum)
     }
 
     def commitIndex(): Future[Unit] = {
@@ -170,7 +170,7 @@ class SearchService(
 
   def refreshResolver(): Unit = resolver.update()
 
-  def persist(check: FileCheck, symbols: List[FqnSymbol], commitIndex: Boolean, boost: Boolean): Future[Option[Int]] = {
+  def persist(check: FileCheck, symbols: List[FqnSymbol], commitIndex: Boolean, boost: Boolean): Future[Int] = {
     val iwork = Future { blocking { index.persist(check, symbols, commitIndex, boost) } }
     val dwork = db.persist(check, symbols)
     iwork.flatMap { _ => dwork }
@@ -306,6 +306,8 @@ class IndexingQueueActor(searchService: SearchService) extends Actor with ActorL
   // debounce and give us a chance to batch (which is *much* faster)
   var worker: Cancellable = _
 
+  private val advice = "If the problem persists, you may need to restart ensime."
+
   private def debounce(): Unit = {
     Option(worker).foreach(_.cancel())
     import context.dispatcher
@@ -329,21 +331,34 @@ class IndexingQueueActor(searchService: SearchService) extends Actor with ActorL
 
       log.debug(s"Indexing ${batch.size} files")
 
+      def retry(): Unit = {
+        batch.foreach(self !)
+      }
+
       Future.sequence(batch.map {
-        case (_, f) =>
-          if (!f.exists()) Future.successful(f -> Nil)
-          else searchService.extractSymbolsFromClassOrJar(f).map(f -> )
+        case (url, f) =>
+          val filename = f.getName.getPath
+          // I don't trust VFS's f.exists()
+          if (!File(filename).exists()) {
+            Future {
+              searchService.semaphore.acquire() // nasty, but otherwise we leak
+              f -> Nil
+            }
+          } else searchService.extractSymbolsFromClassOrJar(f).map(f -> )
       }).onComplete {
         case Failure(t) =>
-          log.error(s"failed to index batch of ${batch.size} files", t)
+          searchService.semaphore.release()
+          log.error(t, s"failed to index batch of ${batch.size} files. $advice")
+          retry()
         case Success(indexed) =>
           searchService.delete(indexed.map(_._1)(collection.breakOut)).onComplete {
             case Failure(t) =>
               searchService.semaphore.release()
-              log.error(s"failed to remove stale entries in ${batch.size} files", t)
+              log.error(t, s"failed to remove stale entries in ${batch.size} files. $advice")
+              retry()
             case Success(_) => indexed.foreach {
               case (file, syms) =>
-                val boost = searchService.isUserFile((file.getName))
+                val boost = searchService.isUserFile(file.getName)
                 val persisting = searchService.persist(FileCheck(file), syms, commitIndex = true, boost = boost)
 
                 persisting.onComplete {
@@ -351,7 +366,9 @@ class IndexingQueueActor(searchService: SearchService) extends Actor with ActorL
                 }
 
                 persisting.onComplete {
-                  case Failure(t) => log.error(s"failed to persist entries in $file", t)
+                  case Failure(t) =>
+                    log.error(t, s"failed to persist entries in $file. $advice")
+                    retry()
                   case Success(_) =>
                 }
             }

@@ -7,8 +7,9 @@ import scala.tools.scalap.scalax.rules.scalasig._
 
 import com.google.common.io.ByteStreams
 import org.apache.commons.vfs2.FileObject
+import org.ensime.core.ScalapSymbolToFqn
 
-class ClassfileDepickler(file: FileObject) {
+class ClassfileDepickler(file: FileObject) extends ScalapSymbolToFqn {
 
   val scalasig: Option[ScalaSig] = depickle
 
@@ -26,15 +27,19 @@ class ClassfileDepickler(file: FileObject) {
     } finally in.close()
   }
 
-  def getTypeAliases: List[RawType] = {
-    scalasig match {
-      case Some(sig: ScalaSig) =>
-        sig.symbols.collect {
-          case s: AliasSymbol => RawType(symbolName(s), access(s))
-        }(breakOut)
-      case None => Nil
-    }
+  def getTypeAliases: Seq[RawType] = withScalaSig { sig =>
+    sig.symbols.collect {
+      case s: AliasSymbol => RawType(symbolName(s), access(s))
+    }(breakOut)
   }
+
+  def getClasses: Seq[RawScalaClass] = withScalaSig { sig =>
+    sig.symbols.collect {
+      case s: ClassSymbol if !(s.name.contains("<local child>") || s.name.contains("<refinement>") || s.name.contains("anon") || s.isSynthetic) => rawScalaClass(s)
+    }(breakOut)
+  }
+
+  private def withScalaSig[A](code: ScalaSig => Seq[A]): Seq[A] = scalasig.fold(Seq.empty[A])(sig => code(sig))
 
   private def access(sym: Symbol): Access = {
     if (sym.isPrivate) Private

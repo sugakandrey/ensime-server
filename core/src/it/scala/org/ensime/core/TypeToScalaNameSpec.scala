@@ -2,8 +2,9 @@
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 package org.ensime.core
 
-import org.ensime.api._
+import org.ensime.api, api.{ BasicTypeInfo => _, _ }
 import org.ensime.fixture._
+import org.ensime.model.BasicTypeInfo
 import org.ensime.util.EnsimeSpec
 import DeclaredAs.{ Nil => _, _ }
 
@@ -26,21 +27,27 @@ class TypeToScalaNameSpec extends EnsimeSpec
       "    val ar@arrow1@row1: Int => String = (i: Int) => met@call1@hod1(i)",
       "    def met@method2@hod2(i: Int, j: Long): String = i.toString",
       "    val arrow2: Int => Long => String = (i: Int, j: Long) => met@call2@hod2(i, j)",
+      "    def rep@repeated@eated(i: Int, s: String, l: Long*): Long = l.head",
+      "    val lon@long@g: Long = rep@callrepeated@eated(123, \"hello\", 1L, 2L, 3L)",
       "    val arrow0: () => Int = null ; ar@call0@row0()",
       "    def tu@tuple2@ple2: (String, Int) = null",
       "    def hl@hlist@ist: Int :: String :: HNil = null",
       "    def re@refined@fined = 1.narrow",
       "    def ex@exciting@citing = 'f' ->> 23.narrow",
+      "    def by@byname@name(i: Int, s: => (Int, String)): String = s._2",
+      "    val s: String = by@bynamecall@name(15, (16, \"hello\"))",
       "}"
     ) { (p, label, cc) =>
         withClue(label) {
           cc.askTypeInfoAt(p).getOrElse { fail } shouldBe {
             label match {
               case "int" =>
-                BasicTypeInfo("Int", Class, "scala.Int", Nil, Nil, None)
+                BasicTypeInfo("Int", Class, "scala.Int")
+              case "long" =>
+                BasicTypeInfo("Long", Class, "scala.Long")
               case "method1" | "method2" =>
                 // the return type
-                BasicTypeInfo("String", Class, "java.lang.String", Nil, Nil, None)
+                BasicTypeInfo("String", Class, "java.lang.String")
               case "call1" =>
                 ArrowTypeInfo(
                   // we used to skip the surrounding brackets, but
@@ -50,72 +57,92 @@ class TypeToScalaNameSpec extends EnsimeSpec
                   BasicTypeInfo(
                     "String",
                     Class,
-                    "java.lang.String",
-                    Nil, Nil, None
+                    "java.lang.String"
                   ),
-                  List(ParamSectionInfo(List(("i", BasicTypeInfo("Int", Class, "scala.Int", Nil, Nil, None))), false))
+                  List(ParamSectionInfo(List(("i", BasicTypeInfo("Int", Class, "scala.Int"))), false)),
+                  Nil
                 )
               case "arrow1" =>
                 ArrowTypeInfo(
                   "(Int) => String",
                   "(scala.Int) => java.lang.String",
-                  BasicTypeInfo("String", Class, "java.lang.String", Nil, Nil, None),
+                  BasicTypeInfo("String", Class, "java.lang.String"),
                   List(ParamSectionInfo(
-                    List(("_0", BasicTypeInfo("Int", Class, "scala.Int", Nil, Nil, None))), false
-                  ))
+                    List(("_0", BasicTypeInfo("Int", Class, "scala.Int"))), false
+                  )),
+                  Nil
                 )
-
+              case "repeated" =>
+                BasicTypeInfo("Long", Class, "scala.Long")
+              case "callrepeated" =>
+                ArrowTypeInfo(
+                  "(Int, String, Long*) => Long",
+                  "(scala.Int, java.lang.String, scala.Long*) => scala.Long",
+                  BasicTypeInfo(
+                    "Long",
+                    Class,
+                    "scala.Long"
+                  ),
+                  List(ParamSectionInfo(List(
+                    ("i", BasicTypeInfo("Int", Class, "scala.Int")),
+                    ("s", BasicTypeInfo("String", Class, "java.lang.String")),
+                    ("l", api.BasicTypeInfo("Long*", Class, "scala.Long*",
+                      List(BasicTypeInfo("Long", Class, "scala.Long")), Nil, None, Nil))
+                  ), false)),
+                  Nil
+                )
               case "call0" =>
                 ArrowTypeInfo(
                   "() => Int",
                   "() => scala.Int",
-                  BasicTypeInfo("Int", Class, "scala.Int", Nil, Nil, None),
-                  List(ParamSectionInfo(Nil, false))
+                  BasicTypeInfo("Int", Class, "scala.Int"),
+                  List(ParamSectionInfo(Nil, false)),
+                  Nil
                 )
 
               case "call2" =>
                 ArrowTypeInfo(
                   "(Int, Long) => String",
                   "(scala.Int, scala.Long) => java.lang.String",
-                  BasicTypeInfo("String", Class, "java.lang.String", Nil, Nil, None),
+                  BasicTypeInfo("String", Class, "java.lang.String"),
                   List(ParamSectionInfo(List(
-                    ("i", BasicTypeInfo("Int", Class, "scala.Int", Nil, Nil, None)),
-                    ("j", BasicTypeInfo("Long", Class, "scala.Long", Nil, Nil, None))
-                  ), false))
+                    ("i", BasicTypeInfo("Int", Class, "scala.Int")),
+                    ("j", BasicTypeInfo("Long", Class, "scala.Long"))
+                  ), false)),
+                  Nil
                 )
               case "tuple2" =>
-                BasicTypeInfo(
+                api.BasicTypeInfo(
                   "(String, Int)",
                   Class,
                   "(java.lang.String, scala.Int)",
                   List(
-                    BasicTypeInfo("String", Class, "java.lang.String", Nil, Nil, None),
-                    BasicTypeInfo("Int", Class, "scala.Int", Nil, Nil, None)
+                    BasicTypeInfo("String", Class, "java.lang.String"),
+                    BasicTypeInfo("Int", Class, "scala.Int")
                   ),
-                  Nil, None
+                  Nil, None, Nil
                 )
 
               case "hlist" =>
-                BasicTypeInfo(
+                api.BasicTypeInfo(
                   "Int :: String :: HNil",
                   Class,
                   "scala.Int shapeless.:: java.lang.String shapeless.:: shapeless.HNil",
                   List(
-                    BasicTypeInfo("Int", Class, "scala.Int", Nil, Nil, None),
-                    BasicTypeInfo("String :: HNil", Class, "java.lang.String shapeless.:: shapeless.HNil",
+                    BasicTypeInfo("Int", Class, "scala.Int"),
+                    api.BasicTypeInfo("String :: HNil", Class, "java.lang.String shapeless.:: shapeless.HNil",
                       List(
-                        BasicTypeInfo("String", Class, "java.lang.String", Nil, Nil, None),
-                        BasicTypeInfo("HNil", Trait, "shapeless.HNil", Nil, Nil, None)
-                      ), Nil, None)
-                  ), Nil, None
+                        BasicTypeInfo("String", Class, "java.lang.String"),
+                        BasicTypeInfo("HNil", Trait, "shapeless.HNil")
+                      ), Nil, None, Nil)
+                  ), Nil, None, Nil
                 )
 
               case "refined" =>
                 BasicTypeInfo(
                   "Int(1)",
                   Class,
-                  "scala.Int(1)",
-                  Nil, Nil, None
+                  "scala.Int(1)"
                 )
 
               case "exciting" =>
@@ -123,8 +150,30 @@ class TypeToScalaNameSpec extends EnsimeSpec
                 BasicTypeInfo(
                   "Int(23) with KeyTag[Char('f'), Int(23)]",
                   Class,
-                  "scala.Int(23) with shapeless.labelled.KeyTag[scala.Char('f'), scala.Int(23)]",
-                  Nil, Nil, None
+                  "scala.Int(23) with shapeless.labelled.KeyTag[scala.Char('f'), scala.Int(23)]"
+                )
+
+              case "byname" =>
+                BasicTypeInfo(
+                  "String",
+                  Class,
+                  "java.lang.String"
+                )
+
+              case "bynamecall" =>
+                ArrowTypeInfo(
+                  "(Int, => (Int, String)) => String",
+                  "(scala.Int, => (scala.Int, java.lang.String)) => java.lang.String",
+                  BasicTypeInfo("String", Class, "java.lang.String"),
+                  List(ParamSectionInfo(List(
+                    ("i", BasicTypeInfo("Int", Class, "scala.Int")),
+                    ("s", ArrowTypeInfo("=> (Int, String)", "=> (scala.Int, java.lang.String)",
+                      api.BasicTypeInfo("(Int, String)", Class, "(scala.Int, java.lang.String)",
+                        List(
+                          BasicTypeInfo("Int", Class, "scala.Int"),
+                          BasicTypeInfo("String", Class, "java.lang.String")
+                        ), Nil, None, Nil), Nil, Nil))
+                  ), false)), Nil
                 )
             }
           }

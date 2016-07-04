@@ -33,6 +33,7 @@ trait Helpers { self: Global =>
   def isArrowType(tpe: Type): Boolean = {
     tpe match {
       case args: ArgsTypeRef if args.typeSymbol.fullName.startsWith("scala.Function") => true
+      case TypeRef(_, definitions.ByNameParamClass, _) => true
       case _: MethodType => true
       case _: PolyType => true
       case _ =>

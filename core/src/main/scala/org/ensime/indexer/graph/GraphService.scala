@@ -191,7 +191,7 @@ class GraphService(dir: File) extends SLF4JLogging {
     }
   }
 
-  def persist(check: FileCheck, symbols: Seq[FqnSymbol]): Future[Option[Int]] = withGraphAsync { implicit g =>
+  def persist(check: FileCheck, symbols: Seq[FqnSymbol]): Future[Int] = withGraphAsync { implicit g =>
 
     val fileV = RichGraph.upsertV[FileCheck, String](check) // bad atomic behaviour
 
@@ -204,7 +204,7 @@ class GraphService(dir: File) extends SLF4JLogging {
       RichGraph.insertE(symV, fileV, DefinedIn)
     }
 
-    Some(symbols.size)
+    symbols.size
   }
 
   /**

@@ -10,25 +10,22 @@ import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 
-import akka.actor.ActorRef
 import com.sun.source.tree.{ Scope, IdentifierTree, MemberSelectTree, Tree }
 import com.sun.source.util.TreePath
 import javax.lang.model.`type`.TypeMirror
 import javax.lang.model.element.{ Element, ExecutableElement, PackageElement, TypeElement, VariableElement }
 import javax.lang.model.util.ElementFilter
-import org.ensime.api._
+import org.ensime.api, api.{ BasicTypeInfo => _, _ }
 import org.ensime.core.CompletionUtil
+import org.ensime.model.BasicTypeInfo
 import org.ensime.util.file._
+import scala.collection.JavaConversions._
 
-trait JavaCompletion { this: JavaCompiler =>
+trait JavaCompletionsAtPoint { requires: JavaCompiler =>
 
   import CompletionUtil._
 
-  protected def scopeForPoint(file: SourceFileInfo, offset: Int): Option[(Compilation, Scope)]
-  protected def pathToPoint(file: SourceFileInfo, offset: Int): Option[(Compilation, TreePath)]
-  protected def indexer: ActorRef
-
-  def completionsAt(info: SourceFileInfo, offset: Int, maxResultsArg: Int, caseSens: Boolean): CompletionInfoList = {
+  def askCompletionsAtPoint(info: SourceFileInfo, offset: Int, maxResultsArg: Int, caseSens: Boolean): CompletionInfoList = {
     val maxResults = if (maxResultsArg == 0) Int.MaxValue else maxResultsArg
     val s = contentsAsString(info, DefaultCharset)
 
@@ -224,12 +221,48 @@ trait JavaCompletion { this: JavaCompiler =>
     }
   }
 
-  private def methodInfo(e: ExecutableElement, relevance: Int): CompletionInfo =
+  private def methodName(e: ExecutableElement)(formatType: TypeMirror => String): String = {
+
+    val params = e.getParameters.map { param =>
+      val paramType = formatType(param.asType())
+      val paramName = param.getSimpleName
+      s"$paramType $paramName"
+    }.mkString("(", ", ", ")")
+
+    val returns = formatType(e.getReturnType)
+    val identifierName = e.getSimpleName
+
+    s"$returns $identifierName$params"
+  }
+
+  private def fullMethodName(t: ExecutableElement): String = methodName(t)(_.toString())
+  private def shortMethodName(t: ExecutableElement): String = methodName(t)(_.toString.split("\\.").last)
+
+  private def typeMirrorToTypeInfo(t: TypeMirror): TypeInfo =
+    BasicTypeInfo(t.toString, DeclaredAs.Class, t.toString)
+
+  private def methodInfo(e: ExecutableElement, relevance: Int): CompletionInfo = {
+
+    val params = e.getParameters.map { param =>
+      param.getSimpleName.toString ->
+        typeMirrorToTypeInfo(param.asType())
+    }
+
+    val typeInfo = ArrowTypeInfo(
+      shortMethodName(e), fullMethodName(e),
+      typeMirrorToTypeInfo(e.getReturnType),
+      ParamSectionInfo(
+        params,
+        isImplicit = false
+      ) :: Nil, Nil
+    )
+
     CompletionInfo(
-      Some(methodToTypeInfo(e)),
+      Some(typeInfo),
       e.getSimpleName.toString,
       relevance, None
     )
+  }
 
   private def fieldInfo(e: VariableElement, relevance: Int): CompletionInfo = {
     val s = e.getSimpleName.toString

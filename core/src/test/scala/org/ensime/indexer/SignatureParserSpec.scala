@@ -81,6 +81,45 @@ class SignatureParserSpec extends EnsimeSpec {
         )
       )
     )
+
+    parseGeneric("<U:TA;A:Ljava/lang/Object;>Ljava/lang/Object;") should ===(
+      GenericClass(
+        Vector(
+          GenericParam("U", Vector(GenericVar("A"))),
+          GenericParam("A", Vector(GenericClassName(ObjectSignature)))
+        ),
+        Vector(
+          GenericClassName(ObjectSignature)
+        )
+      )
+    )
+
+    parseGeneric("<T:[I>Ljava/lang/Object;") should ===(
+      GenericClass(
+        Vector(
+          GenericParam("T", Vector(
+            GenericArray(GenericClassName(ClassName.PrimitiveInt))
+          ))
+        ),
+        Vector(
+          GenericClassName(ObjectSignature)
+        )
+      )
+    )
+
+    parseGeneric("<U:[TT;T:TU;>Ljava/lang/Object;") should ===(
+      GenericClass(
+        Vector(
+          GenericParam("U", Vector(
+            GenericArray(GenericVar("T"))
+          )),
+          GenericParam("T", Vector(
+            GenericVar("U")
+          ))
+        ),
+        Vector(GenericClassName(ObjectSignature))
+      )
+    )
   }
 
   it should "handle generic params with many classes" in {

@@ -32,7 +32,7 @@ class ServerActor(
 
   override val supervisorStrategy = OneForOneStrategy() {
     case ex: Exception =>
-      log.error(s"Error with monitor actor ${ex.getMessage}", ex)
+      log.error(ex, s"Error with monitor actor ${ex.getMessage}")
       self ! ShutdownRequest(s"Monitor actor failed with ${ex.getClass} - ${ex.toString}", isError = true)
       Stop
   }
@@ -65,7 +65,7 @@ class ServerActor(
     val preferredHttpPort = PortUtil.port(config.cacheDir, "http")
     Http()(context.system).bindAndHandle(webserver.route, interface, preferredHttpPort.getOrElse(0)).onComplete {
       case Failure(ex) =>
-        log.error(s"Error binding http endpoint ${ex.getMessage}", ex)
+        log.error(ex, s"Error binding http endpoint ${ex.getMessage}")
         selfRef ! ShutdownRequest(s"http endpoint failed to bind ($preferredHttpPort)", isError = true)
 
       case Success(ServerBinding(addr)) =>
@@ -74,7 +74,7 @@ class ServerActor(
           PortUtil.writePort(config.cacheDir, addr.getPort, "http")
         } catch {
           case ex: Throwable =>
-            log.error(s"Error initializing http endpoint ${ex.getMessage}", ex)
+            log.error(ex, s"Error initializing http endpoint ${ex.getMessage}")
             selfRef ! ShutdownRequest(s"http endpoint failed to initialise: ${ex.getMessage}", isError = true)
         }
     }(context.system.dispatcher)
@@ -87,7 +87,7 @@ class ServerActor(
       initialiseChildren()
     } catch {
       case t: Throwable =>
-        log.error(s"Error during startup - ${t.getMessage}", t)
+        log.error(t, s"Error during startup - ${t.getMessage}")
         self ! ShutdownRequest(t.toString, isError = true)
     }
   }

@@ -2,7 +2,7 @@ import SonatypeSupport._
 import com.typesafe.sbt.SbtScalariform._
 import java.io._
 import org.ensime.EnsimePlugin.JdkDir
-import org.ensime.Imports.EnsimeKeys
+import org.ensime.Imports.EnsimeKeys._
 import sbt.{ IntegrationTest => It, _ }
 import sbt.Keys._
 import sbtassembly.{ AssemblyKeys, MergeStrategy, PathList }
@@ -28,7 +28,7 @@ object EnsimeBuild extends Build {
        "io.spray" %% "spray-json" % "1.3.2"
     ),
 
-    // disabling shared memory gives a small performance boost to tests
+      // disabling shared memory gives a small performance boost to tests
     javaOptions ++= Seq("-XX:+PerfDisableSharedMem"),
 
     javaOptions in Test ++= Seq(
@@ -38,8 +38,6 @@ object EnsimeBuild extends Build {
     dependencyOverrides ++= Set(
       "org.apache.lucene" % "lucene-core" % luceneVersion
     ),
-
-    EnsimeKeys.scalariform := ScalariformKeys.preferences.value,
 
     HeaderKey.headers := Copyright.GplMap
 
@@ -140,7 +138,7 @@ object EnsimeBuild extends Build {
       commonSettings, commonItSettings
     ).settings(
       unmanagedJars in Compile += JavaTools,
-      EnsimeKeys.unmanagedSourceArchives += (baseDirectory in ThisBuild).value / "openjdk-langtools/openjdk7-langtools-src.zip",
+      ensimeUnmanagedSourceArchives += (baseDirectory in ThisBuild).value / "openjdk-langtools/openjdk7-langtools-src.zip",
       libraryDependencies ++= Seq(
         "com.orientechnologies" % "orientdb-graphdb" % Sensible.orientVersion
           exclude ("commons-collections", "commons-collections")
@@ -162,7 +160,7 @@ object EnsimeBuild extends Build {
         },
         "commons-lang" % "commons-lang" % "2.6",
         "com.googlecode.java-diff-utils" % "diffutils" % "1.3.0",
-        "org.scala-debugger" %% "scala-debugger-api" % "1.1.0-M1"
+        "org.scala-debugger" %% "scala-debugger-api" % "1.1.0-M2"
       ) ++ Sensible.testLibs("it,test") ++ Sensible.shapeless(scalaVersion.value)
     ) enablePlugins BuildInfoPlugin settings (
         buildInfoPackage := organization.value,
@@ -204,8 +202,8 @@ object EnsimeBuild extends Build {
 
   lazy val testingSimpleJar = Project("testingSimpleJar", file("testing/simpleJar")).settings(
     exportJars := true,
-    EnsimeKeys.useTarget in Compile := Some((artifactPath in (Compile, packageBin)).value),
-    EnsimeKeys.useTarget in Test := Some((artifactPath in (Test, packageBin)).value)
+    ensimeUseTarget in Compile := Some((artifactPath in (Compile, packageBin)).value),
+    ensimeUseTarget in Test := Some((artifactPath in (Test, packageBin)).value)
   )
 
   lazy val testingImplicits = Project("testingImplicits", file("testing/implicits")) settings (
@@ -221,6 +219,13 @@ object EnsimeBuild extends Build {
   // just to have access to shapeless
   lazy val testingShapeless = Project("testingShapeless", file("testing/shapeless")).settings (
     libraryDependencies ++= Sensible.shapeless(scalaVersion.value)
+  )
+
+  lazy val testingFqns = Project("testingFqns", file("testing/fqns")).settings (
+    libraryDependencies ++= Sensible.shapeless(scalaVersion.value) ++ Seq(
+      "org.typelevel" %% "cats" % "0.6.0" % Test intransitive(),
+      "org.spire-math" %% "spire" % "0.11.0" % Test intransitive()
+    )
   )
 
   lazy val testingDebug = Project("testingDebug", file("testing/debug")).settings(
@@ -243,7 +248,7 @@ object EnsimeBuild extends Build {
 
   // manual root project so we can exclude the testing projects from publication
   lazy val root = Project(id = "ensime", base = file(".")) settings (commonSettings) aggregate (
-    api, monkeys, util, testutil, s_express, jerky, swanky, core, server
+    api, monkeys, util, s_express, jerky, swanky, core, server
   ) dependsOn (server) settings (
       // e.g. `sbt ++2.11.8 ensime/assembly`
       test in assembly := {},

@@ -4,11 +4,12 @@ package org.ensime.core
 
 import java.io.File
 
-import org.ensime.api._
-import org.ensime.core.javac.JavaFqn
+import org.ensime.api, api.{ BasicTypeInfo => _, _ }
 import org.ensime.fixture._
 import org.ensime.indexer.SearchServiceTestUtils._
+import org.ensime.model.BasicTypeInfo
 import org.ensime.util.EnsimeSpec
+import org.ensime.indexer._
 
 class JavaCompilerSpec extends EnsimeSpec
     with IsolatedJavaCompilerFixture {
@@ -34,14 +35,26 @@ class JavaCompilerSpec extends EnsimeSpec
         "class Tes@0@t1 {",
         "  private void main() {",
         "    int fo@1@o = 1;",
-        "    System.out.println(fo@2@o);",
+        "    System.out.pri@2@ntln(fo@3@o);",
         "  }",
         "}") { (sf, offset, label, cc) =>
           val info = cc.askTypeAtPoint(sf, offset).get
           label match {
             case "0" => info.name shouldBe "Test1"
             case "1" => info.name shouldBe "int"
-            case "2" => info.name shouldBe "int"
+            case "2" => info shouldBe ArrowTypeInfo(
+              "void (int)", "void (int)",
+              BasicTypeInfo("void", DeclaredAs.Class, "void"),
+              ParamSectionInfo(
+                ("arg0" -> BasicTypeInfo(
+                  "int",
+                  DeclaredAs.Class,
+                  "int"
+                )) :: Nil,
+                isImplicit = false
+              ) :: Nil, Nil
+            )
+            case "3" => info.name shouldBe "int"
           }
         }
     }
@@ -52,9 +65,9 @@ class JavaCompilerSpec extends EnsimeSpec
       val test1 = SourceFileInfo(new File(config.rootDir, "testing/simple/src/main/java/org/example/Test1.java"))
       val test2 = SourceFileInfo(new File(config.rootDir, "testing/simple/src/main/java/org/example/Test2.java"))
 
-      cc.askLinkPos(JavaFqn("org.example", "Test2", None), test2) should matchPattern { case Some(OffsetSourcePosition(f, 22)) => }
-      cc.askLinkPos(JavaFqn("org.example", "Foo", None), test2) should matchPattern { case None => }
-      cc.askLinkPos(JavaFqn("org.example", "Test2.Bar", None), test2) should matchPattern { case Some(OffsetSourcePosition(f, 260)) => }
+      cc.askLinkPos(ClassName(PackageName(List("org", "example")), "Test2"), test2) should matchPattern { case Some(OffsetSourcePosition(f, 22)) => }
+      cc.askLinkPos(ClassName(PackageName(List("org", "example")), "Foo"), test2) should matchPattern { case None => }
+      cc.askLinkPos(ClassName(PackageName(List("org", "example")), "Test2.Bar"), test2) should matchPattern { case Some(OffsetSourcePosition(f, 260)) => }
       //    cc.askLinkPos(JavaFqn("org.example", "Test2", Some("compute()")), test2) should matchPattern { case Some(OffsetSourcePosition(f, 58)) => }
 
     }
@@ -96,39 +109,57 @@ class JavaCompilerSpec extends EnsimeSpec
             info.name shouldBe "foo"
             info.localName shouldBe "foo"
             info.`type`.name shouldBe "int"
-            info.`type` shouldBe a[BasicTypeInfo]
+            info.`type` shouldBe a[api.BasicTypeInfo]
             info.declPos should matchPattern { case Some(OffsetSourcePosition(f, 174)) if f.getName == "Test1.java" => }
           case "1" =>
             info.name shouldBe "args"
             info.localName shouldBe "args"
             info.`type`.name shouldBe "java.lang.String[]"
-            info.`type` shouldBe a[BasicTypeInfo]
+            info.`type` shouldBe a[api.BasicTypeInfo]
             info.declPos should matchPattern { case Some(OffsetSourcePosition(f, 153)) if f.getName == "Test1.java" => }
           case "2" =>
             info.name shouldBe "org.example.Test1.Foo"
             info.localName shouldBe "Foo"
             info.`type`.name shouldBe "org.example.Test1.Foo"
-            info.`type` shouldBe a[BasicTypeInfo]
+            info.`type` shouldBe a[api.BasicTypeInfo]
             info.declPos should matchPattern { case Some(OffsetSourcePosition(f, 58)) if f.getName == "Test1.java" => }
           case "3" =>
             info.name shouldBe "java.io.PrintStream.println(java.lang.Object)"
             info.localName shouldBe "println"
-            info.`type`.name shouldBe "(java.lang.Object)void"
+            info.`type` shouldBe ArrowTypeInfo(
+              "void println(Object arg0)", "void println(java.lang.Object arg0)",
+              BasicTypeInfo("void", DeclaredAs.Class, "void"),
+              ParamSectionInfo(
+                ("arg0" -> BasicTypeInfo(
+                  "java.lang.Object",
+                  DeclaredAs.Class,
+                  "java.lang.Object"
+                )) :: Nil,
+                isImplicit = false
+              ) :: Nil, Nil
+            )
           case "4" =>
             info.name shouldBe "java.io.File"
             info.localName shouldBe "File"
             info.`type`.name shouldBe "java.io.File"
-            info.`type` shouldBe a[BasicTypeInfo]
+            info.`type` shouldBe a[api.BasicTypeInfo]
           case "5" =>
             info.name shouldBe "org.example.Test2"
             info.localName shouldBe "Test2"
             info.`type`.name shouldBe "org.example.Test2"
-            info.`type` shouldBe a[BasicTypeInfo]
+            info.`type` shouldBe a[api.BasicTypeInfo]
             info.declPos should matchPattern { case Some(OffsetSourcePosition(f, 22)) if f.getName == "Test2.java" => }
           case "6" =>
             info.name shouldBe "org.example.Test2.compute()"
             info.localName shouldBe "compute"
-            info.`type`.name shouldBe "()int"
+            info.`type` shouldBe ArrowTypeInfo(
+              "int compute()", "int compute()",
+              BasicTypeInfo("int", DeclaredAs.Class, "int"),
+              ParamSectionInfo(
+                Nil,
+                isImplicit = false
+              ) :: Nil, Nil
+            )
             info.declPos should matchPattern {
               case Some(LineSourcePosition(f, 8)) if f.getName == "Test2.java" =>
               case Some(OffsetSourcePosition(f, 48)) if f.getName == "Test2.java" =>
@@ -137,31 +168,48 @@ class JavaCompilerSpec extends EnsimeSpec
             {}
             info.name shouldBe "org.example.Test1.compute(int,int)"
             info.localName shouldBe "compute"
-            info.`type`.name shouldBe "(int,int)int"
+            info.`type` shouldBe ArrowTypeInfo(
+              "int compute(int arg0, int arg1)", "int compute(int arg0, int arg1)",
+              BasicTypeInfo("int", DeclaredAs.Class, "int"),
+              ParamSectionInfo(
+                ("arg0" -> BasicTypeInfo(
+                  "int",
+                  DeclaredAs.Class,
+                  "int"
+                )) ::
+                  ("arg1" -> BasicTypeInfo(
+                    "int",
+                    DeclaredAs.Class,
+                    "int"
+                  )) :: Nil,
+                isImplicit = false
+              ) :: Nil, Nil
+            )
+            // "private static int compute(int a, int b)"
             info.declPos should matchPattern { case Some(OffsetSourcePosition(f, 481)) if f.getName == "Test1.java" => }
           case "8" =>
             info.name shouldBe "org.example.Test1.CONST"
             info.localName shouldBe "CONST"
             info.`type`.name shouldBe "int"
-            info.`type` shouldBe a[BasicTypeInfo]
+            info.`type` shouldBe a[api.BasicTypeInfo]
             info.declPos should matchPattern { case Some(OffsetSourcePosition(f, 98)) if f.getName == "Test1.java" => }
           case "9" =>
             info.name shouldBe "org.example.Test1.Day"
             info.localName shouldBe "Day"
             info.`type`.name shouldBe "org.example.Test1.Day"
-            info.`type` shouldBe a[BasicTypeInfo]
+            info.`type` shouldBe a[api.BasicTypeInfo]
             info.declPos should matchPattern { case Some(OffsetSourcePosition(f, 653)) if f.getName == "Test1.java" => }
           case "10" =>
             info.name shouldBe "org.example.Test1.Day.MON"
             info.localName shouldBe "MON"
             info.`type`.name shouldBe "org.example.Test1.Day"
-            info.`type` shouldBe a[BasicTypeInfo]
+            info.`type` shouldBe a[api.BasicTypeInfo]
             // Don't specify offset pos here as Java 6 seems to have a problem locating enums
             info.declPos should matchPattern { case Some(OffsetSourcePosition(f, i: Int)) if f.getName == "Test1.java" => }
           case "13" | "14" =>
             info.name shouldBe "k"
             info.`type`.name shouldBe "int"
-            info.`type` shouldBe a[BasicTypeInfo]
+            info.`type` shouldBe a[api.BasicTypeInfo]
         }
       }
   }
@@ -269,4 +317,43 @@ class JavaCompilerSpec extends EnsimeSpec
       }
   }
 
+  it should "support Java 7 syntax features" in {
+    withJavaCompiler { (_, config, cc, store, search) =>
+      runForPositionInCompiledSource(config, cc, """
+        | import java.io.File;
+        | import java.util.HashMap;
+        | import java.util.Map;
+        | import java.io.FileInputStream;
+        | import java.io.DataOutputStream;
+        | import java.io.IOException;
+        | import java.lang.ArrayIndexOutOfBoundsException;
+        | class Java7Test {
+        |   private void main() {
+        |     Map<Long, String> aMap = new HashMap<>(); // diamond operator
+        |     aM@0@ap.put(1L, "ONE");
+        |     String one = aMap.get(1L);
+        |     switch(o@1@ne) { // switch over strings
+        |       case "O@2@NE":
+        |         break;
+        |       default:
+        |        break
+        |     }
+        |     int m@3@illion = 1_000_000; //numeric literals with underscores
+        |     try(FileOutputStream f@4@os = new FileOutputStream("movies.txt"); //resource mamagement
+        |       DataOutputStream dos = new DataOutputStream(fos)) {
+        |     } catch(ArrayIndexOutOfBoundsException | IOException e@5@x) { } //multi catch block
+        |   }
+        |}""".stripMargin) { (sf, offset, label, cc) =>
+        val info = cc.askTypeAtPoint(sf, offset).get
+        label match {
+          case "0" => info.name shouldBe "java.util.Map<java.lang.Long,java.lang.String>"
+          case "1" => info.name shouldBe "java.lang.String"
+          case "2" => info.name shouldBe "java.lang.String"
+          case "3" => info.name shouldBe "int"
+          case "4" => info.name shouldBe "FileOutputStream"
+          case "5" => info.name shouldBe "java.lang.Exception"
+        }
+      }
+    }
+  }
 }
