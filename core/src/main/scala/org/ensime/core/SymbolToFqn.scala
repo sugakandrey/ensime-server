@@ -25,8 +25,8 @@ trait SymbolToFqn { self: Global with PresentationCompilerBackCompat =>
   def logger: Logger
 
   import ClassName._
-  private val ScalaPackageName = PackageName(List("scala"))
-  private val normaliseClass: ClassName => ClassName = Map(
+  val ScalaPackageName: PackageName = PackageName(List("scala"))
+  val normaliseClass: ClassName => ClassName = Map(
     ClassName(PackageName(List("scala", "runtime")), "BoxedUnit") -> PrimitiveVoid,
     ClassName(ScalaPackageName, "<byname>") -> ClassName(ScalaPackageName, "Function0"),
     ClassName(ScalaPackageName, "Boolean") -> PrimitiveBoolean,
@@ -65,7 +65,7 @@ trait SymbolToFqn { self: Global with PresentationCompilerBackCompat =>
   }
 
   private def methodName(sym: MethodSymbol): MethodName = {
-    val owner = sym.ownerChain.dropWhile(_.isMethod).head
+    val owner = sym.enclClass
     val clazz = className(owner)
     val name = sym.encodedName
 
