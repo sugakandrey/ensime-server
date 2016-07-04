@@ -66,7 +66,7 @@ class DocResolver(
       } catch {
         case e: IOException =>
           // continue regardless
-          log.error("Failed to process doc jar: " + jarFile.getName, e)
+          log.error(e, "Failed to process doc jar: " + jarFile.getName)
       }
     }
   }

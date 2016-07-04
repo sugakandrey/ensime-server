@@ -7,7 +7,7 @@ import scala.reflect.internal.util.{ NoPosition, Position, RangePosition }
 import scala.tools.nsc.io.AbstractFile
 
 import org.apache.commons.vfs2.FileObject
-import org.ensime.api._
+import org.ensime.api, api._
 import org.ensime.core.{ RichPresentationCompiler, FqnToSymbol }
 import org.ensime.indexer.{ MethodName, PackageName }
 import org.ensime.indexer.graph._
@@ -181,13 +181,14 @@ trait ModelBuilders {
         val typeSym = tpe.typeSymbol
         val symbolToLocate = if (typeSym.isModuleClass) typeSym.sourceModule else typeSym
         val symPos = locateSymbolPos(symbolToLocate, needPos)
-        BasicTypeInfo(
+        api.BasicTypeInfo(
           shortName(tpe).underlying,
           declaredAs(typeSym),
           fullName(tpe).underlying,
           tpe.typeArgs.map(TypeInfo(_)),
           members,
-          symPos
+          symPos,
+          Nil
         )
       }
       tpe match {
@@ -198,7 +199,7 @@ trait ModelBuilders {
       }
     }
 
-    def nullInfo = BasicTypeInfo("NA", DeclaredAs.Nil, "NA", List.empty, List.empty, None)
+    def nullInfo = BasicTypeInfo("NA", DeclaredAs.Nil, "NA")
   }
 
   object ParamSectionInfoBuilder {
@@ -271,25 +272,26 @@ trait ModelBuilders {
           val params =
             if (tparams.isEmpty) Nil
             else tparams.init.zipWithIndex.map { case (tpe, idx) => ("_" + idx, TypeInfo(tpe)) }
-          ArrowTypeInfo(shortName(tpe).underlying, fullName(tpe).underlying, result, ParamSectionInfo(params, isImplicit = false) :: Nil)
+          ArrowTypeInfo(shortName(tpe).underlying, fullName(tpe).underlying, result, ParamSectionInfo(params, isImplicit = false) :: Nil, Nil)
 
-        case tpe: MethodType => apply(tpe, tpe.paramss.map(ParamSectionInfoBuilder.apply), tpe.finalResultType)
-        case tpe: PolyType => apply(tpe, tpe.paramss.map(ParamSectionInfoBuilder.apply), tpe.finalResultType)
+        case TypeRef(_, definitions.ByNameParamClass, args) =>
+          val result = TypeInfo(args.head)
+          ArrowTypeInfo(shortName(tpe).underlying, fullName(tpe).underlying, result, Nil, Nil)
+
+        case _: MethodType | _: PolyType =>
+          new ArrowTypeInfo(
+            shortName(tpe).underlying,
+            fullName(tpe).underlying,
+            TypeInfo(tpe.finalResultType),
+            tpe.paramss.map(ParamSectionInfoBuilder.apply),
+            tpe.typeParams.map(tp => TypeInfo.apply(tp.tpe))
+          )
         case _ => nullInfo()
       }
     }
 
-    def apply(tpe: Type, paramSections: List[ParamSectionInfo], finalResultType: Type): ArrowTypeInfo = {
-      new ArrowTypeInfo(
-        shortName(tpe).underlying,
-        fullName(tpe).underlying,
-        TypeInfo(tpe.finalResultType),
-        paramSections
-      )
-    }
-
     def nullInfo() = {
-      new ArrowTypeInfo("NA", "NA", TypeInfo.nullInfo, List.empty)
+      new ArrowTypeInfo("NA", "NA", TypeInfo.nullInfo, List.empty, Nil)
     }
   }
 }
@@ -341,3 +343,14 @@ object OffsetSourcePositionHelper {
 object ERangePositionHelper {
   def fromRangePosition(rp: RangePosition): ERangePosition = new ERangePosition(rp.source.path, rp.point, rp.start, rp.end)
 }
+
+object BasicTypeInfo {
+  def apply(name: String, declAs: DeclaredAs, fullName: String): BasicTypeInfo =
+    api.BasicTypeInfo(name, declAs, fullName, Nil, Nil, None, Nil)
+  def unapply(bti: BasicTypeInfo): Option[(String, DeclaredAs, String)] =
+    bti match {
+      case api.BasicTypeInfo(a, b, c, Nil, Nil, None, Nil) => Some((a, b, c))
+      case _ => None
+    }
+}
+

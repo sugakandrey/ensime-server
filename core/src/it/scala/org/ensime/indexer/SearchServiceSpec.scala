@@ -4,11 +4,11 @@ package org.ensime.indexer
 
 import scala.concurrent._
 import scala.concurrent.duration._
-
 import org.ensime.fixture._
 import org.ensime.util.EnsimeSpec
 import org.ensime.util.file._
 import org.scalatest.Matchers._
+import org.scalatest.matchers.{ BeMatcher, MatchResult }
 
 class SearchServiceSpec extends EnsimeSpec
     with SharedTestKitFixture
@@ -148,8 +148,23 @@ class SearchServiceSpec extends EnsimeSpec
   }
 
   it should "not prioritise noisy inner classes" in withSearchService { implicit service =>
-    val hits = service.searchClasses("Baz", 10).map(_.fqn)
-    hits should contain theSameElementsAs (Seq(
+    def nonTrailingDollarSigns(fqn: String): Int = fqn.count(_ == '$') - (if (fqn.endsWith("$")) 1 else 0)
+    def isSorted(hits: Seq[String]): Boolean =
+      hits.sliding(2).map {
+        case List(x, y) => nonTrailingDollarSigns(x) <= nonTrailingDollarSigns(y)
+      }.forall(identity)
+
+    val sorted = new BeMatcher[Seq[String]] {
+      override def apply(left: Seq[String]): MatchResult =
+        MatchResult(
+          isSorted(left),
+          s"Elements of $left were not sorted by the amount of non trailing $$'s. ${left.map(nonTrailingDollarSigns)}",
+          s"Elements of $left were sorted by the amount of non trailing $$'s"
+        )
+    }
+
+    val bazHits = service.searchClasses("Baz", 10).map(_.fqn)
+    bazHits should contain theSameElementsAs (Seq(
       "org.example2.Baz",
       "org.example2.Baz$Wibble$baz",
       "org.example2.Baz$Wibble$baz$",
@@ -157,7 +172,21 @@ class SearchServiceSpec extends EnsimeSpec
       "org.example2.Baz$",
       "org.example2.Baz$Wibble"
     ))
-    hits.head shouldBe "org.example2.Baz"
+    bazHits should be(sorted)
+
+    val matchersHits = service.searchClasses("Matchers", 25).map(_.fqn)
+    matchersHits.take(2) should contain theSameElementsAs Seq(
+      "org.scalatest.Matchers",
+      "org.scalatest.Matchers$"
+    )
+    matchersHits should be(sorted)
+
+    val regexHits = service.searchClasses("Regex", 10).map(_.fqn)
+    regexHits.take(2) should contain theSameElementsAs Seq(
+      "scala.util.matching.Regex",
+      "scala.util.matching.Regex$"
+    )
+    regexHits should be(sorted)
   }
 
   it should "return user created classes first" in withSearchService { implicit service =>

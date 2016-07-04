@@ -34,12 +34,12 @@ object SonatypeSupport {
     }.toSeq,
     pomExtra := (
       <scm>
-        <url>git@github.com:${ ghUser }/${ ghRepo }.git</url>
-        <connection>scm:git:git@github.com:${ ghUser }/${ ghRepo }.git</connection>
+        <url>git@github.com:{ ghUser }/{ ghRepo }.git</url>
+        <connection>scm:git:git@github.com:{ ghUser }/{ ghRepo }.git</connection>
       </scm>
       <developers>
         <developer>
-          <id>$ghUser</id>
+          <id>ghUser</id>
         </developer>
       </developers>
     )

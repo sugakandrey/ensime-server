@@ -2,8 +2,9 @@
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 package org.ensime.indexer
 
-import scala.collection.immutable.Queue
+import org.ensime.api.DeclaredAs
 
+import scala.collection.immutable.Queue
 import org.objectweb.asm.Opcodes._
 
 sealed trait Access
@@ -148,7 +149,7 @@ final case class GenericClass(
 
 final case class GenericParam(
   name: String,
-  classNames: Seq[GenericClassName]
+  classNames: Seq[RealTypeSignature]
 ) extends SignatureType
 
 final case class GenericClassName(
@@ -167,7 +168,7 @@ object ExtendsObjectGenericArg
 
 final case class SpecifiedGenericArg(
   boundType: Option[BoundType],
-  genericSignature: SignatureType
+  genericSignature: RealTypeSignature
 ) extends GenericArg
 
 final case class GenericArray(className: RealTypeSignature)
@@ -228,4 +229,27 @@ final case class RawMethod(
   access: Access,
   generics: Option[String],
   line: Option[Int]
+)
+
+final case class RawScalaClass(
+  javaName: ClassName,
+  scalaName: String,
+  typeSignature: String,
+  access: Access,
+  declaredAs: DeclaredAs,
+  fields: Seq[RawScalaField],
+  methods: Seq[RawScalaMethod]
+)
+
+final case class RawScalaField(
+  javaName: FieldName,
+  scalaName: String,
+  typeInfo: String,
+  access: Access
+)
+
+final case class RawScalaMethod(
+  scalaName: String,
+  signature: String,
+  access: Access
 )

@@ -2,8 +2,9 @@
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 package org.ensime.intg
 
-import org.ensime.api._
+import org.ensime.api.{ BasicTypeInfo => _, _ }
 import org.ensime.fixture._
+import org.ensime.model.BasicTypeInfo
 import org.ensime.util.EnsimeSpec
 import org.ensime.util.file._
 
@@ -29,7 +30,7 @@ class JavaWorkflow extends EnsimeSpec
           expectMsg(VoidResponse)
 
           project ! TypeAtPointReq(Left(fooFile), OffsetRange(30))
-          expectMsg(BasicTypeInfo("pure.NoScalaHere", DeclaredAs.Class, "pure.NoScalaHere", Nil, Nil, None))
+          expectMsg(BasicTypeInfo("pure.NoScalaHere", DeclaredAs.Class, "pure.NoScalaHere"))
         }
       }
     }

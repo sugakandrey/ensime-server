@@ -35,7 +35,7 @@ trait UnsafeHelpers extends SLF4JLogging {
       case t: JCNewClass => Some(t.constructor)
       case t: JCMethodInvocation => unsafeGetElement(t.meth)
       case t: JCTypeApply => unsafeGetElement(t.clazz)
-      case t: JCTree => if (t.`type` != null) Some(t.`type`.tsym) else None
+      case t: JCTree => Option(t.`type`).map(_.tsym)
       case _ => None
     }
   }

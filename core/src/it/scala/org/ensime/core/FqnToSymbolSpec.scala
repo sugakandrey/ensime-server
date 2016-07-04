@@ -59,6 +59,28 @@ class FqnToSymbolSpec extends EnsimeSpec
 
     verify(clazz(Seq("java", "lang"), "String"), "java.lang.String")
     verify(clazz(Seq("scala"), "Some$"), "scala.Some")
+
+    runForPositionInCompiledSource(
+      config, cc,
+      "package com.example",
+      "object A {}",
+      "class A { ",
+      "  object F@foo@oo {",
+      "    class Qux { class Te@test@st }",
+      "    object Qux { }",
+      "}",
+      "  class Foo",
+      "  class B@bar@ar {}",
+      "}"
+    ) { (p, label, cc) =>
+        cc.askSymbolByFqn(cc.askSymbolFqn(p).get).get shouldBe {
+          label match {
+            case "test" => cc.askSymbolByScalaName("com.example.A#Foo.Qux#Test")
+            case "foo" => cc.askSymbolByScalaName("com.example.A#Foo")
+            case "bar" => cc.askSymbolByScalaName("com.example.A#Bar")
+          }
+        }.get
+      }
   }
 
   it should "convert field FQNs to symbols" in withPresCompiler { (config, cc) =>
@@ -88,6 +110,59 @@ class FqnToSymbolSpec extends EnsimeSpec
       method(Seq("java", "lang"), "String", "valueOf", "(Ljava/lang/Object;)Ljava/lang/String;"),
       "java.lang.String.valueOf"
     )
+  }
+
+  it should "resolve overloaded symbols correctly" in withPresCompiler { (config, cc) =>
+    runForPositionInCompiledSource(
+      config, cc,
+      "package com.example",
+      "class Foo(val test: Boolean) {",
+      "  object bar {",
+      "     class B@baz@az",
+      "  }",
+      "  def bar(i: Int): Unit = ???",
+      "  object test {",
+      "    def q@qux@ux(): Unit = ???",
+      "  }",
+      "  def test(s: String): Unit = ???",
+      "}"
+    ) { (p, label, cc) =>
+        cc.askSymbolByFqn(cc.askSymbolFqn(p).get).get shouldBe {
+          label match {
+            case "baz" =>
+              cc.askSymbolByScalaName("com.example.Foo#bar.Baz")
+            case "qux" =>
+              cc.askSymbolByScalaName("com.example.Foo#test.qux")
+          }
+        }.get
+      }
+  }
+
+  it should "convert class FQNs with special characters to symbols" in withPresCompiler { (config, cc) =>
+    runForPositionInCompiledSource(
+      config, cc,
+      "package com.example",
+      "package <#>.>>=",
+      "class <@outer_symbolic@:< {",
+      "  class =@inner_symbolic@:=",
+      "}",
+      "object ~@sym_object@~~ {",
+      "  class B@bar@ar",
+      "}"
+    ) { (p, label, cc) =>
+        cc.askSymbolByFqn(cc.askSymbolFqn(p).get).get shouldBe {
+          label match {
+            case "outer_symbolic" =>
+              cc.askSymbolByScalaName("com.example.$less$hash$greater.$greater$greater$eq.$less$colon$less")
+            case "inner_symbolic" =>
+              cc.askSymbolByScalaName("com.example.$less$hash$greater.$greater$greater$eq.$less$colon$less#$eq$colon$eq")
+            case "sym_object" =>
+              cc.askSymbolByScalaName("com.example.$less$hash$greater.$greater$greater$eq.$tilde$tilde$tilde")
+            case "bar" =>
+              cc.askSymbolByScalaName("com.example.$less$hash$greater.$greater$greater$eq.$tilde$tilde$tilde.Bar")
+          }
+        }.get
+      }
   }
 
 }

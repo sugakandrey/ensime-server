@@ -4,6 +4,7 @@ package org.ensime.core.debug
 
 import com.sun.jdi.VMDisconnectedException
 import org.scaladebugger.api.debuggers.{ AttachingDebugger, Debugger, LaunchingDebugger }
+import org.scaladebugger.api.profiles.scala210.Scala210DebugProfile
 import org.scaladebugger.api.virtualmachines.{ DummyScalaVirtualMachine, ScalaVirtualMachine }
 import org.slf4j.LoggerFactory
 
@@ -21,8 +22,14 @@ class VirtualMachineManager(
     private val globalStopFunc: (ScalaVirtualMachine) => Unit = _ => {}
 ) {
   private val log = LoggerFactory.getLogger(this.getClass)
-  private lazy val dummyScalaVirtualMachine: ScalaVirtualMachine =
-    DummyScalaVirtualMachine.newInstance()
+
+  /** Create a standard dummy vm using the Scala 2.10 profile */
+  private lazy val dummyScalaVirtualMachine: ScalaVirtualMachine = {
+    val d = DummyScalaVirtualMachine.newInstance()
+    d.use(Scala210DebugProfile.Name)
+    d
+  }
+
   @volatile private var debugger: Option[Debugger] = None
   @volatile private var vm: Option[ScalaVirtualMachine] = None
   @volatile private var mode: Option[VmMode] = None
@@ -61,7 +68,11 @@ class VirtualMachineManager(
           suspend = true
         ).withPending(dummyScalaVirtualMachine)
 
-        val s = d.start(timeout = 10.seconds, startProcessingEvents = false)
+        val s = d.start(
+          timeout = 10.seconds,
+          defaultProfile = Scala210DebugProfile.Name,
+          startProcessingEvents = false
+        )
 
         (d, s)
 
@@ -71,7 +82,11 @@ class VirtualMachineManager(
           hostname = hostname
         ).withPending(dummyScalaVirtualMachine)
 
-        val s = d.start(timeout = 10.seconds, startProcessingEvents = false)
+        val s = d.start(
+          timeout = 10.seconds,
+          defaultProfile = Scala210DebugProfile.Name,
+          startProcessingEvents = false
+        )
 
         (d, s)
     }

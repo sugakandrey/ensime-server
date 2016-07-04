@@ -14,7 +14,7 @@ trait EnsimeTestData {
     }
   }
 
-  val typeInfo = new BasicTypeInfo("type1", DeclaredAs.Method, "FOO.type1", Nil, Nil, None)
+  val typeInfo = BasicTypeInfo("type1", DeclaredAs.Method, "FOO.type1", Nil, Nil, None, Nil)
 
   val interfaceInfo = new InterfaceInfo(typeInfo, Some("DEF"))
   val typeInspectInfo = new TypeInspectInfo(typeInfo, List(interfaceInfo))
@@ -105,7 +105,11 @@ trait EnsimeTestData {
 
   val noteList = NewScalaNotesEvent(isFull = true, List(note1, note2))
 
-  val entityInfo: TypeInfo = new ArrowTypeInfo("Arrow1", "example.Arrow1", typeInfo, List(paramSectionInfo))
+  val entityInfo: TypeInfo = new ArrowTypeInfo("Arrow1", "example.Arrow1", typeInfo, List(paramSectionInfo), Nil)
+
+  val typeParamA = BasicTypeInfo("A", DeclaredAs.Nil, "example.Arrow1.A", Nil, Nil, None, Nil)
+  val typeParamB = BasicTypeInfo("B", DeclaredAs.Nil, "example.Arrow1.B", Nil, Nil, None, Nil)
+  val entityInfoTypeParams: TypeInfo = new ArrowTypeInfo("Arrow1", "example.Arrow1", typeInfo, List(paramSectionInfo), List(typeParamA, typeParamB))
 
   val completionInfo = CompletionInfo(Some(typeInfo), "name", 90, Some("BAZ"))
 

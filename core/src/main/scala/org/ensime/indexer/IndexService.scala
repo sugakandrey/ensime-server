@@ -30,7 +30,7 @@ object IndexService extends SLF4JLogging {
       def spacey(s: String) = List(s, s.replace('.', ' '))
 
       val shortPkg = path.map(_.charAt(0)).mkString("", ".", "." + name)
-      val innerNames = name.split('$').filter(_.size > 3).flatMap(cases)
+      val innerNames = name.split('$').flatMap(cases)
 
       Set(term, name, camel(name)) ++ innerNames ++ spacey(shortPkg)
     }.filter(_.size > 1).flatMap(cases) - term
@@ -86,15 +86,27 @@ class IndexService(path: Path) {
 
   private val lucene = new SimpleLucene(path, analyzers)
 
+  private def calculatePenalty(fqn: String): Float = {
+    val nonTrailing$s = fqn.count(_ == '$') - (if (fqn.endsWith("$")) 1 else 0)
+    1 - .25f * nonTrailing$s
+  }
+
   def persist(check: FileCheck, symbols: List[FqnSymbol], commit: Boolean, boost: Boolean): Unit = {
     val f = Some(check)
     val fqns: List[Document] = symbols.map {
       case FqnSymbol(_, _, _, fqn, _, _, _, _) if fqn.contains("(") => MethodIndex(fqn, f).toDocument
       case FqnSymbol(_, _, _, fqn, Some(_), _, _, _) => FieldIndex(fqn, f).toDocument
-      case FqnSymbol(_, _, _, fqn, _, _, _, _) => ClassIndex(fqn, f).toDocument
+      case FqnSymbol(_, _, _, fqn, _, _, _, _) =>
+        val penalty = calculatePenalty(fqn)
+        val document = ClassIndex(fqn, f).toDocument
+        document.boostText("fqn", penalty)
+        document
     }
     if (boost) {
-      fqns foreach { _.boostText("fqn", 1.3f) }
+      fqns foreach { fqn =>
+        val currentBoost = fqn.boost("fqn")
+        fqn.boostText("fqn", currentBoost + .5f)
+      }
     }
 
     lucene.create(fqns, commit)

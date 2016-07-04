@@ -10,16 +10,17 @@ import org.ensime.api._
 import org.ensime.model.LineSourcePositionHelper
 import org.ensime.vfs._
 import org.ensime.indexer.SearchService
+import org.ensime.indexer.FullyQualifiedName
 
 trait JavaSourceFinding extends Helpers with SLF4JLogging {
 
-  def askLinkPos(fqn: JavaFqn, file: SourceFileInfo): Option[SourcePosition]
+  def askLinkPos(fqn: FullyQualifiedName, file: SourceFileInfo): Option[SourcePosition]
   def search: SearchService
   def vfs: EnsimeVFS
   def config: EnsimeConfig
 
-  protected def findInCompiledUnit(c: Compilation, fqn: JavaFqn): Option[SourcePosition] = {
-    Option(c.elements.getTypeElement(fqn.toFqnString)).flatMap(elementPosition(c, _))
+  protected def findInCompiledUnit(c: Compilation, fqn: FullyQualifiedName): Option[SourcePosition] = {
+    Option(c.elements.getTypeElement(fqn.fqnString)).flatMap(elementPosition(c, _))
   }
 
   private def elementPosition(c: Compilation, el: Element): Option[SourcePosition] = {
@@ -40,7 +41,7 @@ trait JavaSourceFinding extends Helpers with SLF4JLogging {
 
   private def findInIndexer(c: Compilation, path: TreePath): Option[SourcePosition] = {
     val javaFqn = fqn(c, path)
-    val query = javaFqn.map(_.toFqnString).getOrElse("")
+    val query = javaFqn.map(_.fqnString).getOrElse("")
     val hit = search.findUnique(query)
     if (log.isTraceEnabled())
       log.trace(s"search: '$query' = $hit")

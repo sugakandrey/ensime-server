@@ -6,15 +6,14 @@ import java.io.{ File, FileInputStream, InputStream }
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 
-import scala.collection.JavaConverters._
+import scala.collection.JavaConversions._
 
 import akka.actor.ActorRef
 import akka.event.slf4j.SLF4JLogging
-import com.sun.source.tree.{ Scope, IdentifierTree, MemberSelectTree }
+import com.sun.source.tree.Scope
 import com.sun.source.util.{ JavacTask, TreePath }
 import com.sun.tools.javac.util.Abort
 import javax.lang.model.`type`.{ TypeMirror }
-import javax.lang.model.element.ExecutableElement
 import javax.tools._
 import org.ensime.api._
 import org.ensime.core.DocSigPair
@@ -22,49 +21,38 @@ import org.ensime.indexer.SearchService
 import org.ensime.util.ReportHandler
 import org.ensime.util.file._
 import org.ensime.vfs._
+import org.ensime.indexer.FullyQualifiedName
 
 class JavaCompiler(
-    val config: EnsimeConfig,
-    val reportHandler: ReportHandler,
-    val indexer: ActorRef,
-    val search: SearchService,
-    val vfs: EnsimeVFS
-) extends JavaDocFinding with JavaCompletion with JavaSourceFinding with Helpers with SLF4JLogging {
+  val config: EnsimeConfig,
+  val reportHandler: ReportHandler,
+  val indexer: ActorRef,
+  val search: SearchService,
+  val vfs: EnsimeVFS
+) extends JavaDocFinding
+    with JavaCompletionsAtPoint
+    with JavaTypeAtPoint
+    with JavaSymbolAtPoint
+    with JavaSourceFinding
+    with Helpers
+    with SLF4JLogging {
 
   private val listener = new JavaDiagnosticListener()
   private val silencer = new SilencedDiagnosticListener()
   private val cp = (config.allJars ++ config.targetClasspath).mkString(File.pathSeparator)
-  private var workingSet = new ConcurrentHashMap[String, JavaFileObject]()
+  private val workingSet = new ConcurrentHashMap[String, JavaFileObject]()
 
-  // Cache the filemanager so we can re-use jars on the classpath. This has
-  // *very* large performance implications: ensime-server/issues/1262
-  //
-  // Warning from docs: "An object of this interface is not required to
-  //   support multi-threaded access, that is, be synchronized."
-  var sharedFileManager: Option[JavaFileManager] = None
+  lazy val compiler = ToolProvider.getSystemJavaCompiler()
+  lazy val fileManager: JavaFileManager = compiler.getStandardFileManager(listener, null, DefaultCharset)
 
   def getTask(
     lint: String,
     listener: DiagnosticListener[JavaFileObject],
     files: java.lang.Iterable[JavaFileObject]
   ): JavacTask = {
-    val compiler = ToolProvider.getSystemJavaCompiler()
-
-    // Try to re-use file manager.
-    // Note: we can't re-use the compiler, as that will
-    // explode with 'Compilation in progress' on jdk6.
-    // see comments on ensime-server/pull/1108
-    val fileManager = sharedFileManager match {
-      case Some(fm) => fm
-      case _ =>
-        val fm = compiler.getStandardFileManager(listener, null, DefaultCharset)
-        sharedFileManager = Some(fm)
-        fm
-    }
-
     compiler.getTask(null, fileManager, listener, List(
       "-cp", cp, "-Xlint:" + lint, "-proc:none"
-    ).asJava, null, files).asInstanceOf[JavacTask]
+    ), null, files).asInstanceOf[JavacTask]
   }
 
   def internSource(sf: SourceFileInfo): JavaFileObject = {
@@ -81,39 +69,9 @@ class JavaCompiler(
     typecheckAll()
   }
 
-  def askLinkPos(fqn: JavaFqn, file: SourceFileInfo): Option[SourcePosition] = {
+  def askLinkPos(fqn: FullyQualifiedName, file: SourceFileInfo): Option[SourcePosition] = {
     val infos = typecheckForUnits(List(file))
     infos.headOption.flatMap { c => findInCompiledUnit(c, fqn) }
-  }
-
-  def askTypeAtPoint(file: SourceFileInfo, offset: Int): Option[TypeInfo] = {
-    pathToPoint(file, offset) flatMap {
-      case (c: Compilation, path: TreePath) =>
-        getTypeMirror(c, offset).map(typeMirrorToTypeInfo)
-    }
-  }
-
-  def askSymbolAtPoint(file: SourceFileInfo, offset: Int): Option[SymbolInfo] = {
-    pathToPoint(file, offset) flatMap {
-      case (c: Compilation, path: TreePath) =>
-        def withName(name: String): Option[SymbolInfo] = {
-
-          val tpeMirror = Option(c.trees.getTypeMirror(path))
-          val nullTpe = BasicTypeInfo("NA", DeclaredAs.Nil, "NA", List.empty, List.empty, None)
-
-          Some(SymbolInfo(
-            fqn(c, path).map(_.toFqnString).getOrElse(name),
-            name,
-            findDeclPos(c, path),
-            tpeMirror.map(typeMirrorToTypeInfo).getOrElse(nullTpe)
-          ))
-        }
-        path.getLeaf match {
-          case t: IdentifierTree => withName(t.getName.toString)
-          case t: MemberSelectTree => withName(t.getIdentifier.toString)
-          case _ => None
-        }
-    }
   }
 
   def askDocSignatureAtPoint(file: SourceFileInfo, offset: Int): Option[DocSigPair] = {
@@ -121,12 +79,6 @@ class JavaCompiler(
       case (c: Compilation, path: TreePath) =>
         docSignature(c, path)
     }
-  }
-
-  def askCompletionsAtPoint(
-    file: SourceFileInfo, offset: Int, maxResults: Int, caseSens: Boolean
-  ): CompletionInfoList = {
-    completionsAt(file, offset, maxResults, caseSens)
   }
 
   protected def pathToPoint(file: SourceFileInfo, offset: Int): Option[(Compilation, TreePath)] = {
@@ -144,21 +96,6 @@ class JavaCompiler(
       path.map { p => (c, p) }
     }
   }
-
-  protected def typeMirrorToTypeInfo(tm: TypeMirror): TypeInfo =
-    BasicTypeInfo(tm.toString, DeclaredAs.Class, tm.toString, Nil, Nil, None)
-
-  protected def methodToTypeInfo(e: ExecutableElement): TypeInfo =
-    ArrowTypeInfo(
-      e.getSimpleName.toString, e.toString,
-      typeMirrorToTypeInfo(e.getReturnType),
-      ParamSectionInfo(
-        e.getParameters.asScala.map { param =>
-          param.getSimpleName.toString -> typeMirrorToTypeInfo(param.asType)
-        },
-        isImplicit = false
-      ) :: Nil
-    )
 
   private def getTypeMirror(c: Compilation, offset: Int): Option[TypeMirror] = {
     val path: Option[TreePath] = PathFor(c, offset)
@@ -186,9 +123,16 @@ class JavaCompiler(
     val inputJfos = inputs.map { sf => internSource(sf).toUri }.toSet
     val task = getTask("none", silencer, workingSet.values)
     val t = System.currentTimeMillis()
+
     try {
-      val units = task.parse().asScala.filter { unit => inputJfos.contains(unit.getSourceFile.toUri) }
+
+      val units = task.parse().filter(
+        unit => inputJfos.contains(
+          unit.getSourceFile.toUri
+        )
+      )
         .map(Compilation(task, _)).toVector
+
       task.analyze()
       log.info("Parsed and analyzed for trees: " + (System.currentTimeMillis() - t) + "ms")
       units

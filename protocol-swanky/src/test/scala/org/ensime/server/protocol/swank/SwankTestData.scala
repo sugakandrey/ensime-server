@@ -66,4 +66,8 @@ object SwankTestData extends EnsimeTestData {
   val noteListStr = "(:is-full t :notes (" + note1Str + " " + note2Str + "))"
 
   val entityInfoStr = """(:arrow-type t :name "Arrow1" :full-name "example.Arrow1" :result-type (:arrow-type nil :name "type1" :decl-as method :full-name "FOO.type1") :param-sections ((:params (("ABC" (:arrow-type nil :name "type1" :decl-as method :full-name "FOO.type1"))))))"""
+
+  val typeParamAStr = """(:arrow-type nil :name "A" :decl-as nil :full-name "example.Arrow1.A")"""
+  val typeParamBStr = """(:arrow-type nil :name "B" :decl-as nil :full-name "example.Arrow1.B")"""
+  val entityInfoTypeParamsStr = s"""(:arrow-type t :name "Arrow1" :full-name "example.Arrow1" :result-type (:arrow-type nil :name "type1" :decl-as method :full-name "FOO.type1") :param-sections ((:params (("ABC" (:arrow-type nil :name "type1" :decl-as method :full-name "FOO.type1"))))) :type-params ($typeParamAStr $typeParamBStr))"""
 }
