@@ -371,6 +371,33 @@ class SemanticHighlightingSpec extends EnsimeSpec
     ))
   }
 
+  it should "highlight class parameters as valFields" in withPresCompiler { (config, cc) =>
+    val sds = getSymbolDesignations(
+      config, cc, """
+            package com.example
+            class Test(a: Int, val b: String)(implicit c: Int, val d: String) {
+              def test(): Unit = {
+                val w = a
+                val x = b
+                val y = c
+                val z = d
+              }
+            }
+          """,
+      List(ValFieldSymbol)
+    )
+    sds should ===(List(
+      (ValFieldSymbol, "a"),
+      (ValFieldSymbol, "b"),
+      (ValFieldSymbol, "c"),
+      (ValFieldSymbol, "d"),
+      (ValFieldSymbol, "a"),
+      (ValFieldSymbol, "b"),
+      (ValFieldSymbol, "c"),
+      (ValFieldSymbol, "d")
+    ))
+  }
+
   it should "highlight vars" in withPresCompiler { (config, cc) =>
     val sds = getSymbolDesignations(
       config, cc, """
