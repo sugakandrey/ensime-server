@@ -32,9 +32,74 @@ package api {
   case class VertexT[T](underlying: Vertex)
 
   trait EdgeT[+Out, +In]
+
+  sealed trait IndexT {
+    def orientKey: String
+  }
+
+  object IndexT {
+    case object Unique extends IndexT {
+      override def orientKey = "unique"
+    }
+
+    case object NotUnique extends IndexT {
+      override def orientKey = "notunique"
+    }
+
+    case object FullText extends IndexT {
+      override def orientKey = "fulltext"
+    }
+
+  }
+
+  trait Indexable[T <: Element] {
+    def aClass: Class[T]
+  }
+  object Indexable {
+    implicit object VertexIndexable extends Indexable[Vertex] {
+      override def aClass: Class[Vertex] = classOf[Vertex]
+    }
+    implicit object EdgeIndexable extends Indexable[Edge] {
+      override def aClass: Class[Edge] = classOf[Edge]
+    }
+  }
 }
 
 package object syntax {
+  import org.ensime.indexer.orientdb.api.{ IndexT, Indexable }
+  import shapeless.Typeable
+
+  implicit class RichOrientGraph(graph: OrientExtendedGraph) {
+    private val schema = graph.getRawGraph.getMetadata.getSchema
+
+    def createIndexOn[E <: Element, T, F](idx: IndexT = IndexT.NotUnique)(
+      implicit
+      tag: Indexable[E],
+      bdf: BigDataFormat[T],
+      id: BigDataFormatId[T, F]
+    ): RichOrientGraph = {
+      graph.createKeyIndex(id.key, tag.aClass, "type" -> idx.orientKey, "class" -> bdf.label)
+      this
+    }
+
+    def createVertexFrom[T](implicit bdf: BigDataFormat[T]): RichOrientGraph = {
+      graph.createVertexType(bdf.label)
+      val schemaClass = schema.getClass(bdf.label)
+      bdf.toSchema.foreach {
+        case (key, (otype, mandatory)) =>
+          schemaClass.createProperty(key, otype)
+            .setMandatory(mandatory)
+            .setNotNull(true)
+      }
+      this
+    }
+
+    def createEdge[T](implicit bdf: BigDataFormat[T]): RichOrientGraph = {
+      graph.createEdgeType(bdf.label)
+      this
+    }
+  }
+
   import org.ensime.indexer.orientdb.api._
 
   implicit def RichParameter(props: (String, String)): Parameter[String, String] =
