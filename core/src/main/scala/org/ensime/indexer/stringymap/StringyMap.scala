@@ -6,6 +6,7 @@
  */
 package org.ensime.indexer.stringymap
 
+import com.orientechnologies.orient.core.metadata.schema.OType
 import shapeless._
 import shapeless.labelled._
 
@@ -15,10 +16,14 @@ package object api {
 }
 
 package api {
+
+  import com.orientechnologies.orient.core.metadata.schema.OType
+
   trait BigDataFormat[T] {
     def label: String
     def toProperties(t: T): StringyMap
     def fromProperties(m: StringyMap): BigResult[T]
+    def toSchema: Map[String, (OType, Boolean)]
   }
 
   trait BigDataFormatId[T, P] {
@@ -29,6 +34,7 @@ package api {
   trait SPrimitive[T] {
     def toValue(v: T): AnyRef
     def fromValue(v: AnyRef): T
+    def getType: (OType, Boolean)
   }
 
   // defining really basic implementations on the companion
@@ -36,14 +42,17 @@ package api {
     implicit object StringSPrimitive extends SPrimitive[String] {
       def toValue(v: String): String = v
       def fromValue(v: AnyRef): String = v.asInstanceOf[String]
+      def getType: (OType, Boolean) = OType.STRING -> true
     }
     implicit object IntSPrimitive extends SPrimitive[Int] {
       def toValue(v: Int): java.lang.Integer = v
       def fromValue(v: AnyRef): Int = v.asInstanceOf[java.lang.Integer]
+      def getType: (OType, Boolean) = OType.INTEGER -> true
     }
     implicit object LongSPrimitive extends SPrimitive[Long] {
       def toValue(v: Long): java.lang.Long = v
       def fromValue(v: AnyRef): Long = v.asInstanceOf[java.lang.Long]
+      def getType: (OType, Boolean) = OType.LONG -> true
     }
     implicit def OptionSPrimitive[T](
       implicit
@@ -56,6 +65,7 @@ package api {
       def fromValue(v: AnyRef): Option[T] =
         if (v == null) None
         else Some(p.fromValue(v))
+      def getType: (OType, Boolean) = p.getType._1 -> false
     }
   }
 
@@ -68,6 +78,7 @@ package object impl {
     def label: String = ???
     def toProperties(t: HNil): StringyMap = new java.util.HashMap()
     def fromProperties(m: StringyMap) = Right(HNil)
+    def toSchema: Map[String, (OType, Boolean)] = Map()
   }
 
   implicit def hListBigDataFormat[Key <: Symbol, Value, Remaining <: HList](
@@ -103,6 +114,12 @@ package object impl {
           current <- resolved.right
         } yield field[Key](current) :: remaining
       }
+
+      def toSchema: Map[String, (OType, Boolean)] = {
+        val otype = prim.getType
+        val map = remV.value.toSchema
+        map + (key.value.name -> otype)
+      }
     }
 
   // TODO: coproducts
@@ -119,6 +136,7 @@ package object impl {
     def toProperties(t: T): StringyMap = sg.value.toProperties(gen.to(t))
     def fromProperties(m: StringyMap): BigResult[T] =
       sg.value.fromProperties(m).right.map(gen.from)
+    def toSchema: Map[String, (OType, Boolean)] = sg.value.toSchema
   }
 }
 

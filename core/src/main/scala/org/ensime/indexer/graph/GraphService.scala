@@ -65,6 +65,28 @@ final case class FqnSymbol(
 // core/it:test-only *Search* -- -z prestine
 class GraphService(dir: File) extends SLF4JLogging {
 
+  implicit object TimeStampSPrimitive extends SPrimitive[Timestamp] {
+    import SPrimitive.LongSPrimitive
+    def toValue(v: Timestamp): java.lang.Long = LongSPrimitive.toValue(v.getTime)
+    def fromValue(v: AnyRef): Timestamp = new Timestamp(LongSPrimitive.fromValue(v))
+    def getType: (OType, Boolean) = OType.LONG -> true
+  }
+
+  implicit val FileCheckS: BigDataFormat[FileCheck] = cachedImplicit
+  implicit val FqnSymbolS: BigDataFormat[FqnSymbol] = cachedImplicit
+  implicit val DefinedInS: BigDataFormat[DefinedIn.type] = cachedImplicit
+
+  import shapeless._
+  implicit val UniqueFileCheckV = LensId("filename", lens[FileCheck] >> 'filename)
+  implicit val UniqueFqnSymbolV = LensId("fqn", lens[FqnSymbol] >> 'fqn)
+
+  private implicit val FqnIndexLens = new Lens[FqnIndex, String] {
+    override def get(index: FqnIndex): String = index.fqn
+
+    override def set(index: FqnIndex)(fqn: String): FqnIndex = ???
+  }
+  implicit val UniqueFqnIndexV = LensId("fqn", FqnIndexLens)
+
   // all methods return Future, which means we can do isolation by
   // doing all work on a single worker Thread. We can't optimise until
   // we better understand the concurrency of our third party
@@ -119,70 +141,21 @@ class GraphService(dir: File) extends SLF4JLogging {
     dir.mkdirs()
 
     val g = db.getNoTx
-    val schema = g.getRawGraph.getMetadata.getSchema
+    g.createVertexFrom[FqnSymbol].createVertexFrom[FileCheck]
+    g.createEdge[DefinedIn.type]
+    g.createIndexOn[Vertex, FqnSymbol, String](IndexT.Unique)
+    g.createIndexOn[Vertex, FileCheck, String](IndexT.Unique)
 
-    // TODO: typesafe syntax to support schema creation and
-    //       indexed/unique vertices and edges
-    g.createVertexType("FqnSymbol")
-    val fqnSymbol = schema.getClass("FqnSymbol")
-    g.createVertexType("FileCheck")
-    val fileCheck = schema.getClass("FileCheck")
-
-    fqnSymbol.createProperty("file", OType.STRING)
-    fqnSymbol.createProperty("timestamp", OType.LONG)
-    g.createKeyIndex("fqn", classOf[Vertex],
-      "type" -> "UNIQUE",
-      "class" -> "FqnSymbol")
-    // TODO unsure if this is used
-    // http://stackoverflow.com/questions/33722046
-    fqnSymbol.createProperty("FileCheck", OType.LINK, fileCheck)
-
-    fileCheck.createProperty("file", OType.STRING)
-    fileCheck.createProperty("path", OType.STRING)
-    fileCheck.createProperty("fqn", OType.STRING)
-    fileCheck.createProperty("internal", OType.STRING)
-    fileCheck.createProperty("source", OType.STRING)
-    fileCheck.createProperty("line", OType.INTEGER)
-    fileCheck.createProperty("offset", OType.INTEGER)
-    g.createKeyIndex("filename", classOf[Vertex],
-      "type" -> "UNIQUE",
-      "class" -> "FileCheck")
-
-    g.createEdgeType("DefinedIn")
-
-    //Unless `shutdown` is called this thread will hold our only db connection,
-    //potentially blocking any other threads
     g.shutdown()
 
     log.info("... created the graph database")
   }
 
-  implicit object TimeStampSPrimitive extends SPrimitive[Timestamp] {
-    import SPrimitive.LongSPrimitive
-    def toValue(v: Timestamp): java.lang.Long = LongSPrimitive.toValue(v.getTime)
-    def fromValue(v: AnyRef): Timestamp = new Timestamp(LongSPrimitive.fromValue(v))
-  }
-
   case object DefinedIn extends EdgeT[FqnSymbol, FileCheck]
-
-  implicit val FileCheckS: BigDataFormat[FileCheck] = cachedImplicit
-  implicit val FqnSymbolS: BigDataFormat[FqnSymbol] = cachedImplicit
-  implicit val DefinedInS: BigDataFormat[DefinedIn.type] = cachedImplicit
 
   def knownFiles(): Future[Seq[FileCheck]] = withGraphAsync { implicit g =>
     RichGraph.allV[FileCheck]
   }
-
-  import shapeless._
-  implicit val UniqueFileCheckV = LensId("filename", lens[FileCheck] >> 'filename)
-  implicit val UniqueFqnSymbolV = LensId("fqn", lens[FqnSymbol] >> 'fqn)
-
-  private implicit val FqnIndexLens = new Lens[FqnIndex, String] {
-    override def get(index: FqnIndex): String = index.fqn
-
-    override def set(index: FqnIndex)(fqn: String): FqnIndex = ???
-  }
-  implicit val UniqueFqnIndexV = LensId("fqn", FqnIndexLens)
 
   def outOfDate(f: FileObject)(implicit vfs: EnsimeVFS): Future[Boolean] = withGraphAsync { implicit g =>
     RichGraph.readUniqueV[FileCheck, String](f.getName.getURI) match {
