@@ -10,6 +10,7 @@ import scala.collection.JavaConverters._
 import scala.concurrent.{ blocking, ExecutionContext, Future }
 
 import akka.event.slf4j.SLF4JLogging
+import com.orientechnologies.orient.core.metadata.schema.OClass
 import com.tinkerpop.blueprints._
 import com.tinkerpop.blueprints.impls.orient._
 import org.ensime.indexer.stringymap.api._
@@ -67,7 +68,6 @@ package api {
 
 package object syntax {
   import org.ensime.indexer.orientdb.api.{ IndexT, Indexable }
-  import shapeless.Typeable
 
   implicit class RichOrientGraph(graph: OrientExtendedGraph) {
     private val schema = graph.getRawGraph.getMetadata.getSchema
@@ -82,16 +82,19 @@ package object syntax {
       this
     }
 
-    def createVertexFrom[T](implicit bdf: BigDataFormat[T]): RichOrientGraph = {
+    def createVertexFrom[T](superClass: Option[OClass] = None)(implicit bdf: BigDataFormat[T]): OClass = {
       graph.createVertexType(bdf.label)
       val schemaClass = schema.getClass(bdf.label)
+      superClass.foreach(schemaClass.addSuperClass)
       bdf.toSchema.foreach {
         case (key, (otype, mandatory)) =>
-          schemaClass.createProperty(key, otype)
-            .setMandatory(mandatory)
-            .setNotNull(true)
+          if (schemaClass.getProperty(key) == null) {
+            schemaClass.createProperty(key, otype)
+              .setMandatory(mandatory)
+              .setNotNull(true)
+          }
       }
-      this
+      schemaClass
     }
 
     def createEdge[T](implicit bdf: BigDataFormat[T]): RichOrientGraph = {
@@ -245,8 +248,20 @@ package object syntax {
       p: SPrimitive[P]
     ): Boolean = readUniqueV(u.value(t)) match {
       case Some(vertexT) =>
-        graph.removeVertex(vertexT.underlying); true
+        val v = vertexT.underlying
+        removeRecursive(v)
+        true
       case None => false
+    }
+
+    private def removeRecursive(
+      v: Vertex
+    )(
+      implicit
+      graph: OrientBaseGraph
+    ): Unit = {
+      v.getVertices(Direction.IN).asScala.foreach(removeRecursive)
+      graph.removeVertex(v)
     }
 
     /**

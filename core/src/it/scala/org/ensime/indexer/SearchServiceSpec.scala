@@ -60,6 +60,7 @@ class SearchServiceSpec extends EnsimeSpec
 
       classfile.delete()
       refresh() shouldBe ((1, 0))
+      searchExpectEmpty("org.example.Foo")
     }
   }
 
