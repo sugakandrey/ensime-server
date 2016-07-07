@@ -133,10 +133,49 @@ package object impl {
     // HACK: really need a Wrapper like sjs
     // WORKAROUND: edge names cannot have dots in them
     def label: String = tpe.describe.replace(".type", "")
-    def toProperties(t: T): StringyMap = sg.value.toProperties(gen.to(t))
+    def toProperties(t: T): StringyMap = {
+      val map = sg.value.toProperties(gen.to(t))
+      map.put("typehint", label)
+      map
+    }
     def fromProperties(m: StringyMap): BigResult[T] =
       sg.value.fromProperties(m).right.map(gen.from)
     def toSchema: Map[String, (OType, Boolean)] = sg.value.toSchema
+  }
+
+  implicit def CNilBigDataFormat[T]: BigDataFormat[CNil] = new BigDataFormat[CNil] {
+    override def label: String = ???
+    override def toProperties(t: CNil): StringyMap = ???
+    override def toSchema: Map[String, (OType, Boolean)] = ???
+    override def fromProperties(m: StringyMap): BigResult[CNil] = ???
+  }
+
+  implicit def CoproductBigDataFormat[Key <: Symbol, Value, Tail <: Coproduct](
+    implicit
+    key: Witness.Aux[Key],
+    bdfh: Lazy[BigDataFormat[Value]],
+    bdft: Lazy[BigDataFormat[Tail]]
+  ): BigDataFormat[FieldType[Key, Value] :+: Tail] = new BigDataFormat[FieldType[Key, Value] :+: Tail] {
+    override def label: String = ???
+
+    override def toProperties(t: FieldType[Key, Value] :+: Tail): StringyMap = t match {
+      case Inl(found) => bdfh.value.toProperties(found)
+      case Inr(tail) => bdft.value.toProperties(tail)
+    }
+
+    override def toSchema: Map[String, (OType, Boolean)] = ???
+
+    override def fromProperties(m: StringyMap): BigResult[FieldType[Key, Value] :+: Tail] = {
+      if (m.get("typehint") == key.value.name) {
+        for {
+          res <- bdfh.value.fromProperties(m).right
+        } yield Inl(field[Key](res))
+      } else {
+        for {
+          tail <- bdft.value.fromProperties(m).right
+        } yield Inr(tail)
+      }
+    }
   }
 }
 

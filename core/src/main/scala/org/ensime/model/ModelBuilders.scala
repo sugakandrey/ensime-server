@@ -321,9 +321,9 @@ object LineSourcePositionHelper {
     }
 
   def fromFqnSymbol(sym: FqnSymbol)(implicit config: EnsimeConfig, vfs: EnsimeVFS): Option[LineSourcePosition] =
-    (sym.sourceFileObject, sym.line, sym.offset) match {
-      case (None, _, _) => None
-      case (Some(fo), lineOpt, offsetOpt) =>
+    (sym.sourceFileObject, sym.line) match {
+      case (None, _) => None
+      case (Some(fo), lineOpt) =>
         val f = possiblyExtractFile(fo)
         Some(new LineSourcePosition(f, lineOpt.getOrElse(0)))
     }
