@@ -7,12 +7,12 @@ package org.ensime.indexer.orientdb
 
 import scala.Predef.{ any2stringadd => _, _ }
 import scala.collection.JavaConverters._
-import scala.concurrent.{ blocking, ExecutionContext, Future }
-
+import scala.concurrent.{ ExecutionContext, Future, blocking }
 import akka.event.slf4j.SLF4JLogging
 import com.orientechnologies.orient.core.metadata.schema.OClass
 import com.tinkerpop.blueprints._
 import com.tinkerpop.blueprints.impls.orient._
+import org.ensime.indexer.graph.{ ClassDef, ClassHierarchy, Hierarchy, HierarchyType }
 import org.ensime.indexer.stringymap.api._
 import org.ensime.indexer.stringymap.syntax._
 
@@ -225,9 +225,9 @@ package object syntax {
                 v.setProperty(key, value)
           }
 
-          (keys -- updates.keySet).foreach { nulled =>
-            v.removeProperty[AnyRef](nulled)
-          }
+          //          (keys -- updates.keySet).foreach { nulled =>
+          //            v.removeProperty[AnyRef](nulled)
+          //          }
 
           existing
       }
@@ -246,22 +246,21 @@ package object syntax {
       s: BigDataFormat[T],
       u: BigDataFormatId[T, P],
       p: SPrimitive[P]
-    ): Boolean = readUniqueV(u.value(t)) match {
-      case Some(vertexT) =>
-        val v = vertexT.underlying
-        removeRecursive(v)
-        true
-      case None => false
-    }
+    ): Boolean = {
+      def removeRecursive(
+        v: Vertex
+      ): Unit = {
+        v.getVertices(Direction.IN).asScala.foreach(removeRecursive)
+        graph.removeVertex(v)
+      }
 
-    private def removeRecursive(
-      v: Vertex
-    )(
-      implicit
-      graph: OrientBaseGraph
-    ): Unit = {
-      v.getVertices(Direction.IN).asScala.foreach(removeRecursive)
-      graph.removeVertex(v)
+      readUniqueV(u.value(t)) match {
+        case Some(vertexT) =>
+          val v = vertexT.underlying
+          removeRecursive(v)
+          true
+        case None => false
+      }
     }
 
     /**
@@ -287,6 +286,34 @@ package object syntax {
     ): List[T] = {
       graph.getVerticesOfClass(s.label)
         .asScala.map(_.to[T])(collection.breakOut)
+    }
+
+    def classHierarchy[P](
+      value: P,
+      hierarchyType: HierarchyType
+    )(
+      implicit
+      graph: OrientBaseGraph,
+      s: BigDataFormat[ClassDef],
+      u: BigDataFormatId[ClassDef, P],
+      p: SPrimitive[P]
+    ): Option[Hierarchy] = {
+      val direction = hierarchyType match {
+        case HierarchyType.Subclasses => Direction.IN
+        case HierarchyType.Superclasses => Direction.OUT
+      }
+
+      def traverseClassHierarchy(
+        v: Vertex
+      ): Hierarchy = v.getVertices(direction, "IsParent").asScala.toList match {
+        case Nil => v.to[ClassDef]
+        case xs => ClassHierarchy(v.to[ClassDef], xs.sortBy(_.getProperty[String]("fqn")).map(traverseClassHierarchy))
+      }
+
+      readUniqueV(value) match {
+        case Some(vertexT) => Some(traverseClassHierarchy(vertexT.underlying))
+        case None => None
+      }
     }
   }
 }

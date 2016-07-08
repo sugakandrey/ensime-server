@@ -91,12 +91,14 @@ class IndexService(path: Path) {
     1 - .25f * nonTrailing$s
   }
 
-  def persist(check: FileCheck, symbols: List[FqnSymbol], commit: Boolean, boost: Boolean): Unit = {
+  def persist(check: FileCheck, symbols: List[RawSymbol], commit: Boolean, boost: Boolean): Unit = {
     val f = Some(check)
     val fqns: List[Document] = symbols.map {
-      case Method(fqn, _, _) => MethodIndex(fqn, f).toDocument
-      case Field(fqn, _, _, _) => FieldIndex(fqn, f).toDocument
-      case ClassDef(fqn, _, _, _, _) =>
+      case RawType(name, _) => FieldIndex(name, f).toDocument
+      case RawMethod(name, _, _, _) => MethodIndex(name.fqnString, f).toDocument
+      case RawField(name, _, _, _) => FieldIndex(name.fqnString, f).toDocument
+      case RawClassfile(name, _, _, _, _, _, _, _, _) =>
+        val fqn = name.fqnString
         val penalty = calculatePenalty(fqn)
         val document = ClassIndex(fqn, f).toDocument
         document.boostText("fqn", penalty)
