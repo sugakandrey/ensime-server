@@ -11,12 +11,14 @@ import akka.event.slf4j.SLF4JLogging
 import com.orientechnologies.orient.core.Orient
 import com.orientechnologies.orient.core.config.OGlobalConfiguration
 import com.orientechnologies.orient.core.intent.OIntentMassiveInsert
-import com.orientechnologies.orient.core.metadata.schema.{ OClass, OType }
+import com.orientechnologies.orient.core.metadata.schema.OType
 import com.tinkerpop.blueprints.Vertex
-import com.tinkerpop.blueprints.impls.orient.{ OrientGraphFactory, OrientVertexType }
+import com.tinkerpop.blueprints.impls.orient.OrientGraphFactory
 import org.apache.commons.vfs2.FileObject
 import org.ensime.api.DeclaredAs
 import org.ensime.indexer.IndexService.FqnIndex
+import org.ensime.indexer.SearchService.SourceInfo
+import org.ensime.indexer._
 import org.ensime.indexer.orientdb.api._
 import org.ensime.indexer.orientdb.syntax._
 import org.ensime.indexer.stringymap.api._
@@ -34,13 +36,28 @@ sealed trait FqnSymbol {
   def sourceFileObject(implicit vfs: EnsimeVFS): Option[FileObject] = source.map(vfs.vfile)
 }
 
+sealed trait Hierarchy {
+  def toSet: Set[ClassDef] = this match {
+    case cdef @ ClassDef(_, _, _, _, _) => Set(cdef)
+    case ClassHierarchy(cdef, refs) => Set(cdef) ++ refs.flatMap(_.toSet)
+  }
+}
+
+final case class ClassHierarchy(aClass: ClassDef, classRefs: Seq[Hierarchy]) extends Hierarchy
+
+sealed trait HierarchyType
+object HierarchyType {
+  case object Subclasses extends HierarchyType
+  case object Superclasses extends HierarchyType
+}
+
 final case class ClassDef(
     fqn: String,
     file: String,
     path: String,
     source: Option[String],
     line: Option[Int]
-) extends FqnSymbol {
+) extends FqnSymbol with Hierarchy {
   override def declAs: DeclaredAs = DeclaredAs.Class
 }
 
@@ -207,27 +224,32 @@ class GraphService(dir: File) extends SLF4JLogging {
     }
   }
 
-  def persist(check: FileCheck, symbols: Seq[FqnSymbol]): Future[Int] = withGraphAsync { implicit g =>
+  def persist(check: FileCheck, symbols: Seq[(RawSymbol, SourceInfo)]): Future[Int] = withGraphAsync { implicit g =>
     if (symbols.isEmpty) 0
     else {
       val fileV = RichGraph.upsertV[FileCheck, String](check) // bad atomic behaviour
 
-      // TODO
-      // - delete incoming FileCheck links
-      // - delete outgoing FqnSymbol links (don't delete vertices)
-
       symbols.foreach {
-        case sym: ClassDef =>
-          val classV = RichGraph.upsertV[ClassDef, String](sym)
+        case (s: RawClassfile, (file, path, source)) =>
+          val classDef = ClassDef(s.name.fqnString, file, path, source, s.source.line)
+          val classV = RichGraph.upsertV[ClassDef, String](classDef)
           RichGraph.insertE(classV, fileV, DefinedIn)
-        case sym: Method =>
-          val symV = RichGraph.upsertV[Method, String](sym)
-        //          RichGraph.insertE(symV, classV, OwningClassM)
-        case sym: Field =>
-          val symV = RichGraph.upsertV[Field, String](sym)
-        //          RichGraph.insertE(symV, classV, OwningClassF)
+          val superClass = s.superClass.map(name => ClassDef(name.fqnString, null, null, None, None))
+          val interfaces = s.interfaces.map(name => ClassDef(name.fqnString, null, null, None, None))
+          (superClass.toList ::: interfaces).foreach { cdef =>
+            val parentV = RichGraph.upsertV[ClassDef, String](cdef)
+            RichGraph.insertE(classV, parentV, IsParent)
+          }
+        case (s: RawField, (_, _, source)) =>
+          val field = Field(s.name.fqnString, Some(s.clazz.internalString), None, source)
+          RichGraph.upsertV[Field, String](field)
+        case (s: RawMethod, (_, _, source)) =>
+          val method = Method(s.name.fqnString, s.line, source)
+          val methodV = RichGraph.upsertV[Method, String](method)
+        case (s: RawType, (_, _, source)) =>
+          val field = Field(s.fqn, None, None, source)
+          val fieldV = RichGraph.upsertV[Field, String](field)
       }
-
       symbols.size
     }
   }
@@ -258,5 +280,9 @@ class GraphService(dir: File) extends SLF4JLogging {
   def commit(): Future[Unit] = withGraphAsync { implicit graph =>
     graph.commit() // transactions disabled, is this a no-op?
     graph.declareIntent(null)
+  }
+
+  def getClassHierarchy(fqn: String, hierarchyType: HierarchyType): Future[Option[Hierarchy]] = withGraphAsync { implicit g =>
+    RichGraph.classHierarchy[String](fqn, hierarchyType)
   }
 }
