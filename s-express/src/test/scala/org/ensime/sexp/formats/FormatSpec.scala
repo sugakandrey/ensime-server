@@ -7,7 +7,8 @@ import org.ensime.util.EnsimeSpec
 
 trait FormatSpec extends EnsimeSpec {
   def assertFormat[T: SexpFormat](start: T, expect: Sexp): Unit = {
-    start.toSexp should ===(expect)
-    expect.convertTo[T] should ===(start)
+    val sexp = start.toSexp
+    assert(sexp === expect, s"${sexp.compactPrint} was not ${expect.compactPrint}")
+    expect.convertTo[T] should be(start)
   }
 }

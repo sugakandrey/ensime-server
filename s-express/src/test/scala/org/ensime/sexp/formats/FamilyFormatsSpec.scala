@@ -2,113 +2,258 @@
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 package org.ensime.sexp.formats
 
+//import org.scalatest._
 import org.ensime.sexp._
+import shapeless._
+import java.util.UUID
 
-class FamilyFormatsSpec extends FormatSpec with FamilyFormats {
+// Example domain models used in the tests. Note that the domain model
+// and formatters are defined in sibling packages.
+package examples {
+  sealed trait SimpleTrait
+  case class Foo(s: String) extends SimpleTrait
+  case class Bar() extends SimpleTrait
+  case object Baz extends SimpleTrait
+  case class Faz(o: Option[String]) extends SimpleTrait
 
-  case object Bloo
+  sealed trait SubTrait extends SimpleTrait
+  case object Fuzz extends SubTrait
 
-  "FamilyFormats" should "support case objects" in {
-    assertFormat(Bloo, SexpNil)
-  }
+  sealed trait Spiel
+  case object Buzz extends Spiel
 
-  it should "support an example ADT" in {
-    import DefaultSexpProtocol._
-    import ExampleAst._
+  case class Schpugel(v: String) // I asked my wife to make up a word
+  case class Smim(v: String) // I should stop asking my wife to make up words
 
-    // performance improvement - avoids creating afresh at each call
-    // site (only possible for the non-recursive classes)
-    // implicit val FieldTermF = SexpFormat[FieldTerm]
-    // implicit val BoundedTermF = SexpFormat[BoundedTerm]
-    // implicit val UnparsedF = SexpFormat[Unparsed]
-    // implicit val IgnoredF = SexpFormat[Ignored]
-    // implicit val UnclearF = SexpFormat[Unclear]
-    // implicit val InTermF = SexpFormat[InTerm]
-    // implicit val LikeTermF = SexpFormat[LikeTerm]
-    // implicit val QualifierTokenF = SexpFormat[QualifierToken]
+  sealed trait Cloda
+  case class Plooba(thing: String) extends Cloda // *sigh*
 
-    /////////////////// START OF BOILERPLATE /////////////////
-    implicit object TokenTreeFormat extends TraitFormat[TokenTree] {
-      // get a performance improvement by creating as many implicit vals
-      // for TypeHint[T] as possible, e.g.
-      // implicit val FieldTermTH = typehint[FieldTerm]
-      // implicit val BoundedTermTH = typehint[BoundedTerm]
-      // implicit val UnparsedTH = typehint[Unparsed]
-      // implicit val IgnoredTH = typehint[Ignored]
-      // implicit val UnclearTH = typehint[Unclear]
-      // implicit val InTermTH = typehint[InTerm]
-      // implicit val LikeTermTH = typehint[LikeTerm]
-      // implicit val OrConditionTH = typehint[OrCondition]
-      // implicit val AndConditionTH = typehint[AndCondition]
-      // implicit val PreferTokenTH = typehint[PreferToken]
-      // implicit val QualifierTokenTH = typehint[QualifierToken]
+  object Quack
+  case class Huey(duck: Quack.type, witch: Option[Quack.type])
+  case class Dewey(duck: Quack.type, witch: Option[Quack.type])
 
-      def write(obj: TokenTree): Sexp = obj match {
-        case f: FieldTerm => wrap(f)
-        case b: BoundedTerm => wrap(b)
-        case u: Unparsed => wrap(u)
-        case i: Ignored => wrap(i)
-        case u: Unclear => wrap(u)
-        case i: InTerm => wrap(i)
-        case like: LikeTerm => wrap(like)
-        case a: AndCondition => wrap(a)
-        case o: OrCondition => wrap(o)
-        case prefer: PreferToken => wrap(prefer)
-        case q: QualifierToken => wrap(q)
-        case SpecialToken => wrap(SpecialToken)
+  // I love monkeys, you got a problem with that?
+  sealed trait Primates
+  sealed trait Strepsirrhini extends Primates
+  sealed trait Haplorhini extends Primates
+  sealed trait Tarsiiformes extends Haplorhini
+  case object Tarsiidae extends Tarsiiformes
+  sealed trait Simiiformes extends Haplorhini
+  sealed trait Platyrrhini extends Simiiformes
+  case object Callitrichidae extends Platyrrhini
+  case object Cebidae extends Platyrrhini
+  case object Aotidae extends Platyrrhini
+  case object Pitheciidae extends Platyrrhini
+  case object Atelidae extends Platyrrhini
+  sealed trait Catarrhini extends Simiiformes
+  sealed trait Cercopithecoidea extends Catarrhini
+  case object Cercopithecidae extends Cercopithecoidea
+  sealed trait Hominoidea extends Catarrhini
+  case object Hylobatidae extends Hominoidea
+  case class Hominidae(id: UUID) extends Hominoidea
+
+  // recursive cat
+  case class Cat(nick: String, tail: Option[Cat] = None)
+}
+
+package formats {
+  object ExamplesFormats extends BasicFormats
+      with StandardFormats
+      with CollectionFormats
+      with SymbolAltFormat
+      with OptionAltFormat
+      with FamilyFormats {
+    import examples._
+
+    ///////////////////////////////////////////////
+    // Example of "explicit implicit" for performance
+    implicit val SimpleTraitFormat: SexpFormat[SimpleTrait] = cachedImplicit
+
+    ///////////////////////////////////////////////
+    // user-defined hinting
+    implicit object SubTraitHint extends FlatCoproductHint[SubTrait]
+    implicit object SpielHint extends FlatCoproductHint[Spiel](SexpSymbol(":hint"))
+
+    ///////////////////////////////////////////////
+    // user-defined field naming rules
+    implicit object ClodaHint extends FlatCoproductHint[Cloda](SexpSymbol(":TYPE")) {
+      override def field(orig: String): SexpSymbol = SexpSymbol(orig.toUpperCase)
+    }
+    implicit object PloobaHint extends BasicProductHint[Plooba] {
+      override def field[K <: Symbol](k: K): SexpSymbol = SexpSymbol(s":${k.name.toUpperCase}")
+    }
+
+    ///////////////////////////////////////////////
+    // user-defined /missing value rules
+    implicit object DeweyHint extends BasicProductHint[Dewey] {
+      override def nulls = AlwaysSexpNil
+    }
+    implicit object QuackFormat extends SexpFormat[Quack.type] {
+      // needed something that would serialise to nil for testing
+      def read(j: Sexp): Quack.type = j match {
+        case SexpNil => Quack
+        case other => deserializationError(other)
       }
+      def write(q: Quack.type): Sexp = SexpNil
+    }
 
-      def read(hint: SexpSymbol, value: Sexp): TokenTree = hint match {
-        case s if s == implicitly[TypeHint[FieldTerm]].hint => value.convertTo[FieldTerm]
-        case s if s == implicitly[TypeHint[BoundedTerm]].hint => value.convertTo[BoundedTerm]
-        case s if s == implicitly[TypeHint[Unparsed]].hint => value.convertTo[Unparsed]
-        case s if s == implicitly[TypeHint[Ignored]].hint => value.convertTo[Ignored]
-        case s if s == implicitly[TypeHint[Unclear]].hint => value.convertTo[Unclear]
-        case s if s == implicitly[TypeHint[InTerm]].hint => value.convertTo[InTerm]
-        case s if s == implicitly[TypeHint[LikeTerm]].hint => value.convertTo[LikeTerm]
-        case s if s == implicitly[TypeHint[AndCondition]].hint => value.convertTo[AndCondition]
-        case s if s == implicitly[TypeHint[OrCondition]].hint => value.convertTo[OrCondition]
-        case s if s == implicitly[TypeHint[PreferToken]].hint => value.convertTo[PreferToken]
-        case s if s == implicitly[TypeHint[QualifierToken]].hint => value.convertTo[QualifierToken]
-        case s if s == implicitly[TypeHint[SpecialToken.type]].hint => value.convertTo[SpecialToken.type]
-        // SAD FACE --- compiler doesn't catch typos on matches or missing impls
-        case _ => deserializationError(hint)
+    ///////////////////////////////////////////////
+    // user-defined SexpFormat
+    implicit object SchpugelFormat extends SexpFormat[Schpugel] {
+      def read(j: Sexp): Schpugel = j match {
+        case SexpString(v) => Schpugel(v)
+        case other => deserializationError(other)
+      }
+      def write(s: Schpugel): Sexp = SexpString(s.v)
+    }
+
+  }
+}
+
+package test {
+  class FamilyFormatsSpec extends FormatSpec {
+    import examples._
+    import formats.ExamplesFormats._
+
+    def roundtrip[T: SexpFormat](t: T, wire: String): Unit =
+      assertFormat(t, wire.parseSexp)
+
+    "FamilyFormats" should "support case objects" in {
+      roundtrip(Baz, "()")
+    }
+
+    it should "support symbols" in {
+      roundtrip('foo, """foo""")
+    }
+
+    it should "support case classes" in {
+      roundtrip(Foo("foo"), """(:s "foo")""")
+      roundtrip(Bar(), "()")
+    }
+
+    it should "support recursive case classes" in {
+      roundtrip(
+        Cat(
+          "foo",
+          Some(Cat(
+            "bar",
+            Some(Cat("baz"))
+          ))
+        ),
+        """(:nick "foo" :tail (:nick "bar" :tail (:nick "baz")))"""
+      )
+    }
+
+    it should "support optional parameters on case classes" in {
+      roundtrip(Faz(Some("meh")), """(:o "meh")""")
+      roundtrip(Faz(None), "()")
+    }
+
+    it should "fail when missing required fields" in {
+      intercept[DeserializationException] {
+        """()""".parseSexp.convertTo[Foo]
       }
     }
-    /////////////////// END OF BOILERPLATE /////////////////
 
-    assertFormat(SpecialToken, SexpNil)
-    assertFormat(SpecialToken: TokenTree, SexpList(SexpSymbol(":SpecialToken")))
+    it should "support simple sealed families" in {
+      roundtrip(Foo("foo"): SimpleTrait, """(:Foo (:s "foo"))""")
+      roundtrip(Bar(): SimpleTrait, """(:Bar nil)""")
+      roundtrip(Baz: SimpleTrait, """(:Baz nil)""")
+      roundtrip(Fuzz: SimpleTrait, """(:Fuzz nil)""")
+    }
 
-    val fieldTerm = FieldTerm("thing is ten", DatabaseField("THING"), "10")
-    val expectField = SexpData(
-      SexpSymbol(":text") -> SexpString("thing is ten"),
-      SexpSymbol(":field") -> SexpData(
-        SexpSymbol(":column") -> SexpString("THING")
-      ),
-      SexpSymbol(":value") -> SexpString("10")
-    )
+    it should "fail when missing required coproduct disambiguators" in {
+      intercept[DeserializationException] {
+        """(:s "foo")""".parseSexp.convertTo[SimpleTrait]
+      }
+    }
 
-    // confirm that the wrapper is picked up for a specific case class
-    assertFormat(fieldTerm, expectField)
+    it should "support custom coproduct keys" in {
+      roundtrip(Fuzz: SubTrait, """(:type Fuzz)""")
+      roundtrip(Buzz: Spiel, """(:hint Buzz)""")
+    }
 
-    val expectFieldTree = SexpData(SexpSymbol(":FieldTerm") -> expectField)
+    it should "support custom coproduct field naming rules" in {
+      roundtrip(Plooba("poo"): Cloda, """(:TYPE PLOOBA :THING "poo")""")
+    }
 
-    // confirm that the trait level formatter works
-    assertFormat(fieldTerm: TokenTree, expectFieldTree)
+    it should "support custom product field naming rules" in {
+      roundtrip(Plooba("poo"), """(:THING "poo")""")
+    }
 
-    // confirm recursive works
-    val and = AndCondition(fieldTerm, fieldTerm, "wibble")
-    val expectAnd = SexpData(
-      SexpSymbol(":left") -> expectFieldTree,
-      SexpSymbol(":right") -> expectFieldTree,
-      SexpSymbol(":text") -> SexpString("wibble")
-    )
-    assertFormat(and, expectAnd)
+    it should "support custom missing value rules" in {
+      roundtrip(Huey(Quack, None), """nil""")
+      roundtrip(Dewey(Quack, None), """(:duck nil :witch nil)""")
 
-    val expectAndTree = SexpData(SexpSymbol(":AndCondition") -> expectAnd)
+      val nulls = """(:duck nil :witch nil)""".parseSexp
+      nulls.convertTo[Huey] shouldBe Huey(Quack, None)
+      nulls.convertTo[Dewey] shouldBe Dewey(Quack, None)
 
-    // and that the recursive type works as a trait
-    assertFormat(and: TokenTree, expectAndTree)
+      val partial = """(:duck nil)""".parseSexp
+      partial.convertTo[Huey] shouldBe Huey(Quack, None)
+      intercept[DeserializationException] {
+        partial.convertTo[Dewey] shouldBe Dewey(Quack, None)
+      }
+
+      val empty = """()""".parseSexp
+      empty.convertTo[Huey] shouldBe Huey(Quack, None)
+      intercept[DeserializationException] {
+        empty.convertTo[Dewey] shouldBe Dewey(Quack, None)
+      }
+    }
+
+    it should "fail when missing required (null) values" in {
+      val noduck = """(:witch nil)""".parseSexp
+      val nowitch = """(:duck nil)""".parseSexp
+
+      noduck.convertTo[Huey]
+      intercept[DeserializationException] {
+        noduck.convertTo[Dewey]
+      }
+
+      nowitch.convertTo[Huey]
+      intercept[DeserializationException] {
+        nowitch.convertTo[Dewey] shouldBe Dewey(Quack, None)
+      }
+    }
+
+    it should "prefer user customisable SexpFormats" in {
+      roundtrip(Schpugel("foo"), """"foo"""")
+    }
+
+    it should "fail to compile when a member of the family cannot be serialised" in {
+      // remove UUID formatter
+      def UuidFormat: SexpFormat[UUID] = ???
+
+      shapeless.test.illTyped(
+        """roundtrip(Hominidae(UUID.randomUUID): Primates, "nil")""",
+        ".*Cannot find SexpFormat for org.ensime.sexp.formats.examples.Primates.*"
+      )
+
+      shapeless.test.illTyped(
+        """roundtrip(Hominidae(UUID.randomUUID), "nil")""",
+        ".*Cannot find SexpFormat for org.ensime.sexp.formats.examples.Hominidae.*"
+      )
+    }
+
+    ///////////////////////////////////////////////
+    // non-trivial AST (in separate file)
+    it should "support an example ADT" in {
+      import ExampleAst._
+
+      roundtrip(SpecialToken: TokenTree, """(:SpecialToken nil)""")
+
+      val fieldTerm = FieldTerm("thing is ten", DatabaseField("THING"), "10")
+      roundtrip(
+        fieldTerm: TokenTree,
+        """(:FieldTerm (:text "thing is ten" :field (:column "THING") :value "10"))"""
+      )
+
+      val and = AndCondition(fieldTerm, fieldTerm, "wibble")
+      roundtrip(
+        and: TokenTree,
+        """(:AndCondition (:left (:FieldTerm (:text "thing is ten" :field (:column "THING") :value "10")) :right (:FieldTerm (:text "thing is ten" :field (:column "THING") :value "10")) :text "wibble"))"""
+      )
+    }
   }
 }

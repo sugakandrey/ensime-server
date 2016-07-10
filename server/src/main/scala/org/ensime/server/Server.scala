@@ -125,8 +125,8 @@ object Server {
     }
 
     val protocol: Protocol = propOrElse("ensime.protocol", "swank") match {
+      case "swanki" => new SwankiProtocol
       case "swank" => new SwankProtocol
-      case "jerk" => new JerkProtocol
       case other => throw new IllegalArgumentException(s"$other is not a valid ENSIME protocol")
     }
 

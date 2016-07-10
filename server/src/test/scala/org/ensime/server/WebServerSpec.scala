@@ -5,7 +5,6 @@ package org.ensime.server
 import akka.http.scaladsl.model.MediaTypes
 import akka.util.ByteString
 
-import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.http.scaladsl.marshallers.xml.ScalaXmlSupport
 
 import concurrent.Future
@@ -27,8 +26,6 @@ import org.ensime.util.file._
 
 class WebServerSpec extends HttpFlatSpec with WebServer {
 
-  import SprayJsonSupport._
-
   def restHandler(in: RpcRequest): Future[EnsimeServerMessage] =
     Future.successful(SendBackgroundMessageEvent("hello"))
 
@@ -43,20 +40,7 @@ class WebServerSpec extends HttpFlatSpec with WebServer {
 
   def docJars(): Set[File] = Set(File("foo-javadoc.jar"), File("bar-javadoc.jar"))
 
-  "WebServer" should "respond to REST queries" in {
-    Post("/rpc", """{"typehint":"ConnectionInfoReq"}""".parseJson) ~> route ~> check {
-      status shouldBe StatusCodes.OK
-      responseAs[JsValue] shouldBe expected
-    }
-  }
-
-  it should "error to bad REST queries" in {
-    Get("/rpc") ~> route ~> check {
-      status shouldBe StatusCodes.MethodNotAllowed
-    }
-  }
-
-  it should "respond to WebSocket queries" ignore {
+  "WebServer" should "respond to WebSocket queries" ignore {
     // https://github.com/akka/akka/issues/17914
     fail("no test framework yet")
   }

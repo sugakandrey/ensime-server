@@ -29,7 +29,7 @@ final case class SwankRPCFormatException(msg: String, callId: Int, cause: Throwa
 object SwankProtocolConversions extends DefaultSexpProtocol
     with SymbolAltFormat
     with OptionAltFormat
-    with FamilyFormats
+    with LegacyFamilyFormats
     with CamelCaseToDashes {
   override def skipNilValues: Boolean = true
 }
