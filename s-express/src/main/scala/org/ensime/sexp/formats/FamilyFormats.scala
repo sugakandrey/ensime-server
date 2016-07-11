@@ -45,12 +45,16 @@ private[formats] trait LowPriorityFamilyFormats
   ) {
     final def read(s: Sexp): SubRepr = s match {
       case SexpNil => readData(ListMap.empty)
+      case key: SexpSymbol => readData(ListMap(key -> SexpNil))
       case SexpData(data) => readData(data)
       case other => deserializationError(other)
     }
     def readData(j: SexpData): SubRepr
 
-    final def write(r: SubRepr): Sexp = squash(writeData(r))
+    final def write(r: SubRepr): Sexp = writeData(r).toSeq match {
+      case Seq((key, SexpNil)) => key
+      case data => squash(data)
+    }
 
     def writeData(r: SubRepr): SexpData
   }
@@ -157,10 +161,12 @@ private[formats] trait LowPriorityFamilyFormats
 }
 
 trait SexpFormatHints {
-  private[formats] def squash(d: SexpData): Sexp =
-    d.toSeq.foldRight(SexpNil: Sexp) {
+  private[formats] def squash(d: Seq[(SexpSymbol, Sexp)]): Sexp =
+    d.foldRight(SexpNil: Sexp) {
       case ((key, value), acc) => SexpCons(key, SexpCons(value, acc))
     }
+
+  private[formats] def squash(d: SexpData): Sexp = squash(d.toSeq)
 
   trait CoproductHint[T] {
     /**

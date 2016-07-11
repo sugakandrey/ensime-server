@@ -345,12 +345,12 @@ class JerkyFormatsSpec extends EnsimeSpec with SprayJsonTestSupport with EnsimeT
     )
 
     roundtrip(
-      DebugVMStartEvent: EnsimeServerMessage,
-      """{"typehint":"DebugVMStartEvent"}"""
+      DebugVmStartEvent: EnsimeServerMessage,
+      """{"typehint":"DebugVmStartEvent"}"""
     )
     roundtrip(
-      DebugVMDisconnectEvent: EnsimeServerMessage,
-      """{"typehint":"DebugVMDisconnectEvent"}"""
+      DebugVmDisconnectEvent: EnsimeServerMessage,
+      """{"typehint":"DebugVmDisconnectEvent"}"""
     )
     roundtrip(
       DebugExceptionEvent(33L, dtid, "threadNameStr", Some(sourcePos1.file), Some(sourcePos1.line)): EnsimeServerMessage,

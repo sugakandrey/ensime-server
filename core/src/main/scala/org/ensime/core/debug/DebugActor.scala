@@ -47,7 +47,7 @@ class DebugActor private (
   private val converter: StructureConverter = new StructureConverter(sourceMap)
   private val vmm: VirtualMachineManager = new VirtualMachineManager(
     // Signal to the user that the JVM has disconnected
-    globalStopFunc = s => broadcaster ! DebugVMDisconnectEvent
+    globalStopFunc = s => broadcaster ! DebugVmDisconnectEvent
   )
 
   // Bind our event handlers (breakpoint, step, thread start, etc.) before the
@@ -427,7 +427,7 @@ class DebugActor private (
 
     // Send start event to client when received
     scalaVirtualMachine.onUnsafeVMStart().foreach(_ =>
-      broadcaster ! DebugVMStartEvent)
+      broadcaster ! DebugVmStartEvent)
 
     // Breakpoint Event - capture and broadcast breakpoint information
     scalaVirtualMachine.createEventListener(EventType.BreakpointEventType).foreach(e => {

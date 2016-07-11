@@ -157,9 +157,9 @@ package test {
 
     it should "support simple sealed families" in {
       roundtrip(Foo("foo"): SimpleTrait, """(:Foo (:s "foo"))""")
-      roundtrip(Bar(): SimpleTrait, """(:Bar nil)""")
-      roundtrip(Baz: SimpleTrait, """(:Baz nil)""")
-      roundtrip(Fuzz: SimpleTrait, """(:Fuzz nil)""")
+      roundtrip(Bar(): SimpleTrait, """:Bar""")
+      roundtrip(Baz: SimpleTrait, """:Baz""")
+      roundtrip(Fuzz: SimpleTrait, """:Fuzz""")
     }
 
     it should "fail when missing required coproduct disambiguators" in {
@@ -241,7 +241,7 @@ package test {
     it should "support an example ADT" in {
       import ExampleAst._
 
-      roundtrip(SpecialToken: TokenTree, """(:SpecialToken nil)""")
+      roundtrip(SpecialToken: TokenTree, """:SpecialToken""")
 
       val fieldTerm = FieldTerm("thing is ten", DatabaseField("THING"), "10")
       roundtrip(

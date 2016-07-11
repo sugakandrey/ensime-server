@@ -351,11 +351,11 @@ class SwankFormatsSpec extends EnsimeSpec with EnsimeTestData {
     )
 
     marshal(
-      DebugVMStartEvent: EnsimeEvent,
+      DebugVmStartEvent: EnsimeEvent,
       """(:debug-event (:type start))"""
     )
     marshal(
-      DebugVMDisconnectEvent: EnsimeEvent,
+      DebugVmDisconnectEvent: EnsimeEvent,
       """(:debug-event (:type disconnect))"""
     )
     marshal(

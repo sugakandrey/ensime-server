@@ -111,10 +111,10 @@ final case class DebugBreakEvent(
 ) extends DebugEvent
 
 /** The debugged VM has started. */
-case object DebugVMStartEvent extends DebugEvent
+case object DebugVmStartEvent extends DebugEvent
 
 /** The debugger has disconnected from the debugged VM. */
-case object DebugVMDisconnectEvent extends DebugEvent
+case object DebugVmDisconnectEvent extends DebugEvent
 
 /** The debugged VM has thrown an exception and is now paused waiting for control. */
 final case class DebugExceptionEvent(
@@ -331,6 +331,7 @@ object DebugThreadId {
    * @param s A Long encoded as a string
    * @return A ThreadId
    */
+  @deprecating("no code in the API")
   def apply(s: String): DebugThreadId = {
     new DebugThreadId(s.toLong)
   }
@@ -338,13 +339,13 @@ object DebugThreadId {
 
 final case class DebugObjectId(id: Long)
 
-@deprecating("no code in the API")
 object DebugObjectId {
   /**
    * Create a DebugObjectId from a String representation
    * @param s A Long encoded as a string
    * @return A DebugObjectId
    */
+  @deprecating("no code in the API")
   def apply(s: String): DebugObjectId = {
     new DebugObjectId(s.toLong)
   }
@@ -509,7 +510,7 @@ final case class EnsimeImplementation(
 final case class ConnectionInfo(
   pid: Option[Int] = None,
   implementation: EnsimeImplementation = EnsimeImplementation("ENSIME"),
-  version: String = "1.9.0"
+  version: String = "1.9.1"
 ) extends RpcResponse
 
 sealed trait ImplicitInfo

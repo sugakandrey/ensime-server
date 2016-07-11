@@ -15,6 +15,27 @@ private object SwankyConversions
     with OptionAltFormat
     with FamilyFormats {
 
+  def dashify(field: String): String =
+    ":" + field.replaceAll("([A-Z])", "-$1").toLowerCase.replaceAll("^-", "")
+
+  implicit override def coproductHint[T: Typeable]: CoproductHint[T] = new NestedCoproductHint[T] {
+    override def field(orig: String): SexpSymbol = SexpSymbol(dashify(orig))
+  }
+
+  implicit override def productHint[T]: ProductHint[T] = new BasicProductHint[T] {
+    override def field[Key <: Symbol](key: Key): SexpSymbol = SexpSymbol(dashify(key.name))
+  }
+
+  implicit object DebugThreadIdFormat extends SexpFormat[DebugThreadId] {
+    override def read(s: Sexp): DebugThreadId = DebugThreadId(LongFormat.read(s))
+    override def write(t: DebugThreadId): Sexp = LongFormat.write(t.id)
+  }
+
+  implicit object DebugObjectIdFormat extends SexpFormat[DebugObjectId] {
+    override def read(s: Sexp): DebugObjectId = DebugObjectId(LongFormat.read(s))
+    override def write(t: DebugObjectId): Sexp = LongFormat.write(t.id)
+  }
+
   implicit val RpcRequestEnvelopeFormat: SexpFormat[RpcRequestEnvelope] = cachedImplicit
   implicit val RpcResponseEnvelopeFormat: SexpFormat[RpcResponseEnvelope] = cachedImplicit
 
