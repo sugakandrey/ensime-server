@@ -225,19 +225,6 @@ class SearchService(
         else {
           (clazz :: clazz.methods.toList ::: clazz.fields.toList ::: depickler.getTypeAliases.toList).map(_ -> sourceFileInfo)
         }
-      //        else {
-      //          ClassDef(clazz.name.fqnString, name, path, sourceUri, clazz.source.line) ::
-      //            clazz.methods.toList.filter(_.access == Public).map { method =>
-      //              Method(method.name.fqnString, method.line, sourceUri)
-      //            } ::: clazz.fields.toList.filter(_.access == Public).map { field =>
-      //              val internal = field.clazz.internalString
-      //              Field(field.name.fqnString, Some(internal), clazz.source.line, sourceUri)
-      //            } ::: depickler.getTypeAliases.toList.filter(_.access == Public).filterNot(_.fqn.contains("<refinement>")).map { rawType =>
-      //               this is a hack, we shouldn't be storing Scala names in the JVM name space
-      //               in particular, it creates fqn names that clash with the above ones
-      //              Field(rawType.fqn, None, None, sourceUri)
-      //            }
-      //        }
     }
   }.filterNot(sym => ignore.exists(sym._1.fqn.contains))
 
