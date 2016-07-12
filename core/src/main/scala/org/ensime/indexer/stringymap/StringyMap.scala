@@ -6,6 +6,7 @@
  */
 package org.ensime.indexer.stringymap
 
+import com.orientechnologies.orient.core.metadata.schema.OType
 import shapeless._
 import shapeless.labelled._
 
@@ -15,10 +16,14 @@ package object api {
 }
 
 package api {
+
+  import com.orientechnologies.orient.core.metadata.schema.OType
+
   trait BigDataFormat[T] {
     def label: String
     def toProperties(t: T): StringyMap
     def fromProperties(m: StringyMap): BigResult[T]
+    def toSchema: Map[String, (OType, Boolean)]
   }
 
   trait BigDataFormatId[T, P] {
@@ -29,6 +34,7 @@ package api {
   trait SPrimitive[T] {
     def toValue(v: T): AnyRef
     def fromValue(v: AnyRef): T
+    def getType: (OType, Boolean)
   }
 
   // defining really basic implementations on the companion
@@ -36,14 +42,17 @@ package api {
     implicit object StringSPrimitive extends SPrimitive[String] {
       def toValue(v: String): String = v
       def fromValue(v: AnyRef): String = v.asInstanceOf[String]
+      def getType: (OType, Boolean) = OType.STRING -> true
     }
     implicit object IntSPrimitive extends SPrimitive[Int] {
       def toValue(v: Int): java.lang.Integer = v
       def fromValue(v: AnyRef): Int = v.asInstanceOf[java.lang.Integer]
+      def getType: (OType, Boolean) = OType.INTEGER -> true
     }
     implicit object LongSPrimitive extends SPrimitive[Long] {
       def toValue(v: Long): java.lang.Long = v
       def fromValue(v: AnyRef): Long = v.asInstanceOf[java.lang.Long]
+      def getType: (OType, Boolean) = OType.LONG -> true
     }
     implicit def OptionSPrimitive[T](
       implicit
@@ -56,6 +65,7 @@ package api {
       def fromValue(v: AnyRef): Option[T] =
         if (v == null) None
         else Some(p.fromValue(v))
+      def getType: (OType, Boolean) = p.getType._1 -> false
     }
   }
 
@@ -68,6 +78,7 @@ package object impl {
     def label: String = ???
     def toProperties(t: HNil): StringyMap = new java.util.HashMap()
     def fromProperties(m: StringyMap) = Right(HNil)
+    def toSchema: Map[String, (OType, Boolean)] = Map()
   }
 
   implicit def hListBigDataFormat[Key <: Symbol, Value, Remaining <: HList](
@@ -103,6 +114,12 @@ package object impl {
           current <- resolved.right
         } yield field[Key](current) :: remaining
       }
+
+      def toSchema: Map[String, (OType, Boolean)] = {
+        val otype = prim.getType
+        val map = remV.value.toSchema
+        map + (key.value.name -> otype)
+      }
     }
 
   // TODO: coproducts
@@ -116,9 +133,49 @@ package object impl {
     // HACK: really need a Wrapper like sjs
     // WORKAROUND: edge names cannot have dots in them
     def label: String = tpe.describe.replace(".type", "")
-    def toProperties(t: T): StringyMap = sg.value.toProperties(gen.to(t))
+    def toProperties(t: T): StringyMap = {
+      val map = sg.value.toProperties(gen.to(t))
+      map.put("typehint", label)
+      map
+    }
     def fromProperties(m: StringyMap): BigResult[T] =
       sg.value.fromProperties(m).right.map(gen.from)
+    def toSchema: Map[String, (OType, Boolean)] = sg.value.toSchema
+  }
+
+  implicit def CNilBigDataFormat[T]: BigDataFormat[CNil] = new BigDataFormat[CNil] {
+    override def label: String = ???
+    override def toProperties(t: CNil): StringyMap = ???
+    override def toSchema: Map[String, (OType, Boolean)] = ???
+    override def fromProperties(m: StringyMap): BigResult[CNil] = ???
+  }
+
+  implicit def CoproductBigDataFormat[Key <: Symbol, Value, Tail <: Coproduct](
+    implicit
+    key: Witness.Aux[Key],
+    bdfh: Lazy[BigDataFormat[Value]],
+    bdft: Lazy[BigDataFormat[Tail]]
+  ): BigDataFormat[FieldType[Key, Value] :+: Tail] = new BigDataFormat[FieldType[Key, Value] :+: Tail] {
+    override def label: String = ???
+
+    override def toProperties(t: FieldType[Key, Value] :+: Tail): StringyMap = t match {
+      case Inl(found) => bdfh.value.toProperties(found)
+      case Inr(tail) => bdft.value.toProperties(tail)
+    }
+
+    override def toSchema: Map[String, (OType, Boolean)] = ???
+
+    override def fromProperties(m: StringyMap): BigResult[FieldType[Key, Value] :+: Tail] = {
+      if (m.get("typehint") == key.value.name) {
+        for {
+          res <- bdfh.value.fromProperties(m).right
+        } yield Inl(field[Key](res))
+      } else {
+        for {
+          tail <- bdft.value.fromProperties(m).right
+        } yield Inr(tail)
+      }
+    }
   }
 }
 

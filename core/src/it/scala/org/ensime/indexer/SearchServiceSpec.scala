@@ -5,6 +5,7 @@ package org.ensime.indexer
 import scala.concurrent._
 import scala.concurrent.duration._
 import org.ensime.fixture._
+import org.ensime.indexer.graph.{ ClassDef, ClassHierarchy, HierarchyType }
 import org.ensime.util.EnsimeSpec
 import org.ensime.util.file._
 import org.scalatest.Matchers._
@@ -60,6 +61,7 @@ class SearchServiceSpec extends EnsimeSpec
 
       classfile.delete()
       refresh() shouldBe ((1, 0))
+      searchExpectEmpty("org.example.Foo")
     }
   }
 
@@ -204,6 +206,43 @@ class SearchServiceSpec extends EnsimeSpec
 
   "exact searches" should "find type aliases" in withSearchService { implicit service =>
     service.findUnique("org.scalatest.fixture.ConfigMapFixture$FixtureParam") shouldBe defined
+  }
+
+  "class hierarchy viewer" should "find all classes implementing a trait" in withSearchService { implicit service =>
+    val someTrait = "org.hierarchy.SomeTrait"
+    val implementingClasses = service.getClassHierarchy(someTrait, HierarchyType.Subclasses)
+    implementingClasses shouldBe defined
+    inside(implementingClasses.get) {
+      case ClassHierarchy(classDef, refs) =>
+        classDef.fqn should ===(someTrait)
+        inside(refs) {
+          case Seq(ref1, ref2) =>
+            inside(ref1) {
+              case ClassHierarchy(aClass, Seq(subclass)) =>
+                aClass.fqn should ===("org.hierarchy.ExtendsTrait")
+                inside(subclass) {
+                  case cdef: ClassDef => cdef.fqn should ===("org.hierarchy.Subclass")
+                }
+            }
+            inside(ref2) {
+              case cdef: ClassDef => cdef.fqn should ===("org.hierarchy.ExtendsTraitToo")
+            }
+        }
+    }
+  }
+
+  it should "find all superclasses of a class" in withSearchService { implicit service =>
+    val hierarchy = service.getClassHierarchy("org.hierarchy.Qux", HierarchyType.Superclasses)
+    hierarchy shouldBe defined
+    hierarchy.get.toSet.map(_.fqn) should contain theSameElementsAs Set(
+      "org.hierarchy.Qux",
+      "scala.math.Ordered",
+      "org.hierarchy.Bar",
+      "org.hierarchy.NotBaz",
+      "java.lang.Runnable",
+      "java.lang.Comparable",
+      "java.lang.Object"
+    )
   }
 }
 

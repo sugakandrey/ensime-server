@@ -7,11 +7,13 @@ package org.ensime.indexer.orientdb
 
 import scala.Predef.{ any2stringadd => _, _ }
 import scala.collection.JavaConverters._
-import scala.concurrent.{ blocking, ExecutionContext, Future }
-
+import scala.concurrent.{ ExecutionContext, Future, blocking }
 import akka.event.slf4j.SLF4JLogging
+import com.orientechnologies.orient.core.metadata.schema.OClass
 import com.tinkerpop.blueprints._
 import com.tinkerpop.blueprints.impls.orient._
+import org.ensime.indexer.graph.GraphService.IsParent
+import org.ensime.indexer.graph._
 import org.ensime.indexer.stringymap.api._
 import org.ensime.indexer.stringymap.syntax._
 
@@ -32,9 +34,77 @@ package api {
   case class VertexT[T](underlying: Vertex)
 
   trait EdgeT[+Out, +In]
+
+  sealed trait IndexT {
+    def orientKey: String
+  }
+
+  object IndexT {
+    case object Unique extends IndexT {
+      override def orientKey = "unique"
+    }
+
+    case object NotUnique extends IndexT {
+      override def orientKey = "notunique"
+    }
+
+    case object FullText extends IndexT {
+      override def orientKey = "fulltext"
+    }
+
+  }
+
+  trait Indexable[T <: Element] {
+    def aClass: Class[T]
+  }
+
+  object Indexable {
+    implicit object VertexIndexable extends Indexable[Vertex] {
+      override def aClass: Class[Vertex] = classOf[Vertex]
+    }
+    implicit object EdgeIndexable extends Indexable[Edge] {
+      override def aClass: Class[Edge] = classOf[Edge]
+    }
+  }
 }
 
 package object syntax {
+  import org.ensime.indexer.orientdb.api.{ IndexT, Indexable }
+
+  implicit class RichOrientGraph(graph: OrientExtendedGraph) {
+    private val schema = graph.getRawGraph.getMetadata.getSchema
+
+    def createIndexOn[E <: Element, T, F](idx: IndexT = IndexT.NotUnique)(
+      implicit
+      tag: Indexable[E],
+      bdf: BigDataFormat[T],
+      id: BigDataFormatId[T, F]
+    ): RichOrientGraph = {
+      graph.createKeyIndex(id.key, tag.aClass, "type" -> idx.orientKey, "class" -> bdf.label)
+      this
+    }
+
+    def createVertexFrom[T](superClass: Option[OClass] = None)(implicit bdf: BigDataFormat[T]): OClass = {
+      graph.createVertexType(bdf.label)
+      val schemaClass = schema.getClass(bdf.label)
+      superClass.foreach(schemaClass.addSuperClass)
+      bdf.toSchema.foreach {
+        case (key, (otype, mandatory)) =>
+          if (schemaClass.getProperty(key) == null) {
+            schemaClass.createProperty(key, otype)
+              .setMandatory(mandatory)
+              .setNotNull(true)
+          }
+      }
+      schemaClass
+    }
+
+    def createEdge[T](implicit bdf: BigDataFormat[T]): RichOrientGraph = {
+      graph.createEdgeType(bdf.label)
+      this
+    }
+  }
+
   import org.ensime.indexer.orientdb.api._
 
   implicit def RichParameter(props: (String, String)): Parameter[String, String] =
@@ -54,6 +124,25 @@ package object syntax {
 
   implicit class RichVertexT[T](val v: VertexT[T]) extends AnyVal {
     def toDomain(implicit s: BigDataFormat[T]): T = v.underlying.to[T]
+
+    def remove(implicit graph: OrientBaseGraph): Unit = graph.removeVertex(v.underlying)
+
+    def getProperty[P](key: String): P = v.underlying.getProperty[P](key)
+
+    def getChildVertices[S, E <: EdgeT[S, T]](
+      edge: E
+    )(
+      implicit
+      bdf: BigDataFormat[E]
+    ): Iterable[VertexT[S]] = v.underlying.getVertices(Direction.IN, bdf.label).asScala.map(VertexT[S])
+
+    def getParentVertices[S, E <: EdgeT[T, S]](
+      edge: E
+    )(
+      implicit
+      bdf: BigDataFormat[E]
+    ): Iterable[VertexT[S]] = v.underlying.getVertices(Direction.OUT, bdf.label).asScala.map(VertexT[S])
+
   }
 
   /**
@@ -157,9 +246,9 @@ package object syntax {
                 v.setProperty(key, value)
           }
 
-          (keys -- updates.keySet).foreach { nulled =>
-            v.removeProperty[AnyRef](nulled)
-          }
+          //          (keys -- updates.keySet).foreach { nulled =>
+          //            v.removeProperty[AnyRef](nulled)
+          //          }
 
           existing
       }
@@ -178,10 +267,20 @@ package object syntax {
       s: BigDataFormat[T],
       u: BigDataFormatId[T, P],
       p: SPrimitive[P]
-    ): Boolean = readUniqueV(u.value(t)) match {
-      case Some(vertexT) =>
-        graph.removeVertex(vertexT.underlying); true
-      case None => false
+    ): Boolean = {
+      def removeRecursive(
+        v: Vertex
+      ): Unit = {
+        v.getVertices(Direction.IN).asScala.foreach(removeRecursive)
+        graph.removeVertex(v)
+      }
+
+      readUniqueV(u.value(t)) match {
+        case Some(vertexT) =>
+          removeRecursive(vertexT.underlying)
+          true
+        case None => false
+      }
     }
 
     /**
@@ -207,6 +306,38 @@ package object syntax {
     ): List[T] = {
       graph.getVerticesOfClass(s.label)
         .asScala.map(_.to[T])(collection.breakOut)
+    }
+
+    def classHierarchy[P: Ordering](
+      value: P,
+      hierarchyType: HierarchyType
+    )(
+      implicit
+      graph: OrientBaseGraph,
+      s: BigDataFormat[ClassDef],
+      bdf: BigDataFormat[IsParent.type],
+      u: BigDataFormatId[ClassDef, P],
+      p: SPrimitive[P]
+    ): Option[Hierarchy] = {
+
+      def traverseClassHierarchy(
+        v: VertexT[ClassDef]
+      ): Hierarchy = {
+        val vertices: Iterable[VertexT[ClassDef]] = hierarchyType match {
+          case HierarchyType.Subclasses => v.getChildVertices(IsParent)
+          case HierarchyType.Superclasses => v.getParentVertices(IsParent)
+        }
+
+        vertices.toList match {
+          case Nil => v.toDomain
+          case xs => ClassHierarchy(v.toDomain, xs.sortBy(_.getProperty[P](u.key)).map(traverseClassHierarchy))
+        }
+      }
+
+      readUniqueV[ClassDef, P](value) match {
+        case Some(vertexT) => Some(traverseClassHierarchy(vertexT))
+        case None => None
+      }
     }
   }
 }
