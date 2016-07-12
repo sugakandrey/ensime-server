@@ -195,23 +195,17 @@ final case class Descriptor(params: List[DescriptorType], ret: DescriptorType) {
     "(" + params.map(_.internalString).mkString("") + ")" + ret.internalString
 }
 
-sealed trait RawSymbol {
-  def fqn: String
-}
-
 final case class RawClassfile(
-    name: ClassName,
-    generics: Option[GenericClass],
-    superClass: Option[ClassName],
-    interfaces: List[ClassName],
-    access: Access,
-    deprecated: Boolean,
-    fields: Queue[RawField],
-    methods: Queue[RawMethod],
-    source: RawSource
-) extends RawSymbol {
-  override def fqn: String = name.fqnString
-}
+  name: ClassName,
+  generics: Option[GenericClass],
+  superClass: Option[ClassName],
+  interfaces: List[ClassName],
+  access: Access,
+  deprecated: Boolean,
+  fields: Queue[RawField],
+  methods: Queue[RawMethod],
+  source: RawSource
+)
 
 final case class RawSource(
   filename: Option[String],
@@ -221,25 +215,21 @@ final case class RawSource(
 final case class RawType(
   fqn: String,
   access: Access
-) extends RawSymbol
+)
 
 final case class RawField(
-    name: FieldName,
-    clazz: DescriptorType,
-    generics: Option[String],
-    access: Access
-) extends RawSymbol {
-  override def fqn: String = name.fqnString
-}
+  name: FieldName,
+  clazz: DescriptorType,
+  generics: Option[String],
+  access: Access
+)
 
 final case class RawMethod(
-    name: MethodName,
-    access: Access,
-    generics: Option[String],
-    line: Option[Int]
-) extends RawSymbol {
-  override def fqn: String = name.fqnString
-}
+  name: MethodName,
+  access: Access,
+  generics: Option[String],
+  line: Option[Int]
+)
 
 final case class RawScalaClass(
   javaName: ClassName,
