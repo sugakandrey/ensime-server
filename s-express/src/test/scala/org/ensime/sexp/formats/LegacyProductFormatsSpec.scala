@@ -5,8 +5,8 @@ package org.ensime.sexp.formats
 import org.ensime.sexp._
 import shapeless._
 
-class ProductFormatsSpec extends FormatSpec
-    with BasicFormats with StandardFormats with ProductFormats {
+class LegacyProductFormatsSpec extends FormatSpec
+    with BasicFormats with StandardFormats with LegacyProductFormats {
 
   case class Foo(i: Int, s: String)
   case class Bar(foo: Foo)
@@ -89,11 +89,11 @@ class ProductFormatsSpec extends FormatSpec
   }
 }
 
-class CustomisedProductFormatsSpec extends FormatSpec
-    with BasicFormats with StandardFormats with ProductFormats
+class CustomisedLegacyProductFormatsSpec extends FormatSpec
+    with BasicFormats with StandardFormats with LegacyProductFormats
     with CamelCaseToDashes {
 
-  trait SkippingEnabled extends ProductFormats {
+  trait SkippingEnabled extends LegacyProductFormats {
     override val skipNilValues = true
   }
 

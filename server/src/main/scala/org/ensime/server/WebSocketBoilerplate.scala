@@ -2,14 +2,15 @@
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 package org.ensime.server
 
-import akka.actor._
 import scala.reflect.ClassTag
-import spray.json._
 
+import akka.actor._
 import akka.stream._
 import akka.stream.scaladsl._
 import akka.http.scaladsl.server._
 import akka.http.scaladsl.model.ws._
+import org.ensime.sexp._
+import spray.json._
 
 /**
  * This crazy amount of indecipherable boilerplate is how we turn a
@@ -63,6 +64,25 @@ object WebSocketBoilerplate {
   }
 
   /**
+   * @param actor see `actorRefAsFlow`
+   * @return a `Flow` suitable for use in a `Route`.
+   */
+  def sexpWebsocket[Incoming, Outgoing](
+    actor: ActorRef => ActorRef
+  )(
+    implicit
+    m1: SexpFormat[Incoming],
+    m2: SexpFormat[Outgoing],
+    mat: Materializer,
+    oc: ClassTag[Outgoing],
+    printer: SexpPrinter = SexpPrettyPrinter
+  ): Route = {
+    val underlying = actorRefAsFlow[Incoming, Outgoing](actor)
+    val marshalled = sexpMarshalledMessageFlow(underlying)
+    handleWebsocketMessages(marshalled)
+  }
+
+  /**
    * @param actor constructor for an actor that accepts `Incoming` messages and
    *              sends (potentially async) `Outgoing` messages to
    *              `target` (the parameter).
@@ -111,4 +131,27 @@ object WebSocketBoilerplate {
     }
   }
 
+  /**
+   * @param flow using user domain objects
+   * @return a `Flow` using WebSocket `Message`s
+   */
+  def sexpMarshalledMessageFlow[Incoming, Outgoing](
+    flow: Flow[Incoming, Outgoing, Unit]
+  )(
+    implicit
+    m1: SexpFormat[Incoming],
+    m2: SexpFormat[Outgoing],
+    oc: ClassTag[Outgoing],
+    printer: SexpPrinter = SexpPrettyPrinter
+  ): Flow[Message, Message, Unit] = {
+    Flow[Message].collect {
+      case TextMessage.Strict(msg) =>
+        msg.parseSexp.convertTo[Incoming]
+      case _ =>
+        throw new IllegalArgumentException("not a valid message")
+    }.via(flow).map {
+      case e: Outgoing =>
+        TextMessage.Strict(printer(e.toSexp)): Message
+    }
+  }
 }

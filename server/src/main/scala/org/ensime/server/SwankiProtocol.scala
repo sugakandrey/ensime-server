@@ -4,21 +4,23 @@ package org.ensime.server
 
 import akka.util.ByteString
 import org.ensime.api._
-import org.ensime.jerk._
-import spray.json._
+import org.ensime.sexp._
+import org.ensime.swanky._
 
-class JerkProtocol extends FramedStringProtocol {
-  import JerkEnvelopeFormats._
-
-  override def encode(resp: RpcResponseEnvelope): ByteString = writeString(resp.toJson.compactPrint)
+@deprecating("use SWANKY on WebSockets")
+class SwankiProtocol extends FramedStringProtocol {
+  import SwankyFormats._
 
   override def decode(bytes: ByteString): (Option[RpcRequestEnvelope], ByteString) = {
     tryReadString(bytes) match {
       case (Some(message), remainder) =>
-        val parsedMessage = message.parseJson.convertTo[RpcRequestEnvelope]
+        val parsedMessage = message.parseSexp.convertTo[RpcRequestEnvelope]
         (Some(parsedMessage), remainder)
       case (None, remainder) =>
         (None, remainder)
     }
   }
+
+  override def encode(resp: RpcResponseEnvelope): ByteString = writeString(resp.toSexp.prettyPrint)
+
 }
