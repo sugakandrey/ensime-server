@@ -16,14 +16,14 @@ private object SwankyConversions
     with FamilyFormats {
 
   def dashify(field: String): String =
-    ":" + field.replaceAll("([A-Z])", "-$1").toLowerCase.replaceAll("^-", "")
+    field.replaceAll("([A-Z])", "-$1").toLowerCase.replaceAll("^-", "")
 
   implicit override def coproductHint[T: Typeable]: CoproductHint[T] = new NestedCoproductHint[T] {
-    override def field(orig: String): SexpSymbol = SexpSymbol(dashify(orig))
+    override def field(orig: String): SexpSymbol = SexpSymbol(":ensime-api-" + dashify(orig))
   }
 
   implicit override def productHint[T]: ProductHint[T] = new BasicProductHint[T] {
-    override def field[Key <: Symbol](key: Key): SexpSymbol = SexpSymbol(dashify(key.name))
+    override def field[Key <: Symbol](key: Key): SexpSymbol = SexpSymbol(":" + dashify(key.name))
   }
 
   implicit object DebugThreadIdFormat extends SexpFormat[DebugThreadId] {

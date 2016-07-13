@@ -4,9 +4,10 @@ package org.ensime.sexp.formats
 
 import org.ensime.sexp._
 import org.ensime.util.EnsimeSpec
+import org.scalactic.source.Position
 
 trait FormatSpec extends EnsimeSpec {
-  def assertFormat[T: SexpFormat](start: T, expect: Sexp): Unit = {
+  def assertFormat[T: SexpFormat](start: T, expect: Sexp)(implicit p: Position): Unit = {
     val sexp = start.toSexp
     assert(sexp === expect, s"${sexp.compactPrint} was not ${expect.compactPrint}")
     expect.convertTo[T] should be(start)
