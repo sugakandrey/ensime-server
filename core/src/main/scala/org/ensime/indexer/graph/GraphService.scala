@@ -37,25 +37,19 @@ sealed trait FqnSymbol {
   def sourceFileObject(implicit vfs: EnsimeVFS): Option[FileObject] = source.map(vfs.vfile)
 }
 
-sealed trait Hierarchy {
-  def toSet: Set[ClassDef] = this match {
-    case cdef @ ClassDef(_, _, _, _, _, _) => Set(cdef)
-    case ClassHierarchy(cdef, refs) => Set(cdef) ++ refs.flatMap(_.toSet)
-  }
+sealed trait Hierarchy
+object Hierarchy {
+  sealed trait Direction
+  case object Supertypes extends Direction
+  case object Subtypes extends Direction
 }
 
-final case class ClassHierarchy(aClass: ClassDef, classRefs: Seq[Hierarchy]) extends Hierarchy
-
-sealed trait HierarchyType
-object HierarchyType {
-  case object Subclasses extends HierarchyType
-  case object Superclasses extends HierarchyType
-}
+final case class TypeHierarchy(aClass: ClassDef, typeRefs: Seq[Hierarchy]) extends Hierarchy
 
 final case class ClassDef(
     fqn: String,
-    file: String,
-    path: String,
+    file: String, // the underlying file
+    path: String, // the VFS handle (e.g. classes in jars)
     source: Option[String],
     line: Option[Int],
     access: Access
@@ -101,34 +95,6 @@ object FileCheck extends ((String, Timestamp) => FileCheck) {
 // core/it:test-only *Search* -- -z prestine
 class GraphService(dir: File) extends SLF4JLogging {
   import org.ensime.indexer.graph.GraphService._
-
-  implicit object TimeStampSPrimitive extends SPrimitive[Timestamp] {
-    import SPrimitive.LongSPrimitive
-    def toValue(v: Timestamp): java.lang.Long = LongSPrimitive.toValue(v.getTime)
-    def fromValue(v: AnyRef): Timestamp = new Timestamp(LongSPrimitive.fromValue(v))
-    def getType: (OType, Boolean) = OType.LONG -> true
-  }
-
-  implicit object AccessSPrimitive extends SPrimitive[Access] {
-    import org.objectweb.asm.Opcodes._
-    import SPrimitive.IntSPrimitive
-
-    def toValue(v: Access): java.lang.Integer =
-      if (v == null) null
-      else {
-        val code = v match {
-          case Public => ACC_PUBLIC
-          case Private => ACC_PRIVATE
-          case Protected => ACC_PROTECTED
-          case Default => 0
-        }
-        IntSPrimitive.toValue(code)
-      }
-
-    def fromValue(v: AnyRef): Access = Access(IntSPrimitive.fromValue(v))
-
-    def getType: (OType, Boolean) = OType.INTEGER -> true
-  }
 
   implicit val FqnSymbolS: BigDataFormat[FqnSymbol] = cachedImplicit
   implicit val MemberS: BigDataFormat[Member] = cachedImplicit
@@ -213,21 +179,22 @@ class GraphService(dir: File) extends SLF4JLogging {
 
     val g = db.getNoTx
     val fqnSymbolClass = g.createVertexType("FqnSymbol")
-    val memberSymbolClass = g.createVertexType("Member", fqnSymbolClass)
     fqnSymbolClass.createProperty("fqn", OType.STRING).setMandatory(true)
     fqnSymbolClass.createProperty("line", OType.INTEGER).setMandatory(false)
     fqnSymbolClass.createProperty("source", OType.STRING).setMandatory(false)
+    val memberSymbolClass = g.createVertexType("Member", fqnSymbolClass)
 
     g.createVertexFrom[ClassDef](superClass = Some(fqnSymbolClass))
     g.createVertexFrom[Method](superClass = Some(memberSymbolClass))
     g.createVertexFrom[Field](superClass = Some(memberSymbolClass))
+    g.createVertexFrom[FileCheck]()
 
     g.createEdge[DefinedIn.type]
       .createEdge[OwningClass.type]
       .createEdge[UsedIn.type]
       .createEdge[IsParent.type]
-    g.createIndexOn[Vertex, FqnSymbol, String](IndexT.Unique)
-    g.createIndexOn[Vertex, FileCheck, String](IndexT.Unique)
+    g.createIndexOn[Vertex, FqnSymbol, String](Unique)
+    g.createIndexOn[Vertex, FileCheck, String](Unique)
 
     g.shutdown()
 
@@ -251,7 +218,7 @@ class GraphService(dir: File) extends SLF4JLogging {
       val fileV = RichGraph.upsertV[FileCheck, String](check) // bad atomic behaviour
 
       symbols.foreach {
-        case (s: RawClassfile, (file, path, source)) =>
+        case (s: RawClassfile, SourceInfo(file, path, source)) =>
           val classDef = ClassDef(s.name.fqnString, file, path, source, s.source.line, s.access)
           val classV = RichGraph.upsertV[ClassDef, String](classDef)
           RichGraph.insertE(classV, fileV, DefinedIn)
@@ -263,13 +230,13 @@ class GraphService(dir: File) extends SLF4JLogging {
             val parentV = RichGraph.upsertV[ClassDef, String](cdef)
             RichGraph.insertE(classV, parentV, IsParent)
           }
-        case (s: RawField, (_, _, source)) =>
+        case (s: RawField, SourceInfo(_, _, source)) =>
           val field = Field(s.name.fqnString, Some(s.clazz.internalString), None, source, s.access)
           RichGraph.upsertV[Field, String](field)
-        case (s: RawMethod, (_, _, source)) =>
+        case (s: RawMethod, SourceInfo(_, _, source)) =>
           val method = Method(s.name.fqnString, s.line, source, s.access)
           val methodV = RichGraph.upsertV[Method, String](method)
-        case (s: RawType, (_, _, source)) =>
+        case (s: RawType, SourceInfo(_, _, source)) =>
           val field = Field(s.fqn, None, None, source, s.access)
           val fieldV = RichGraph.upsertV[Field, String](field)
       }
@@ -305,7 +272,7 @@ class GraphService(dir: File) extends SLF4JLogging {
     graph.declareIntent(null)
   }
 
-  def getClassHierarchy(fqn: String, hierarchyType: HierarchyType): Future[Option[Hierarchy]] = withGraphAsync { implicit g =>
+  def getClassHierarchy(fqn: String, hierarchyType: Hierarchy.Direction): Future[Option[Hierarchy]] = withGraphAsync { implicit g =>
     RichGraph.classHierarchy[String](fqn, hierarchyType)
   }
 }

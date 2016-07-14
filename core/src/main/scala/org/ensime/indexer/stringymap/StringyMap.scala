@@ -6,7 +6,7 @@
  */
 package org.ensime.indexer.stringymap
 
-import com.orientechnologies.orient.core.metadata.schema.OType
+import org.ensime.indexer.orientdb.api.OrientProperty
 import shapeless._
 import shapeless.labelled._
 
@@ -16,14 +16,17 @@ package object api {
 }
 
 package api {
+  import java.sql.Timestamp
 
   import com.orientechnologies.orient.core.metadata.schema.OType
+  import org.ensime.indexer.{ Access, Private, Protected, Public, Default }
+  import org.ensime.indexer.orientdb.api.OrientProperty
 
   trait BigDataFormat[T] {
     def label: String
     def toProperties(t: T): StringyMap
     def fromProperties(m: StringyMap): BigResult[T]
-    def toSchema: Map[String, (OType, Boolean)]
+    def toSchema: Map[String, OrientProperty]
   }
 
   trait BigDataFormatId[T, P] {
@@ -34,7 +37,7 @@ package api {
   trait SPrimitive[T] {
     def toValue(v: T): AnyRef
     def fromValue(v: AnyRef): T
-    def getType: (OType, Boolean)
+    def toOrientProperty: OrientProperty
   }
 
   // defining really basic implementations on the companion
@@ -42,17 +45,17 @@ package api {
     implicit object StringSPrimitive extends SPrimitive[String] {
       def toValue(v: String): String = v
       def fromValue(v: AnyRef): String = v.asInstanceOf[String]
-      def getType: (OType, Boolean) = OType.STRING -> true
+      def toOrientProperty: OrientProperty = OrientProperty(OType.STRING)
     }
     implicit object IntSPrimitive extends SPrimitive[Int] {
       def toValue(v: Int): java.lang.Integer = v
       def fromValue(v: AnyRef): Int = v.asInstanceOf[java.lang.Integer]
-      def getType: (OType, Boolean) = OType.INTEGER -> true
+      def toOrientProperty: OrientProperty = OrientProperty(OType.INTEGER)
     }
     implicit object LongSPrimitive extends SPrimitive[Long] {
       def toValue(v: Long): java.lang.Long = v
       def fromValue(v: AnyRef): Long = v.asInstanceOf[java.lang.Long]
-      def getType: (OType, Boolean) = OType.LONG -> true
+      def toOrientProperty: OrientProperty = OrientProperty(OType.LONG)
     }
     implicit def OptionSPrimitive[T](
       implicit
@@ -65,10 +68,34 @@ package api {
       def fromValue(v: AnyRef): Option[T] =
         if (v == null) None
         else Some(p.fromValue(v))
-      def getType: (OType, Boolean) = p.getType._1 -> false
+      def toOrientProperty: OrientProperty = OrientProperty(p.toOrientProperty.oType, isMandatory = false)
     }
-  }
+    implicit object TimeStampSPrimitive extends SPrimitive[Timestamp] {
+      def toValue(v: Timestamp): java.lang.Long = LongSPrimitive.toValue(v.getTime)
+      def fromValue(v: AnyRef): Timestamp = new Timestamp(LongSPrimitive.fromValue(v))
+      def toOrientProperty: OrientProperty = OrientProperty(OType.LONG)
+    }
 
+    implicit object AccessSPrimitive extends SPrimitive[Access] {
+      import org.objectweb.asm.Opcodes._
+
+      def toValue(v: Access): java.lang.Integer =
+        if (v == null) null
+        else {
+          val code = v match {
+            case Public => ACC_PUBLIC
+            case Private => ACC_PRIVATE
+            case Protected => ACC_PROTECTED
+            case Default => 0
+          }
+          IntSPrimitive.toValue(code)
+        }
+
+      def fromValue(v: AnyRef): Access = Access(IntSPrimitive.fromValue(v))
+      def toOrientProperty: OrientProperty = OrientProperty(OType.INTEGER)
+    }
+
+  }
 }
 
 package object impl {
@@ -78,7 +105,7 @@ package object impl {
     def label: String = ???
     def toProperties(t: HNil): StringyMap = new java.util.HashMap()
     def fromProperties(m: StringyMap) = Right(HNil)
-    def toSchema: Map[String, (OType, Boolean)] = Map()
+    def toSchema: Map[String, OrientProperty] = Map.empty
   }
 
   implicit def hListBigDataFormat[Key <: Symbol, Value, Remaining <: HList](
@@ -115,14 +142,12 @@ package object impl {
         } yield field[Key](current) :: remaining
       }
 
-      def toSchema: Map[String, (OType, Boolean)] = {
-        val otype = prim.getType
+      def toSchema: Map[String, OrientProperty] = {
+        val otype = prim.toOrientProperty
         val map = remV.value.toSchema
         map + (key.value.name -> otype)
       }
     }
-
-  // TODO: coproducts
 
   implicit def familyBigDataFormat[T, Repr](
     implicit
@@ -140,13 +165,13 @@ package object impl {
     }
     def fromProperties(m: StringyMap): BigResult[T] =
       sg.value.fromProperties(m).right.map(gen.from)
-    def toSchema: Map[String, (OType, Boolean)] = sg.value.toSchema
+    def toSchema: Map[String, OrientProperty] = sg.value.toSchema
   }
 
   implicit def CNilBigDataFormat[T]: BigDataFormat[CNil] = new BigDataFormat[CNil] {
     override def label: String = ???
     override def toProperties(t: CNil): StringyMap = ???
-    override def toSchema: Map[String, (OType, Boolean)] = ???
+    override def toSchema: Map[String, OrientProperty] = ???
     override def fromProperties(m: StringyMap): BigResult[CNil] = ???
   }
 
@@ -163,7 +188,7 @@ package object impl {
       case Inr(tail) => bdft.value.toProperties(tail)
     }
 
-    override def toSchema: Map[String, (OType, Boolean)] = ???
+    override def toSchema: Map[String, OrientProperty] = ???
 
     override def fromProperties(m: StringyMap): BigResult[FieldType[Key, Value] :+: Tail] = {
       if (m.get("typehint") == key.value.name) {

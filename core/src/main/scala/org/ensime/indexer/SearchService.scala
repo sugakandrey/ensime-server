@@ -220,10 +220,10 @@ class SearchService(
         val source = resolver.resolve(clazz.name.pack, clazz.source)
         val sourceUri = source.map(_.getName.getURI)
 
-        val sourceFileInfo = (name, path, sourceUri)
+        val sourceFileInfo = SourceInfo(name, path, sourceUri)
         if (clazz.access != Public) Nil
         else {
-          (clazz :: clazz.methods.toList ::: clazz.fields.toList ::: depickler.getTypeAliases.toList).map(_ -> sourceFileInfo)
+          (clazz :: clazz.methods ::: clazz.fields ::: depickler.getTypeAliases.toList).map(_ -> sourceFileInfo)
         }
     }
   }.filterNot(sym => ignore.exists(sym._1.fqn.contains))
@@ -243,7 +243,7 @@ class SearchService(
   /** only for exact fqns */
   def findUnique(fqn: String): Option[FqnSymbol] = Await.result(db.find(fqn), QUERY_TIMEOUT)
 
-  def getClassHierarchy(fqn: String, hierarchyType: HierarchyType): Option[Hierarchy] = Await.result(db.getClassHierarchy(fqn, hierarchyType), QUERY_TIMEOUT)
+  def getClassHierarchy(fqn: String, hierarchyType: Hierarchy.Direction): Future[Option[Hierarchy]] = db.getClassHierarchy(fqn, hierarchyType)
 
   /* DELETE then INSERT in H2 is ridiculously slow, so we put all modifications
    * into a blocking queue and dedicate a thread to block on draining the queue.
@@ -284,7 +284,7 @@ class SearchService(
 }
 
 object SearchService {
-  type SourceInfo = (String, String, Option[String])
+  case class SourceInfo(file: String, path: String, source: Option[String])
 }
 
 final case class IndexFile(f: FileObject)

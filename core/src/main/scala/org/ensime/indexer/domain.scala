@@ -4,7 +4,6 @@ package org.ensime.indexer
 
 import org.ensime.api.DeclaredAs
 
-import scala.collection.immutable.Queue
 import org.objectweb.asm.Opcodes._
 
 sealed trait Access
@@ -206,8 +205,8 @@ final case class RawClassfile(
     interfaces: List[ClassName],
     access: Access,
     deprecated: Boolean,
-    fields: Queue[RawField],
-    methods: Queue[RawMethod],
+    fields: List[RawField],
+    methods: List[RawMethod],
     source: RawSource
 ) extends RawSymbol {
   override def fqn: String = name.fqnString

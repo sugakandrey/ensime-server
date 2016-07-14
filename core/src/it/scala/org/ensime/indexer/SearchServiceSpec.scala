@@ -5,7 +5,7 @@ package org.ensime.indexer
 import scala.concurrent._
 import scala.concurrent.duration._
 import org.ensime.fixture._
-import org.ensime.indexer.graph.{ ClassDef, ClassHierarchy, HierarchyType }
+import org.ensime.indexer.graph._
 import org.ensime.util.EnsimeSpec
 import org.ensime.util.file._
 import org.scalatest.Matchers._
@@ -210,15 +210,14 @@ class SearchServiceSpec extends EnsimeSpec
 
   "class hierarchy viewer" should "find all classes implementing a trait" in withSearchService { implicit service =>
     val someTrait = "org.hierarchy.SomeTrait"
-    val implementingClasses = service.getClassHierarchy(someTrait, HierarchyType.Subclasses)
-    implementingClasses shouldBe defined
-    inside(implementingClasses.get) {
-      case ClassHierarchy(classDef, refs) =>
+    val implementingClasses = getClassHierarchy(someTrait, Hierarchy.Subtypes)
+    inside(implementingClasses) {
+      case TypeHierarchy(classDef, refs) =>
         classDef.fqn should ===(someTrait)
         inside(refs) {
           case Seq(ref1, ref2) =>
             inside(ref1) {
-              case ClassHierarchy(aClass, Seq(subclass)) =>
+              case TypeHierarchy(aClass, Seq(subclass)) =>
                 aClass.fqn should ===("org.hierarchy.ExtendsTrait")
                 inside(subclass) {
                   case cdef: ClassDef => cdef.fqn should ===("org.hierarchy.Subclass")
@@ -232,9 +231,8 @@ class SearchServiceSpec extends EnsimeSpec
   }
 
   it should "find all superclasses of a class" in withSearchService { implicit service =>
-    val hierarchy = service.getClassHierarchy("org.hierarchy.Qux", HierarchyType.Superclasses)
-    hierarchy shouldBe defined
-    hierarchy.get.toSet.map(_.fqn) should contain theSameElementsAs Set(
+    val hierarchy = getClassHierarchy("org.hierarchy.Qux", Hierarchy.Supertypes)
+    hierarchyToSet(hierarchy).map(_.fqn) should contain theSameElementsAs Set(
       "org.hierarchy.Qux",
       "scala.math.Ordered",
       "org.hierarchy.Bar",
@@ -296,4 +294,14 @@ object SearchServiceTestUtils {
   def searchesMethods(expect: String, queries: String*)(implicit service: SearchService) =
     (queries.toList).foreach(searchClassesAndMethods(expect, _))
 
+  def getClassHierarchy(fqn: String, hierarchyType: Hierarchy.Direction)(implicit service: SearchService): Hierarchy = {
+    val hierarchy = Await.result(service.getClassHierarchy(fqn, hierarchyType), Duration.Inf)
+    withClue(s"No class hierarchy found for fqn = $fqn")(hierarchy shouldBe defined)
+    hierarchy.get
+  }
+
+  def hierarchyToSet(hierarchy: Hierarchy): Set[ClassDef] = hierarchy match {
+    case cdef: ClassDef => Set(cdef)
+    case TypeHierarchy(cdef, typeRefs) => Set(cdef) ++ typeRefs.flatMap(hierarchyToSet)
+  }
 }

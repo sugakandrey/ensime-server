@@ -14,6 +14,7 @@ import com.tinkerpop.blueprints._
 import com.tinkerpop.blueprints.impls.orient._
 import org.ensime.indexer.graph.GraphService.IsParent
 import org.ensime.indexer.graph._
+import org.ensime.indexer.orientdb.api.{ NotUnique, OrientProperty }
 import org.ensime.indexer.stringymap.api._
 import org.ensime.indexer.stringymap.syntax._
 
@@ -30,6 +31,10 @@ import org.ensime.indexer.stringymap.syntax._
 // https://github.com/tinkerpop/blueprints/wiki/Code-Examples
 
 package api {
+  import com.orientechnologies.orient.core.metadata.schema.OType
+
+  case class OrientProperty(oType: OType, isMandatory: Boolean = true)
+
   // assigns some type info to a vertex that we have just created
   case class VertexT[T](underlying: Vertex)
 
@@ -39,19 +44,16 @@ package api {
     def orientKey: String
   }
 
-  object IndexT {
-    case object Unique extends IndexT {
-      override def orientKey = "unique"
-    }
+  case object Unique extends IndexT {
+    override def orientKey = "unique"
+  }
 
-    case object NotUnique extends IndexT {
-      override def orientKey = "notunique"
-    }
+  case object NotUnique extends IndexT {
+    override def orientKey = "notunique"
+  }
 
-    case object FullText extends IndexT {
-      override def orientKey = "fulltext"
-    }
-
+  case object FullText extends IndexT {
+    override def orientKey = "fulltext"
   }
 
   trait Indexable[T <: Element] {
@@ -74,7 +76,7 @@ package object syntax {
   implicit class RichOrientGraph(graph: OrientExtendedGraph) {
     private val schema = graph.getRawGraph.getMetadata.getSchema
 
-    def createIndexOn[E <: Element, T, F](idx: IndexT = IndexT.NotUnique)(
+    def createIndexOn[E <: Element, T, F](idx: IndexT = NotUnique)(
       implicit
       tag: Indexable[E],
       bdf: BigDataFormat[T],
@@ -89,10 +91,10 @@ package object syntax {
       val schemaClass = schema.getClass(bdf.label)
       superClass.foreach(schemaClass.addSuperClass)
       bdf.toSchema.foreach {
-        case (key, (otype, mandatory)) =>
+        case (key, OrientProperty(oType, isMandatory)) =>
           if (schemaClass.getProperty(key) == null) {
-            schemaClass.createProperty(key, otype)
-              .setMandatory(mandatory)
+            schemaClass.createProperty(key, oType)
+              .setMandatory(isMandatory)
               .setNotNull(true)
           }
       }
@@ -130,15 +132,11 @@ package object syntax {
     def getProperty[P](key: String): P = v.underlying.getProperty[P](key)
 
     def getChildVertices[S, E <: EdgeT[S, T]](
-      edge: E
-    )(
       implicit
       bdf: BigDataFormat[E]
     ): Iterable[VertexT[S]] = v.underlying.getVertices(Direction.IN, bdf.label).asScala.map(VertexT[S])
 
     def getParentVertices[S, E <: EdgeT[T, S]](
-      edge: E
-    )(
       implicit
       bdf: BigDataFormat[E]
     ): Iterable[VertexT[S]] = v.underlying.getVertices(Direction.OUT, bdf.label).asScala.map(VertexT[S])
@@ -246,10 +244,6 @@ package object syntax {
                 v.setProperty(key, value)
           }
 
-          //          (keys -- updates.keySet).foreach { nulled =>
-          //            v.removeProperty[AnyRef](nulled)
-          //          }
-
           existing
       }
     }
@@ -310,7 +304,7 @@ package object syntax {
 
     def classHierarchy[P: Ordering](
       value: P,
-      hierarchyType: HierarchyType
+      hierarchyType: Hierarchy.Direction
     )(
       implicit
       graph: OrientBaseGraph,
@@ -324,13 +318,13 @@ package object syntax {
         v: VertexT[ClassDef]
       ): Hierarchy = {
         val vertices: Iterable[VertexT[ClassDef]] = hierarchyType match {
-          case HierarchyType.Subclasses => v.getChildVertices(IsParent)
-          case HierarchyType.Superclasses => v.getParentVertices(IsParent)
+          case Hierarchy.Subtypes => v.getChildVertices[ClassDef, IsParent.type]
+          case Hierarchy.Supertypes => v.getParentVertices[ClassDef, IsParent.type]
         }
 
         vertices.toList match {
           case Nil => v.toDomain
-          case xs => ClassHierarchy(v.toDomain, xs.sortBy(_.getProperty[P](u.key)).map(traverseClassHierarchy))
+          case xs => TypeHierarchy(v.toDomain, xs.sortBy(_.getProperty[P](u.key)).map(traverseClassHierarchy))
         }
       }
 

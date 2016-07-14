@@ -10,7 +10,7 @@ abstract class Qux extends Ordered[Foo] with NotBaz with Bar
 
 trait SomeTrait
 
-class ExtendsTrait extends SomeTrait
+abstract class ExtendsTrait extends SomeTrait
 
 class Subclass extends ExtendsTrait
 
