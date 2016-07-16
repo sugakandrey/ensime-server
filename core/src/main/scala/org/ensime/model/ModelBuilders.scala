@@ -4,17 +4,13 @@ package org.ensime.model
 
 import scala.collection.mutable
 import scala.reflect.internal.util.{ NoPosition, Position, RangePosition }
-import scala.tools.nsc.io.AbstractFile
-
-import org.apache.commons.vfs2.FileObject
-import org.ensime.api, api._
-import org.ensime.core.{ RichPresentationCompiler, FqnToSymbol }
+import org.ensime.api
+import org.ensime.api._
+import org.ensime.core.{ FqnToSymbol, RichPresentationCompiler }
 import org.ensime.indexer.{ MethodName, PackageName }
 import org.ensime.indexer.database.DatabaseService._
-import org.ensime.util.file._
-import org.ensime.util.io._
-import org.ensime.util.fileobject._
 import org.ensime.vfs._
+import org.ensime.util.ensimefile._
 
 trait ModelBuilders {
   self: RichPresentationCompiler with FqnToSymbol =>
@@ -47,8 +43,8 @@ trait ModelBuilders {
         val hit = search.findUnique(fqn)
         logger.debug(s"search: $fqn = $hit")
         hit.flatMap(LineSourcePositionHelper.fromFqnSymbol(_)(config, vfs)).flatMap { sourcePos =>
-          if (sourcePos.file.getName.endsWith(".scala"))
-            askLinkPos(sym, AbstractFile.getFile(sourcePos.file)).
+          if (sourcePos.file.isScala)
+            askLinkPos(sym, sourcePos.file).
               flatMap(pos => OffsetSourcePositionHelper.fromPosition(pos))
           else
             Some(sourcePos)
@@ -300,43 +296,21 @@ trait ModelBuilders {
 
 object LineSourcePositionHelper {
 
-  // HACK: the emacs client currently can't open files in jars
-  //       so we extract to the cache and report that as the source
-  //       see the hack in the RichPresentationCompiler
-
-  private def possiblyExtractFile(fo: FileObject)(implicit config: EnsimeConfig): File =
-    fo.pathWithinArchive match {
-      case None => fo.asLocalFile
-      case Some(path) =>
-        // subpath expected by the client
-        val file = (config.cacheDir / "dep-src" / "source-jars" / path)
-        if (!file.exists) {
-          // create and populate the file if it does not exist
-          // https://github.com/ensime/ensime-server/issues/761
-          file.getParentFile.mkdirs()
-          file.outputStream().drain(fo.getContent.getInputStream)
-          file.setWritable(false)
-        }
-        file
-    }
-
   def fromFqnSymbol(sym: FqnSymbol)(implicit config: EnsimeConfig, vfs: EnsimeVFS): Option[LineSourcePosition] =
     (sym.sourceFileObject, sym.line, sym.offset) match {
       case (None, _, _) => None
       case (Some(fo), lineOpt, offsetOpt) =>
-        val f = possiblyExtractFile(fo)
-        Some(new LineSourcePosition(f, lineOpt.getOrElse(0)))
+        val file = EnsimeFile(fo.getURL)
+        Some(new LineSourcePosition(file, lineOpt.getOrElse(0)))
     }
 
 }
 
 object OffsetSourcePositionHelper {
-  import org.ensime.util.file._
-
   def fromPosition(p: Position): Option[OffsetSourcePosition] = p match {
     case NoPosition => None
     case realPos =>
-      Some(new OffsetSourcePosition(File(realPos.source.file.path).canon, realPos.point))
+      Some(new OffsetSourcePosition(EnsimeFile(realPos.source.file.path), realPos.point))
   }
 }
 

@@ -93,8 +93,8 @@ object RefactorType {
 }
 
 final case class SourceFileInfo(
-    file: File,
-    contents: Option[String] = None,
+    file: EnsimeFile,
+    @deprecating("prefer contentsIn, contents will be removed") contents: Option[String] = None,
     contentsIn: Option[File] = None
 ) {
   // keep the log file sane for unsaved files

@@ -6,12 +6,13 @@ import java.io.File
 
 trait EnsimeTestData {
   // duplicating utils to minimise dependencies
-  private def canon(s: String) = {
+  private def canon(s: String): RawFile = {
     val file = new File(s)
-    try file.getCanonicalFile
+    val canonised = try file.getCanonicalFile
     catch {
       case t: Throwable => file.getAbsoluteFile
     }
+    RawFile(canonised.toPath)
   }
 
   val typeInfo = BasicTypeInfo("type1", DeclaredAs.Method, "FOO.type1", Nil, Nil, None, Nil)
@@ -53,15 +54,15 @@ trait EnsimeTestData {
   val file4 = canon("/foo/def")
   val file5 = canon("/foo/hij")
 
-  val refactorDiffEffect = new RefactorDiffEffect(9, RefactorType.AddImport, file2)
+  val refactorDiffEffect = new RefactorDiffEffect(9, RefactorType.AddImport, file2.file.toFile)
 
   val sourcePos1 = new LineSourcePosition(file1, 57)
   val sourcePos2 = new LineSourcePosition(file1, 59)
   val sourcePos3 = new EmptySourcePosition()
   val sourcePos4 = new OffsetSourcePosition(file1, 456)
 
-  val breakPoint1 = new Breakpoint(sourcePos1.file, sourcePos1.line)
-  val breakPoint2 = new Breakpoint(sourcePos2.file, sourcePos2.line)
+  val breakPoint1 = new Breakpoint(file1.file.toFile, sourcePos1.line)
+  val breakPoint2 = new Breakpoint(file2.file.toFile, sourcePos2.line)
 
   val breakpointList = BreakpointList(List(breakPoint1), List(breakPoint2))
 
@@ -117,8 +118,9 @@ trait EnsimeTestData {
 
   val completionInfoList = List(completionInfo, completionInfo2)
 
-  val sourceFileInfo = SourceFileInfo(file1, Some("{/* code here */}"), Some(file2))
+  val sourceFileInfo = SourceFileInfo(file1, Some("{/* code here */}"), Some(file2.file.toFile))
   val sourceFileInfo2 = SourceFileInfo(file1)
+
   val dtid = DebugThreadId(13)
   val debugLocationArray = DebugArrayElement(DebugObjectId(13), 14)
 

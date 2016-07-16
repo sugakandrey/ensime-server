@@ -5,6 +5,8 @@ package org.ensime.core
 import java.io.{ File => JFile }
 import java.nio.charset.Charset
 
+import org.ensime.api._
+import org.ensime.util.ensimefile._
 import akka.actor._
 import akka.event.LoggingReceive.withLabel
 import org.ensime.api._
@@ -16,6 +18,7 @@ import org.ensime.util.{ PresentationReporter, ReportHandler, FileUtils }
 import org.ensime.util.sourcefile._
 import org.slf4j.LoggerFactory
 import org.ensime.util.file._
+import org.ensime.util.sourcefile._
 
 import scala.collection.breakOut
 import scala.reflect.internal.util.{ OffsetPosition, RangePosition, SourceFile }
@@ -182,7 +185,7 @@ class Analyzer(
       //consider the case of a project with no modules
       config.modules get (moduleName) foreach {
         case module =>
-          val files: List[SourceFileInfo] = module.scalaSourceFiles.map(SourceFileInfo(_, None, None))(breakOut)
+          val files: List[SourceFileInfo] = module.scalaSourceFiles.map(s => SourceFileInfo(EnsimeFile(s), None, None))(breakOut)
           sender ! handleReloadFiles(files)
       }
     case UnloadModuleReq(moduleName) =>
@@ -295,7 +298,7 @@ class Analyzer(
       val missingFilePaths = missingFiles.map { f => "\"" + f.file + "\"" }.mkString(",")
       EnsimeServerError(s"file(s): $missingFilePaths do not exist")
     } else {
-      val (javas, scalas) = existing.partition(_.file.getName.endsWith(".java"))
+      val (javas, scalas) = existing.partition(_.file.isJava)
       if (scalas.nonEmpty) {
         val sourceFiles = scalas.map(createSourceFile)
         scalaCompiler.askReloadFiles(sourceFiles)

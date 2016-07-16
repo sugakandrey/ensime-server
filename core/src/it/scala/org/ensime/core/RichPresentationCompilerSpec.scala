@@ -41,7 +41,10 @@ class RichPresentationCompilerThatNeedsJavaLibsSpec extends EnsimeSpec
           val sym = cc.askSymbolInfoAt(p).get
           inside(sym.declPos) {
             case Some(LineSourcePosition(f, i)) =>
-              f.parts should contain("File.java")
+              f match {
+                case rf @ RawFile(_) => rf.file.toFile.parts should contain("File.java")
+                case af @ ArchiveFile(_, _) =>
+              }
               i should be > 0
           }
         }
@@ -85,7 +88,10 @@ class RichPresentationCompilerSpec extends EnsimeSpec
           val sym = cc.askSymbolInfoAt(p).get
           inside(sym.declPos) {
             case Some(OffsetSourcePosition(f, i)) =>
-              f.parts should contain("Int.scala")
+              f match {
+                case rf @ RawFile(_) => rf.file.toFile.parts should contain("Int.scala")
+                case af @ ArchiveFile(_, _) =>
+              }
               i should be > 0
           }
         }

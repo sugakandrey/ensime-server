@@ -13,7 +13,7 @@ object FileEditHelper {
 
   def fromChange(ch: Change): Seq[FileEdit] = {
     ch match {
-      case ch: TextChange => Seq(TextEdit(ch.file.file, ch.from, ch.to, ch.text))
+      case ch: TextChange => Seq(TextEdit(new File(ch.file.path), ch.from, ch.to, ch.text))
       case nf: NewFileChange => Seq(NewFile(File(nf.fullName), nf.text))
       case rf: RenameSourceFileChange =>
         val sourceFile = rf.sourceFile

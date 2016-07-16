@@ -6,9 +6,10 @@ import scala.collection.JavaConverters._
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 
-import org.ensime.api.{ EnsimeConfig, LineSourcePosition }
+import org.ensime.api._
 import org.ensime.config._
-import org.ensime.util.file.RichFile
+import org.ensime.util.ensimefile._
+import org.ensime.util.file._
 import org.scaladebugger.api.profiles.traits.info.LocationInfoProfile
 
 import scala.collection.mutable
@@ -21,6 +22,7 @@ import scala.collection.mutable
  * @param pathMap Represents a cache of files indexed by short file paths such
  *                as file.scala rather than org/ensime/file.scala
  */
+@deprecating("this is duplicating the functionality of the indexer and source resolver")
 class SourceMap(
     private val config: EnsimeConfig,
     private val pathMap: mutable.Map[String, File] = new ConcurrentHashMap[String, File]().asScala
@@ -55,11 +57,8 @@ class SourceMap(
    * @param location The location whose source file to find
    * @return Some file representing the local source, otherwise None
    */
-  def findFileByLocation(location: LocationInfoProfile): Option[File] = {
-    val path = location.trySourcePath.toOption
-
-    path.flatMap(sourceForFilePath)
-  }
+  def findFileByLocation(location: LocationInfoProfile): Option[EnsimeFile] =
+    location.trySourcePath.toOption.flatMap(sourceForFilePath).map(EnsimeFile(_))
 
   /**
    * Retrieves all current Scala sources available through Ensime with the
@@ -123,6 +122,7 @@ class SourceMap(
 
   /**
    * Parses a source path, removing the matching root path from the source path.
+   *
    * @param rootPaths The root paths to remove from the source path
    * @param sourcePath The source path to strip of the root path
    * @return The stripped source path

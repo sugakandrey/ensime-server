@@ -23,9 +23,9 @@ class RefactoringHandlerSpec extends EnsimeSpec
 
   // transitionary methods
   def ContentsSourceFileInfo(file: File, contents: String) =
-    SourceFileInfo(file, Some(contents))
+    SourceFileInfo(RawFile(file.toPath), Some(contents))
   def ContentsInSourceFileInfo(file: File, contentsIn: File) =
-    SourceFileInfo(file, contentsIn = Some(contentsIn))
+    SourceFileInfo(RawFile(file.toPath), contentsIn = Some(contentsIn))
 
   it should "add imports on the first line" in withAnalyzer { (dir, analyzerRef) =>
     import org.ensime.util.file._

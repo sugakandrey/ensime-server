@@ -4,13 +4,13 @@ package org.ensime.fixture
 
 import com.google.common.io.Files
 import java.io.{ File => JFile }
+import java.nio.charset.Charset
 
 import org.apache.commons.io.FileUtils.{ copyDirectory, copyFile }
 import org.ensime.api._
 import org.ensime.config._
 import org.scalatest._
 import org.ensime.util.file._
-import org.ensime.util.ensimefile.Implicits.DefaultCharset
 
 /**
  * Provides a fixture for tests to have access to a cloned project,
@@ -50,7 +50,7 @@ object EnsimeConfigFixture {
   }
   lazy val dotEnsimeCache = File("../.ensime_cache")
   dotEnsimeCache.mkdirs()
-
+  private implicit def charset = Charset.defaultCharset()
   lazy val EnsimeTestProject = EnsimeConfigProtocol.parse(dotEnsime.readString())
 
   // not completely empty, has a reference to the scala-library jar

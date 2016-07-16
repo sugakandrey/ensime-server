@@ -85,8 +85,6 @@ trait RefactoringImpl { self: RichPresentationCompiler =>
 
   import org.ensime.util.FileUtils._
 
-  implicit def cs: Charset = charset
-
   protected def doRename(procId: Int, tpe: RefactorType, name: String, file: File, start: Int, end: Int) =
     new RefactoringEnvironment(file.getPath, start, end) {
       val refactoring = new Rename with GlobalIndexes {

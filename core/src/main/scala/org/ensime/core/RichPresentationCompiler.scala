@@ -43,19 +43,19 @@ import java.nio.charset.Charset
 
 import scala.collection.mutable
 import scala.reflect.internal.util.{ BatchSourceFile, RangePosition, SourceFile }
-import scala.reflect.io.PlainFile
+import scala.reflect.io.{ PlainFile, VirtualFile }
 import scala.tools.nsc.Settings
 import scala.tools.nsc.interactive.{ CompilerControl, Global }
 import scala.tools.nsc.io.AbstractFile
 import scala.tools.nsc.reporters.Reporter
 import scala.tools.nsc.util._
 import scala.tools.refactoring.analysis.GlobalIndexes
-
 import akka.actor.ActorRef
 import org.ensime.api._
 import org.ensime.config._
 import org.ensime.indexer._
 import org.ensime.model._
+import org.ensime.util.ensimefile._
 import org.ensime.util.file._
 import org.ensime.vfs._
 import org.slf4j.LoggerFactory
@@ -63,7 +63,7 @@ import org.slf4j.LoggerFactory
 trait RichCompilerControl extends CompilerControl with RefactoringControl with CompletionControl with DocFinding {
   self: RichPresentationCompiler =>
 
-  def charset: Charset = Charset.forName(settings.encoding.value)
+  implicit def charset: Charset = Charset.forName(settings.encoding.value)
 
   def askOption[A](op: => A): Option[A] =
     try {
@@ -212,7 +212,7 @@ trait RichCompilerControl extends CompilerControl with RefactoringControl with C
   def askSymbolDesignationsInRegion(p: RangePosition, tpes: List[SourceSymbol]): SymbolDesignations =
     askOption(
       new SemanticHighlighting(this).symbolDesignationsInRegion(p, tpes)
-    ).getOrElse(SymbolDesignations(new File("."), List.empty))
+    ).getOrElse(SymbolDesignations(RawFile(new File(".").toPath), List.empty))
 
   def askImplicitInfoInRegion(p: Position): ImplicitInfos =
     ImplicitInfos(
@@ -224,40 +224,38 @@ trait RichCompilerControl extends CompilerControl with RefactoringControl with C
   def askNotifyWhenReady(): Unit = ask(setNotifyWhenReady)
 
   // WARNING: be really careful when creating BatchSourceFiles. there
-  // are multiple constructers which do weird things, best to be very
+  // are multiple constructors which do weird things, best to be very
   // explicit about what we're doing and only use the primary
   // constructor. Note that scalac appears to have a bug in it whereby
   // it is unable to tell that a VirtualFile (i.e. in-memory) and a
   // non VirtualFile backed BatchSourceFile are actually referring to
   // the same compilation unit. see
   // https://github.com/ensime/ensime-server/issues/1160
+  def createSourceFile(file: EnsimeFile): BatchSourceFile =
+    createSourceFile(SourceFileInfo(file))
   def createSourceFile(file: File): BatchSourceFile =
-    createSourceFile(SourceFileInfo(file, None, None))
+    createSourceFile(EnsimeFile(file))
   def createSourceFile(path: String): BatchSourceFile =
-    createSourceFile(new File(path))
+    createSourceFile(EnsimeFile(path))
   def createSourceFile(file: AbstractFile): BatchSourceFile =
-    createSourceFile(file.file)
+    createSourceFile(file.path)
   def createSourceFile(file: SourceFileInfo): BatchSourceFile = file match {
-    case SourceFileInfo(f, None, None) =>
+    case SourceFileInfo(rf @ RawFile(f), None, None) => new BatchSourceFile(
+      new PlainFile(f.toFile), rf.readStringDirect().toCharArray
+    )
+    case SourceFileInfo(ac @ ArchiveFile(archive, entry), None, None) =>
       new BatchSourceFile(
-        new PlainFile(f.getPath),
-        f.readString()(charset).toCharArray
+        new VirtualFile(ac.fullPath), ac.readStringDirect().toCharArray
       )
-
-    case SourceFileInfo(f, Some(contents), None) =>
-      new BatchSourceFile(
-        new PlainFile(f.getPath),
-        contents.toCharArray
-      )
-
-    case SourceFileInfo(f, None, Some(contentsIn)) =>
-      new BatchSourceFile(
-        new PlainFile(f.getPath),
-        contentsIn.readString()(charset).toCharArray
-      )
+    case SourceFileInfo(rf @ RawFile(f), Some(contents), None) =>
+      new BatchSourceFile(new PlainFile(f.toFile), contents.toCharArray)
+    case SourceFileInfo(ac @ ArchiveFile(a, e), Some(contents), None) => ???
+    case SourceFileInfo(rf @ RawFile(f), None, Some(contentsIn)) =>
+      new BatchSourceFile(new PlainFile(f.toFile), contentsIn.readString()(charset).toCharArray)
+    case SourceFileInfo(f, None, Some(contentsIn)) => ???
   }
 
-  def askLinkPos(sym: Symbol, path: AbstractFile): Option[Position] =
+  def askLinkPos(sym: Symbol, path: EnsimeFile): Option[Position] =
     askOption(linkPos(sym, createSourceFile(path)))
 
   def askStructure(fileInfo: SourceFile): List[StructureViewMember] =

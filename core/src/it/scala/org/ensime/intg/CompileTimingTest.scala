@@ -35,8 +35,8 @@ class CompileTimingTest extends EnsimeSpec
           val target = (mainTarget / "..").canon
           val targetBak = (target / "../scala-classes.bak").canon
 
-          val exampleDiskInfo = SourceFileInfo(example, None, None)
-          val exampleMemory = SourceFileInfo(example, None, Some(example))
+          val exampleDiskInfo = SourceFileInfo(RawFile(example.toPath), None, None)
+          val exampleMemory = SourceFileInfo(RawFile(example.toPath), None, Some(example))
 
           FileUtils.copyDirectory(target, targetBak)
 

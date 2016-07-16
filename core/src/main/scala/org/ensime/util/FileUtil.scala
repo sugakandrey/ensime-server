@@ -10,8 +10,9 @@ import org.ensime.util.file._
 
 object FileUtils {
 
+  @deprecating
   implicit def toSourceFileInfo(f: Either[File, SourceFileInfo]): SourceFileInfo =
-    f.fold(l => SourceFileInfo(l, None, None), r => r)
+    f.fold(l => SourceFileInfo(RawFile(l.toPath), None, None), r => r)
 
   @deprecating("prefer file.readString()")
   def readFile(f: File)(implicit cs: Charset): Either[IOException, String] =
