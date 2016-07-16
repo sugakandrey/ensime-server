@@ -68,7 +68,7 @@ class SourcePositionSpec extends EnsimeSpec
 
   def lookup(uri: String, line: Option[Int] = None)(implicit config: EnsimeConfig) = {
     withVFS { implicit vfs: EnsimeVFS =>
-      val sym = ClassDef("", "", "", Some(uri), line, Default)
+      val sym = ClassDef("", "", "", Some(uri), line, Default, None, None)
       LineSourcePositionHelper.fromFqnSymbol(sym)
     }
   }

@@ -102,10 +102,10 @@ trait ClassfileIndexer {
                 case _ =>
                   clazz = clazz.copy(source = clazz.source.copy(line = firstLine))
               }
-
+            case name if name.contains("default") =>
             case name =>
               val descriptor = DescriptorParser.parse(desc)
-              val method = RawMethod(MethodName(clazz.name, name, descriptor), Access(access), Option(signature), firstLine)
+              val method = RawMethod(MethodName(clazz.name, name, descriptor), Access(access), Option(signature), firstLine, clazz.methods.size)
               clazz = clazz.copy(methods = method :: clazz.methods)
           }
         }

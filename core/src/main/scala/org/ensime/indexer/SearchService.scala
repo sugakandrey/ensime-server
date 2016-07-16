@@ -173,15 +173,15 @@ class SearchService(
 
   def refreshResolver(): Unit = resolver.update()
 
-  def persist(check: FileCheck, symbols: List[(RawSymbol, SourceInfo)], commitIndex: Boolean, boost: Boolean): Future[Int] = {
-    val iwork = Future { blocking { index.persist(check, symbols.map(_._1), commitIndex, boost) } }
+  def persist(check: FileCheck, symbols: List[BytecodeEntryInfo], commitIndex: Boolean, boost: Boolean): Future[Int] = {
+    val iwork = Future { blocking { index.persist(check, symbols, commitIndex, boost) } }
     val dwork = db.persist(check, symbols)
     iwork.flatMap { _ => dwork }
   }
 
   // this method leak semaphore on every call, which must be released
   // when the List[FqnSymbol] has been processed (even if it is empty)
-  def extractSymbolsFromClassOrJar(file: FileObject): Future[List[(RawSymbol, SourceInfo)]] = {
+  def extractSymbolsFromClassOrJar(file: FileObject): Future[List[BytecodeEntryInfo]] = {
     def global: ExecutionContext = null // detach the global implicit
     val ec = actorSystem.dispatchers.lookup("akka.search-service-dispatcher")
 
@@ -209,7 +209,7 @@ class SearchService(
   private val blacklist = Set("sun/", "sunw/", "com/sun/")
   private val ignore = Set("$$", "$worker$")
   import org.ensime.util.RichFileObject._
-  private def extractSymbols(container: FileObject, f: FileObject): List[(RawSymbol, SourceInfo)] = {
+  private def extractSymbols(container: FileObject, f: FileObject): List[BytecodeEntryInfo] = {
     f.pathWithinArchive match {
       case Some(relative) if blacklist.exists(relative.startsWith) => Nil
       case _ =>
@@ -218,17 +218,20 @@ class SearchService(
         val (clazz, refs) = indexClassfile(f)
 
         val depickler = new ClassfileDepickler(f)
+        val scalapClasses = depickler.getClasses
 
         val source = resolver.resolve(clazz.name.pack, clazz.source)
         val sourceUri = source.map(_.getName.getURI)
 
-        val sourceFileInfo = SourceInfo(name, path, sourceUri)
+        val scalapOnly = scalapClasses.values.map(rsc => BytecodeEntryInfo(name, path, sourceUri, None, Some(rsc))).toList
+        val classInfo = BytecodeEntryInfo(name, path, sourceUri, Some(clazz), scalapClasses.get(clazz.name.fqnString))
+
         if (clazz.access != Public) Nil
         else {
-          (clazz :: clazz.methods ::: clazz.fields ::: depickler.getTypeAliases.toList).map(_ -> sourceFileInfo)
+          classInfo :: scalapOnly ::: (clazz.methods ::: clazz.fields).map(s => BytecodeEntryInfo(name, path, sourceUri, Some(s)))
         }
     }
-  }.filterNot(sym => ignore.exists(sym._1.fqn.contains))
+  }.filterNot(sym => ignore.exists(ignored => sym.bytecodeSymbol.exists(_.fqn.contains(ignored))))
 
   /** free-form search for classes */
   def searchClasses(query: String, max: Int): List[FqnSymbol] = {
@@ -286,7 +289,13 @@ class SearchService(
 }
 
 object SearchService {
-  case class SourceInfo(file: String, path: String, source: Option[String])
+  case class BytecodeEntryInfo(
+    file: String,
+    path: String,
+    source: Option[String],
+    bytecodeSymbol: Option[RawSymbol],
+    scalapSymbol: Option[RawScalapSymbol] = None
+  )
 }
 
 final case class IndexFile(f: FileObject)
