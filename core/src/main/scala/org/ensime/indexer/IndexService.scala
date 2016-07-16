@@ -2,12 +2,12 @@
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 package org.ensime.indexer
 
-import java.io.{ FileNotFoundException }
+import java.io.FileNotFoundException
 import java.nio.file.Path
+
 import org.apache.lucene.search.Query
 
 import scala.collection.JavaConversions._
-
 import akka.event.slf4j.SLF4JLogging
 import org.apache.commons.vfs2.FileObject
 import org.apache.lucene.document.{ Document, TextField }
@@ -15,6 +15,7 @@ import org.apache.lucene.document.Field.Store
 import org.apache.lucene.index.Term
 import org.apache.lucene.search.{ BooleanQuery, DisjunctionMaxQuery, PrefixQuery, TermQuery }
 import org.apache.lucene.search.BooleanClause.Occur
+import org.ensime.indexer.SearchService.BytecodeEntryInfo
 import org.ensime.indexer.graph._
 import org.ensime.indexer.lucene._
 import org.ensime.util.list._
@@ -91,18 +92,21 @@ class IndexService(path: Path) {
     1 - .25f * nonTrailing$s
   }
 
-  def persist(check: FileCheck, symbols: List[RawSymbol], commit: Boolean, boost: Boolean): Unit = {
+  def persist(check: FileCheck, symbols: List[BytecodeEntryInfo], commit: Boolean, boost: Boolean): Unit = {
     val f = Some(check)
-    val fqns: List[Document] = symbols.map {
-      case RawType(name, _) => FieldIndex(name, f).toDocument
-      case RawMethod(name, _, _, _) => MethodIndex(name.fqnString, f).toDocument
-      case RawField(name, _, _, _) => FieldIndex(name.fqnString, f).toDocument
-      case RawClassfile(name, _, _, _, _, _, _, _, _) =>
-        val fqn = name.fqnString
-        val penalty = calculatePenalty(fqn)
-        val document = ClassIndex(fqn, f).toDocument
-        document.boostText("fqn", penalty)
-        document
+    val fqns: List[Document] = symbols.collect {
+      case BytecodeEntryInfo(_, _, _, Some(bytecodeSymbol), _) =>
+        bytecodeSymbol match {
+          //        case RawType(name, _) => FieldIndex(name, f).toDocument
+          case RawMethod(name, _, _, _, _) => MethodIndex(name.fqnString, f).toDocument
+          case RawField(name, _, _, _) => FieldIndex(name.fqnString, f).toDocument
+          case RawClassfile(name, _, _, _, _, _, _, _, _) =>
+            val fqn = name.fqnString
+            val penalty = calculatePenalty(fqn)
+            val document = ClassIndex(fqn, f).toDocument
+            document.boostText("fqn", penalty)
+            document
+        }
     }
     if (boost) {
       fqns foreach { fqn =>

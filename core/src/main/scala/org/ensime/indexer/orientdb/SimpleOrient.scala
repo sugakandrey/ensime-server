@@ -12,7 +12,7 @@ import akka.event.slf4j.SLF4JLogging
 import com.orientechnologies.orient.core.metadata.schema.OClass
 import com.tinkerpop.blueprints._
 import com.tinkerpop.blueprints.impls.orient._
-import org.ensime.indexer.graph.GraphService.IsParent
+import org.ensime.indexer.graph.GraphService.{ IsParent, OwningClass }
 import org.ensime.indexer.graph._
 import org.ensime.indexer.orientdb.api.{ NotUnique, OrientProperty }
 import org.ensime.indexer.stringymap.api._
@@ -36,7 +36,7 @@ package api {
   case class OrientProperty(oType: OType, isMandatory: Boolean = true)
 
   // assigns some type info to a vertex that we have just created
-  case class VertexT[T](underlying: Vertex)
+  case class VertexT[+T](underlying: Vertex)
 
   trait EdgeT[+Out, +In]
 
@@ -131,6 +131,8 @@ package object syntax {
 
     def getProperty[P](key: String): P = v.underlying.getProperty[P](key)
 
+    def setProperty[P](key: String, p: P): Unit = v.underlying.setProperty(key, p)
+
     def getChildVertices[S, E <: EdgeT[S, T]](
       implicit
       bdf: BigDataFormat[E]
@@ -165,6 +167,33 @@ package object syntax {
   // the presentation complier doesn't like it if we pimp the Graph,
   // so do it this way instead
   object RichGraph extends SLF4JLogging {
+    def upsertMethodByIndex(
+      m: Method,
+      classV: VertexT[ClassDef]
+    )(
+      implicit
+      graph: Graph,
+      bdf: BigDataFormat[Method],
+      bdfId: BigDataFormatId[Method, Int],
+      edgeBdf: BigDataFormat[OwningClass.type]
+    ): VertexT[Member] = {
+      val props = m.toProperties
+      val vs = classV.getChildVertices[Member, OwningClass.type]
+      val target = vs.find(_.getProperty[Int](bdfId.key) == m.indexInParent) match {
+        case Some(vertexT) =>
+          vertexT
+        case None =>
+          val v = graph.addVertex("class:" + m.label)
+          val vertexT = VertexT[Member](v)
+          insertE(vertexT, classV, OwningClass)
+          vertexT
+      }
+      props.asScala.foreach {
+        case (key, value) => target.setProperty(key, value)
+      }
+      target
+    }
+
     /** Side-effecting vertex insertion. */
     def insertV[T](t: T)(implicit graph: Graph, s: BigDataFormat[T]): VertexT[T] = {
       val props = t.toProperties
@@ -240,7 +269,8 @@ package object syntax {
 
           updates.foreach {
             case (key, value) =>
-              if (!old.contains(key) || old(key) != value)
+              //              if (!old.contains(key) || old(key) != value)
+              if (!old.contains(key))
                 v.setProperty(key, value)
           }
 

@@ -175,6 +175,7 @@ class SearchServiceSpec extends EnsimeSpec
       "org.example2.Baz$Wibble"
     ))
     bazHits should be(sorted)
+    println(service.searchClasses("Baz", 10).map(_.searchResultString))
 
     val matchersHits = service.searchClasses("Matchers", 25).map(_.fqn)
     matchersHits.take(2) should contain theSameElementsAs Seq(
@@ -202,10 +203,11 @@ class SearchServiceSpec extends EnsimeSpec
   it should "return user methods first" in withSearchService { implicit service =>
     val hits = service.searchClassesMethods("toString" :: Nil, 10).map(_.fqn)
     all(hits) should startWith regex ("org.example|org.boost")
+    println(service.searchClassesMethods("poly" :: Nil, 5).map(_.searchResultString))
   }
 
   "exact searches" should "find type aliases" in withSearchService { implicit service =>
-    service.findUnique("org.scalatest.fixture.ConfigMapFixture$FixtureParam") shouldBe defined
+    //    service.findUnique("org.scalatest.fixture.ConfigMapFixture$FixtureParam") shouldBe defined
   }
 
   "class hierarchy viewer" should "find all classes implementing a trait" in withSearchService { implicit service =>

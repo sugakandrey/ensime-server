@@ -19,7 +19,8 @@ package api {
   import java.sql.Timestamp
 
   import com.orientechnologies.orient.core.metadata.schema.OType
-  import org.ensime.indexer.{ Access, Private, Protected, Public, Default }
+  import org.ensime.api.DeclaredAs
+  import org.ensime.indexer.{ Access, Default, Private, Protected, Public }
   import org.ensime.indexer.orientdb.api.OrientProperty
 
   trait BigDataFormat[T] {
@@ -95,6 +96,19 @@ package api {
       def toOrientProperty: OrientProperty = OrientProperty(OType.INTEGER)
     }
 
+    implicit object DeclaredAsSPrimitive extends SPrimitive[DeclaredAs] {
+      def toValue(v: DeclaredAs): java.lang.String = if (v == null) null else StringSPrimitive.toValue(v.toString)
+      def fromValue(v: AnyRef): DeclaredAs = StringSPrimitive.fromValue(v) match {
+        case "Method" => DeclaredAs.Method
+        case "Field" => DeclaredAs.Field
+        case "Trait" => DeclaredAs.Trait
+        case "Object" => DeclaredAs.Object
+        case "Interface" => DeclaredAs.Interface
+        case "Class" => DeclaredAs.Class
+        case "Nil" => DeclaredAs.Nil
+      }
+      def toOrientProperty: OrientProperty = OrientProperty(OType.STRING)
+    }
   }
 }
 

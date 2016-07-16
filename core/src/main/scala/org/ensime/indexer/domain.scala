@@ -217,11 +217,6 @@ final case class RawSource(
   line: Option[Int]
 )
 
-final case class RawType(
-  fqn: String,
-  access: Access
-) extends RawSymbol
-
 final case class RawField(
     name: FieldName,
     clazz: DescriptorType,
@@ -235,30 +230,48 @@ final case class RawMethod(
     name: MethodName,
     access: Access,
     generics: Option[String],
-    line: Option[Int]
+    line: Option[Int],
+    indexInParent: Int
 ) extends RawSymbol {
   override def fqn: String = name.fqnString
 }
 
-final case class RawScalaClass(
+sealed trait RawScalapSymbol {
+  def declaredAs: DeclaredAs
+  def access: Access
+  def scalaName: String
+}
+
+final case class RawScalapClass(
   javaName: ClassName,
   scalaName: String,
   typeSignature: String,
   access: Access,
   declaredAs: DeclaredAs,
-  fields: Seq[RawScalaField],
-  methods: Seq[RawScalaMethod]
-)
+  fields: Seq[RawScalapField],
+  methods: Seq[RawScalapMethod]
+) extends RawScalapSymbol
 
-final case class RawScalaField(
-  javaName: FieldName,
-  scalaName: String,
-  typeInfo: String,
-  access: Access
-)
+final case class RawScalapField(
+    javaName: FieldName,
+    scalaName: String,
+    typeInfo: String,
+    access: Access
+) extends RawScalapSymbol {
+  override def declaredAs = DeclaredAs.Field
+}
 
-final case class RawScalaMethod(
-  scalaName: String,
-  signature: String,
-  access: Access
-)
+final case class RawScalapMethod(
+    scalaName: String,
+    signature: String,
+    access: Access
+) extends RawScalapSymbol {
+  override def declaredAs = DeclaredAs.Method
+}
+
+final case class RawType(
+    scalaName: String,
+    access: Access
+) extends RawScalapSymbol {
+  override def declaredAs = DeclaredAs.Field
+}

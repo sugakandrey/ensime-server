@@ -33,10 +33,13 @@ class ClassfileDepickler(file: FileObject) extends ScalapSymbolToFqn {
     }(breakOut)
   }
 
-  def getClasses: Seq[RawScalaClass] = withScalaSig { sig =>
+  private val ignore = Set("<local child>", "<refinement>", "anon")
+  def getClasses: Map[String, RawScalapClass] = scalasig.fold(Map.empty[String, RawScalapClass]) { sig =>
     sig.symbols.collect {
-      case s: ClassSymbol if !(s.name.contains("<local child>") || s.name.contains("<refinement>") || s.name.contains("anon") || s.isSynthetic) => rawScalaClass(s)
-    }(breakOut)
+      case s: ClassSymbol if !(ignore.exists(s.name.contains) || s.isSynthetic) =>
+        val aClass = rawScalaClass(s)
+        aClass.javaName.fqnString -> aClass
+    }.toMap
   }
 
   private def withScalaSig[A](code: ScalaSig => Seq[A]): Seq[A] = scalasig.fold(Seq.empty[A])(sig => code(sig))

@@ -31,7 +31,7 @@ trait ScalapSymbolToFqn {
     else if (sym.isProtected) Protected
     else Public
 
-  def rawScalaClass(sym: ClassSymbol): RawScalaClass = {
+  def rawScalaClass(sym: ClassSymbol): RawScalapClass = {
     val javaName = className(sym)
     val aPackage = sym.enclosingPackage
     val ownerChain = sym.ownerChain
@@ -57,11 +57,11 @@ trait ScalapSymbolToFqn {
     }
 
     val methods = sym.children.collect {
-      case ms: MethodSymbol if ms.isMethod =>
+      case ms: MethodSymbol if ms.isMethod && !ms.name.contains("default") && !ms.name.contains("<init>") =>
         rawScalaMethod(ms, parentPrefix)
     }
 
-    RawScalaClass(
+    RawScalapClass(
       javaName,
       scalaName,
       typeSignature,
@@ -81,7 +81,7 @@ trait ScalapSymbolToFqn {
     ClassName(pkg, name + postfix)
   }
 
-  private def rawScalaField(ms: MethodSymbol, parentPrefix: String): RawScalaField = {
+  private def rawScalaField(ms: MethodSymbol, parentPrefix: String): RawScalapField = {
     val aClass = className(ms.symbolInfo.owner)
     val name = ms.name
     val javaName = FieldName(aClass, name)
@@ -92,17 +92,17 @@ trait ScalapSymbolToFqn {
       printer.printType(ms.infoType)(printer.TypeFlags(true))
     }
 
-    RawScalaField(javaName, scalaName, typeInfo, access)
+    RawScalapField(javaName, scalaName, typeInfo, access)
   }
 
-  private def rawScalaMethod(ms: MethodSymbol, parentPrefix: String): RawScalaMethod = {
+  private def rawScalaMethod(ms: MethodSymbol, parentPrefix: String): RawScalapMethod = {
     val scalaName = parentPrefix + ms.name
     val access = getAccess(ms)
     val signature = withScalaSigPrinter { printer =>
       printer.printMethodType(ms.infoType, printResult = true)(printer.TypeFlags(true))
     }
 
-    RawScalaMethod(scalaName, signature, access)
+    RawScalapMethod(scalaName, signature, access)
   }
 
 }
