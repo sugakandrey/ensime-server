@@ -7,9 +7,8 @@ env:
     - SBT_TASK_LIMIT=4
 script:
   - curl https://raw.githubusercontent.com/paulp/sbt-extras/master/sbt -o sbt ; chmod 755 sbt
-  - ./sbt ensimeConfig
-  - ./sbt test:compile it:compile
-  - ./sbt test it:test
+  - ./sbt ";ensimeConfig ;test:compile ;it:compile"
+  - ./sbt ";test ;it:test"
   - rm -rf $HOME/.coursier/cache/v1/https/oss.sonatype.org
 cache:
   directories:
