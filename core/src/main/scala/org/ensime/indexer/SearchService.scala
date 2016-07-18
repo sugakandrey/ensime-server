@@ -45,6 +45,8 @@ class SearchService(
   /**
    * Changelog:
    *
+   * 2.1g - remodel OrientDB schema with new domain objects
+   *
    * 2.0 - upgrade Lucene, format not backwards compatible.
    *
    * 1.4 - remove redundant descriptors, doh!
