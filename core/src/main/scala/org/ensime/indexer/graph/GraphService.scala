@@ -7,7 +7,6 @@ import java.util.concurrent.Executors
 
 import scala.Predef.{ any2stringadd => _, _ }
 import scala.concurrent._
-
 import akka.event.slf4j.SLF4JLogging
 import com.orientechnologies.orient.core.Orient
 import com.orientechnologies.orient.core.config.OGlobalConfiguration
@@ -18,6 +17,8 @@ import com.tinkerpop.blueprints.impls.orient.OrientGraphFactory
 import org.apache.commons.vfs2.FileObject
 import org.ensime.api.DeclaredAs
 import org.ensime.indexer.IndexService.FqnIndex
+import org.ensime.indexer.SearchService.SourceInfo
+import org.ensime.indexer._
 import org.ensime.indexer.orientdb.api._
 import org.ensime.indexer.orientdb.syntax._
 import org.ensime.indexer.stringymap.api._
@@ -26,7 +27,57 @@ import org.ensime.util.file._
 import org.ensime.vfs._
 import shapeless.cachedImplicit
 
-// FIXME: these domain objects are remnants of the DatabaseService and should be remodelled
+sealed trait FqnSymbol {
+  def fqn: String
+  def line: Option[Int]
+  def source: Option[String]
+  def declAs: DeclaredAs
+  def access: Access
+
+  def sourceFileObject(implicit vfs: EnsimeVFS): Option[FileObject] = source.map(vfs.vfile)
+}
+
+sealed trait Hierarchy
+object Hierarchy {
+  sealed trait Direction
+  case object Supertypes extends Direction
+  case object Subtypes extends Direction
+}
+
+final case class TypeHierarchy(aClass: ClassDef, typeRefs: Seq[Hierarchy]) extends Hierarchy
+
+final case class ClassDef(
+    fqn: String,
+    file: String, // the underlying file
+    path: String, // the VFS handle (e.g. classes in jars)
+    source: Option[String],
+    line: Option[Int],
+    access: Access
+) extends FqnSymbol with Hierarchy {
+  override def declAs: DeclaredAs = DeclaredAs.Class
+}
+
+sealed trait Member extends FqnSymbol
+
+final case class Field(
+    fqn: String,
+    internal: Option[String],
+    line: Option[Int],
+    source: Option[String],
+    access: Access
+) extends Member {
+  override def declAs: DeclaredAs = DeclaredAs.Field
+}
+
+final case class Method(
+    fqn: String,
+    line: Option[Int],
+    source: Option[String],
+    access: Access
+) extends Member {
+  override def declAs: DeclaredAs = DeclaredAs.Method
+}
+
 final case class FileCheck(filename: String, timestamp: Timestamp) {
   def file(implicit vfs: EnsimeVFS): FileObject = vfs.vfile(filename)
   def lastModified: Long = timestamp.getTime
@@ -40,30 +91,38 @@ object FileCheck extends ((String, Timestamp) => FileCheck) {
     FileCheck(name, ts)
   }
 }
-final case class FqnSymbol(
-    id: Option[Int],
-    file: String, // the underlying file
-    path: String, // the VFS handle (e.g. classes in jars)
-    fqn: String,
-    internal: Option[String], // for fields
-    source: Option[String], // VFS
-    line: Option[Int],
-    offset: Option[Int] = None // future features:
-//    type: ??? --- better than descriptor/internal
-) {
-  // this is just as a helper until we can use more sensible
-  // domain objects with slick
-  def sourceFileObject(implicit vfs: EnsimeVFS) = source.map(vfs.vfile)
-
-  // legacy: note that we can't distinguish class/trait
-  def declAs: DeclaredAs =
-    if (fqn.contains("(")) DeclaredAs.Method
-    else if (internal.isDefined) DeclaredAs.Field
-    else DeclaredAs.Class
-}
 
 // core/it:test-only *Search* -- -z prestine
 class GraphService(dir: File) extends SLF4JLogging {
+  import org.ensime.indexer.graph.GraphService._
+
+  implicit val FqnSymbolS: BigDataFormat[FqnSymbol] = cachedImplicit
+  implicit val MemberS: BigDataFormat[Member] = cachedImplicit
+  implicit val FileCheckS: BigDataFormat[FileCheck] = cachedImplicit
+  implicit val ClassDefS: BigDataFormat[ClassDef] = cachedImplicit
+  implicit val MethodS: BigDataFormat[Method] = cachedImplicit
+  implicit val FieldS: BigDataFormat[Field] = cachedImplicit
+  implicit val DefinedInS: BigDataFormat[DefinedIn.type] = cachedImplicit
+  implicit val OwningClassS: BigDataFormat[OwningClass.type] = cachedImplicit
+
+  import shapeless._
+  implicit val UniqueFileCheckV = LensId("filename", lens[FileCheck] >> 'filename)
+  implicit val FieldV = LensId("fqn", lens[Field] >> 'fqn)
+  implicit val MethodV = LensId("fqn", lens[Method] >> 'fqn)
+  implicit val ClassDefV = LensId("fqn", lens[ClassDef] >> 'fqn)
+
+  private implicit val FqnSymbolLens = new Lens[FqnSymbol, String] {
+    override def get(sym: FqnSymbol): String = sym.fqn
+    override def set(sym: FqnSymbol)(fqn: String) = ???
+  }
+
+  private implicit val FqnIndexLens = new Lens[FqnIndex, String] {
+    override def get(index: FqnIndex): String = index.fqn
+    override def set(index: FqnIndex)(fqn: String): FqnIndex = ???
+  }
+
+  implicit val UniqueFqnIndexV = LensId("fqn", FqnIndexLens)
+  implicit val UniqueFqnSymbolV = LensId("fqn", FqnSymbolLens)
 
   // all methods return Future, which means we can do isolation by
   // doing all work on a single worker Thread. We can't optimise until
@@ -119,70 +178,32 @@ class GraphService(dir: File) extends SLF4JLogging {
     dir.mkdirs()
 
     val g = db.getNoTx
-    val schema = g.getRawGraph.getMetadata.getSchema
+    val fqnSymbolClass = g.createVertexType("FqnSymbol")
+    fqnSymbolClass.createProperty("fqn", OType.STRING).setMandatory(true)
+    fqnSymbolClass.createProperty("line", OType.INTEGER).setMandatory(false)
+    fqnSymbolClass.createProperty("source", OType.STRING).setMandatory(false)
+    val memberSymbolClass = g.createVertexType("Member", fqnSymbolClass)
 
-    // TODO: typesafe syntax to support schema creation and
-    //       indexed/unique vertices and edges
-    g.createVertexType("FqnSymbol")
-    val fqnSymbol = schema.getClass("FqnSymbol")
-    g.createVertexType("FileCheck")
-    val fileCheck = schema.getClass("FileCheck")
+    g.createVertexFrom[ClassDef](superClass = Some(fqnSymbolClass))
+    g.createVertexFrom[Method](superClass = Some(memberSymbolClass))
+    g.createVertexFrom[Field](superClass = Some(memberSymbolClass))
+    g.createVertexFrom[FileCheck]()
 
-    fqnSymbol.createProperty("file", OType.STRING)
-    fqnSymbol.createProperty("timestamp", OType.LONG)
-    g.createKeyIndex("fqn", classOf[Vertex],
-      "type" -> "UNIQUE",
-      "class" -> "FqnSymbol")
-    // TODO unsure if this is used
-    // http://stackoverflow.com/questions/33722046
-    fqnSymbol.createProperty("FileCheck", OType.LINK, fileCheck)
+    g.createEdge[DefinedIn.type]
+      .createEdge[OwningClass.type]
+      .createEdge[UsedIn.type]
+      .createEdge[IsParent.type]
+    g.createIndexOn[Vertex, FqnSymbol, String](Unique)
+    g.createIndexOn[Vertex, FileCheck, String](Unique)
 
-    fileCheck.createProperty("file", OType.STRING)
-    fileCheck.createProperty("path", OType.STRING)
-    fileCheck.createProperty("fqn", OType.STRING)
-    fileCheck.createProperty("internal", OType.STRING)
-    fileCheck.createProperty("source", OType.STRING)
-    fileCheck.createProperty("line", OType.INTEGER)
-    fileCheck.createProperty("offset", OType.INTEGER)
-    g.createKeyIndex("filename", classOf[Vertex],
-      "type" -> "UNIQUE",
-      "class" -> "FileCheck")
-
-    g.createEdgeType("DefinedIn")
-
-    //Unless `shutdown` is called this thread will hold our only db connection,
-    //potentially blocking any other threads
     g.shutdown()
 
     log.info("... created the graph database")
   }
 
-  implicit object TimeStampSPrimitive extends SPrimitive[Timestamp] {
-    import SPrimitive.LongSPrimitive
-    def toValue(v: Timestamp): java.lang.Long = LongSPrimitive.toValue(v.getTime)
-    def fromValue(v: AnyRef): Timestamp = new Timestamp(LongSPrimitive.fromValue(v))
-  }
-
-  case object DefinedIn extends EdgeT[FqnSymbol, FileCheck]
-
-  implicit val FileCheckS: BigDataFormat[FileCheck] = cachedImplicit
-  implicit val FqnSymbolS: BigDataFormat[FqnSymbol] = cachedImplicit
-  implicit val DefinedInS: BigDataFormat[DefinedIn.type] = cachedImplicit
-
   def knownFiles(): Future[Seq[FileCheck]] = withGraphAsync { implicit g =>
     RichGraph.allV[FileCheck]
   }
-
-  import shapeless._
-  implicit val UniqueFileCheckV = LensId("filename", lens[FileCheck] >> 'filename)
-  implicit val UniqueFqnSymbolV = LensId("fqn", lens[FqnSymbol] >> 'fqn)
-
-  private implicit val FqnIndexLens = new Lens[FqnIndex, String] {
-    override def get(index: FqnIndex): String = index.fqn
-
-    override def set(index: FqnIndex)(fqn: String): FqnIndex = ???
-  }
-  implicit val UniqueFqnIndexV = LensId("fqn", FqnIndexLens)
 
   def outOfDate(f: FileObject)(implicit vfs: EnsimeVFS): Future[Boolean] = withGraphAsync { implicit g =>
     RichGraph.readUniqueV[FileCheck, String](f.getName.getURI) match {
@@ -191,20 +212,36 @@ class GraphService(dir: File) extends SLF4JLogging {
     }
   }
 
-  def persist(check: FileCheck, symbols: Seq[FqnSymbol]): Future[Int] = withGraphAsync { implicit g =>
+  def persist(check: FileCheck, symbols: Seq[(RawSymbol, SourceInfo)]): Future[Int] = withGraphAsync { implicit g =>
+    if (symbols.isEmpty) 0
+    else {
+      val fileV = RichGraph.upsertV[FileCheck, String](check) // bad atomic behaviour
 
-    val fileV = RichGraph.upsertV[FileCheck, String](check) // bad atomic behaviour
-
-    // TODO
-    // - delete incoming FileCheck links
-    // - delete outgoing FqnSymbol links (don't delete vertices)
-
-    symbols.foreach { sym =>
-      val symV = RichGraph.upsertV[FqnSymbol, String](sym)
-      RichGraph.insertE(symV, fileV, DefinedIn)
+      symbols.foreach {
+        case (s: RawClassfile, SourceInfo(file, path, source)) =>
+          val classDef = ClassDef(s.name.fqnString, file, path, source, s.source.line, s.access)
+          val classV = RichGraph.upsertV[ClassDef, String](classDef)
+          RichGraph.insertE(classV, fileV, DefinedIn)
+          // nulls are used, because these fields are not really optional and are guaranteed to be
+          // set in the graph after the indexing is completed.
+          val superClass = s.superClass.map(name => ClassDef(name.fqnString, null, null, None, None, null))
+          val interfaces = s.interfaces.map(name => ClassDef(name.fqnString, null, null, None, None, null))
+          (superClass.toList ::: interfaces).foreach { cdef =>
+            val parentV = RichGraph.upsertV[ClassDef, String](cdef)
+            RichGraph.insertE(classV, parentV, IsParent)
+          }
+        case (s: RawField, SourceInfo(_, _, source)) =>
+          val field = Field(s.name.fqnString, Some(s.clazz.internalString), None, source, s.access)
+          RichGraph.upsertV[Field, String](field)
+        case (s: RawMethod, SourceInfo(_, _, source)) =>
+          val method = Method(s.name.fqnString, s.line, source, s.access)
+          val methodV = RichGraph.upsertV[Method, String](method)
+        case (s: RawType, SourceInfo(_, _, source)) =>
+          val field = Field(s.fqn, None, None, source, s.access)
+          val fieldV = RichGraph.upsertV[Field, String](field)
+      }
+      symbols.size
     }
-
-    symbols.size
   }
 
   /**
@@ -234,4 +271,15 @@ class GraphService(dir: File) extends SLF4JLogging {
     graph.commit() // transactions disabled, is this a no-op?
     graph.declareIntent(null)
   }
+
+  def getClassHierarchy(fqn: String, hierarchyType: Hierarchy.Direction): Future[Option[Hierarchy]] = withGraphAsync { implicit g =>
+    RichGraph.classHierarchy[String](fqn, hierarchyType)
+  }
+}
+
+object GraphService {
+  private[indexer] case object DefinedIn extends EdgeT[ClassDef, FileCheck]
+  private[indexer] case object OwningClass extends EdgeT[Member, ClassDef]
+  private[indexer] case object UsedIn extends EdgeT[Member, FqnSymbol]
+  private[indexer] case object IsParent extends EdgeT[ClassDef, ClassDef]
 }

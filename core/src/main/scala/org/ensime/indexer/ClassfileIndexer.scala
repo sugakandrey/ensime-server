@@ -63,7 +63,7 @@ trait ClassfileIndexer {
         interfaces.toList.map(ClassName.fromInternal),
         Access(access),
         (ACC_DEPRECATED & access) > 0,
-        Queue.empty, Queue.empty, RawSource(None, None)
+        Nil, Nil, RawSource(None, None)
       )
     }
 
@@ -77,7 +77,7 @@ trait ClassfileIndexer {
         DescriptorParser.parseType(desc),
         Option(signature), Access(access)
       )
-      clazz = clazz.copy(fields = clazz.fields enqueue field)
+      clazz = clazz.copy(fields = field :: clazz.fields)
       super.visitField(access, name, desc, signature, value)
     }
 
@@ -106,7 +106,7 @@ trait ClassfileIndexer {
             case name =>
               val descriptor = DescriptorParser.parse(desc)
               val method = RawMethod(MethodName(clazz.name, name, descriptor), Access(access), Option(signature), firstLine)
-              clazz = clazz.copy(methods = clazz.methods enqueue method)
+              clazz = clazz.copy(methods = method :: clazz.methods)
           }
         }
       }

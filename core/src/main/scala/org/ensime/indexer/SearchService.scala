@@ -34,6 +34,7 @@ class SearchService(
 ) extends ClassfileIndexer
     with FileChangeListener
     with SLF4JLogging {
+  import SearchService._
 
   private[indexer] def isUserFile(file: FileName): Boolean = {
     (config.allTargets map (vfs.vfile)) exists (file isAncestor _.getName)
@@ -170,15 +171,15 @@ class SearchService(
 
   def refreshResolver(): Unit = resolver.update()
 
-  def persist(check: FileCheck, symbols: List[FqnSymbol], commitIndex: Boolean, boost: Boolean): Future[Int] = {
-    val iwork = Future { blocking { index.persist(check, symbols, commitIndex, boost) } }
+  def persist(check: FileCheck, symbols: List[(RawSymbol, SourceInfo)], commitIndex: Boolean, boost: Boolean): Future[Int] = {
+    val iwork = Future { blocking { index.persist(check, symbols.map(_._1), commitIndex, boost) } }
     val dwork = db.persist(check, symbols)
     iwork.flatMap { _ => dwork }
   }
 
   // this method leak semaphore on every call, which must be released
   // when the List[FqnSymbol] has been processed (even if it is empty)
-  def extractSymbolsFromClassOrJar(file: FileObject): Future[List[FqnSymbol]] = {
+  def extractSymbolsFromClassOrJar(file: FileObject): Future[List[(RawSymbol, SourceInfo)]] = {
     def global: ExecutionContext = null // detach the global implicit
     val ec = actorSystem.dispatchers.lookup("akka.search-service-dispatcher")
 
@@ -206,7 +207,7 @@ class SearchService(
   private val blacklist = Set("sun/", "sunw/", "com/sun/")
   private val ignore = Set("$$", "$worker$")
   import org.ensime.util.RichFileObject._
-  private def extractSymbols(container: FileObject, f: FileObject): List[FqnSymbol] = {
+  private def extractSymbols(container: FileObject, f: FileObject): List[(RawSymbol, SourceInfo)] = {
     f.pathWithinArchive match {
       case Some(relative) if blacklist.exists(relative.startsWith) => Nil
       case _ =>
@@ -219,22 +220,13 @@ class SearchService(
         val source = resolver.resolve(clazz.name.pack, clazz.source)
         val sourceUri = source.map(_.getName.getURI)
 
+        val sourceFileInfo = SourceInfo(name, path, sourceUri)
         if (clazz.access != Public) Nil
         else {
-          FqnSymbol(None, name, path, clazz.name.fqnString, None, sourceUri, clazz.source.line) ::
-            clazz.methods.toList.filter(_.access == Public).map { method =>
-              FqnSymbol(None, name, path, method.name.fqnString, None, sourceUri, method.line)
-            } ::: clazz.fields.toList.filter(_.access == Public).map { field =>
-              val internal = field.clazz.internalString
-              FqnSymbol(None, name, path, field.name.fqnString, Some(internal), sourceUri, clazz.source.line)
-            } ::: depickler.getTypeAliases.toList.filter(_.access == Public).filterNot(_.fqn.contains("<refinement>")).map { rawType =>
-              // this is a hack, we shouldn't be storing Scala names in the JVM name space
-              // in particular, it creates fqn names that clash with the above ones
-              FqnSymbol(None, name, path, rawType.fqn, None, sourceUri, None)
-            }
+          (clazz :: clazz.methods ::: clazz.fields ::: depickler.getTypeAliases.toList).map(_ -> sourceFileInfo)
         }
     }
-  }.filterNot(sym => ignore.exists(sym.fqn.contains))
+  }.filterNot(sym => ignore.exists(sym._1.fqn.contains))
 
   /** free-form search for classes */
   def searchClasses(query: String, max: Int): List[FqnSymbol] = {
@@ -250,6 +242,8 @@ class SearchService(
 
   /** only for exact fqns */
   def findUnique(fqn: String): Option[FqnSymbol] = Await.result(db.find(fqn), QUERY_TIMEOUT)
+
+  def getClassHierarchy(fqn: String, hierarchyType: Hierarchy.Direction): Future[Option[Hierarchy]] = db.getClassHierarchy(fqn, hierarchyType)
 
   /* DELETE then INSERT in H2 is ridiculously slow, so we put all modifications
    * into a blocking queue and dedicate a thread to block on draining the queue.
@@ -287,6 +281,10 @@ class SearchService(
   def shutdown(): Future[Unit] = {
     db.shutdown()
   }
+}
+
+object SearchService {
+  case class SourceInfo(file: String, path: String, source: Option[String])
 }
 
 final case class IndexFile(f: FileObject)

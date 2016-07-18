@@ -51,7 +51,7 @@ object Sensible {
     javaOptions += "-Dfile.encoding=UTF8",
     //this is needed by OrientDB versions 2.2.0+, 512g is recommended on their github wiki
     //https://github.com/orientechnologies/orientdb-docs/blob/master/Release-2.2.0.md
-    javaOptions += "-XX:MaxDirectMemorySize=512g",
+    javaOptions += "-XX:MaxDirectMemorySize=4g",
     javaOptions ++= Seq("-XX:+UseConcMarkSweepGC", "-XX:+CMSIncrementalMode"),
     javaOptions in run ++= yourkitAgent, // interferes with sockets
 

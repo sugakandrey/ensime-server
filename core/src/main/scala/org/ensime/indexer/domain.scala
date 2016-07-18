@@ -4,7 +4,6 @@ package org.ensime.indexer
 
 import org.ensime.api.DeclaredAs
 
-import scala.collection.immutable.Queue
 import org.objectweb.asm.Opcodes._
 
 sealed trait Access
@@ -195,17 +194,23 @@ final case class Descriptor(params: List[DescriptorType], ret: DescriptorType) {
     "(" + params.map(_.internalString).mkString("") + ")" + ret.internalString
 }
 
+sealed trait RawSymbol {
+  def fqn: String
+}
+
 final case class RawClassfile(
-  name: ClassName,
-  generics: Option[GenericClass],
-  superClass: Option[ClassName],
-  interfaces: List[ClassName],
-  access: Access,
-  deprecated: Boolean,
-  fields: Queue[RawField],
-  methods: Queue[RawMethod],
-  source: RawSource
-)
+    name: ClassName,
+    generics: Option[GenericClass],
+    superClass: Option[ClassName],
+    interfaces: List[ClassName],
+    access: Access,
+    deprecated: Boolean,
+    fields: List[RawField],
+    methods: List[RawMethod],
+    source: RawSource
+) extends RawSymbol {
+  override def fqn: String = name.fqnString
+}
 
 final case class RawSource(
   filename: Option[String],
@@ -215,21 +220,25 @@ final case class RawSource(
 final case class RawType(
   fqn: String,
   access: Access
-)
+) extends RawSymbol
 
 final case class RawField(
-  name: FieldName,
-  clazz: DescriptorType,
-  generics: Option[String],
-  access: Access
-)
+    name: FieldName,
+    clazz: DescriptorType,
+    generics: Option[String],
+    access: Access
+) extends RawSymbol {
+  override def fqn: String = name.fqnString
+}
 
 final case class RawMethod(
-  name: MethodName,
-  access: Access,
-  generics: Option[String],
-  line: Option[Int]
-)
+    name: MethodName,
+    access: Access,
+    generics: Option[String],
+    line: Option[Int]
+) extends RawSymbol {
+  override def fqn: String = name.fqnString
+}
 
 final case class RawScalaClass(
   javaName: ClassName,
