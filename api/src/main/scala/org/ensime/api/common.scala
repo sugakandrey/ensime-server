@@ -98,3 +98,10 @@ final case class SourceFileInfo(
   // keep the log file sane for unsaved files
   override def toString = s"SourceFileInfo($file,${contents.map(_ => "...")},$contentsIn)"
 }
+
+final case class OffsetRange(from: Int, to: Int)
+
+@deprecating("move all non-model code out of the api")
+object OffsetRange extends ((Int, Int) => OffsetRange) {
+  def apply(fromTo: Int): OffsetRange = new OffsetRange(fromTo, fromTo)
+}

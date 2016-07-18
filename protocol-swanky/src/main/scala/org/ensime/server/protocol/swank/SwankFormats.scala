@@ -29,7 +29,7 @@ final case class SwankRPCFormatException(msg: String, callId: Int, cause: Throwa
 object SwankProtocolConversions extends DefaultSexpProtocol
     with SymbolAltFormat
     with OptionAltFormat
-    with FamilyFormats
+    with LegacyFamilyFormats
     with CamelCaseToDashes {
   override def skipNilValues: Boolean = true
 }
@@ -186,8 +186,8 @@ object SwankProtocolResponse {
   implicit val NoteInfoHint: TypeHint[NoteInfo.type] = TypeHint[NoteInfo.type](SexpSymbol("info"))
   implicit val DebugStepHint: TypeHint[DebugStepEvent] = TypeHint[DebugStepEvent](SexpSymbol("step"))
   implicit val DebugBreakHint: TypeHint[DebugBreakEvent] = TypeHint[DebugBreakEvent](SexpSymbol("breakpoint"))
-  implicit val DebugVMStartHint: TypeHint[DebugVMStartEvent.type] = TypeHint[DebugVMStartEvent.type](SexpSymbol("start"))
-  implicit val DebugVMDisconnectHint: TypeHint[DebugVMDisconnectEvent.type] = TypeHint[DebugVMDisconnectEvent.type](SexpSymbol("disconnect"))
+  implicit val DebugVMStartHint: TypeHint[DebugVmStartEvent.type] = TypeHint[DebugVmStartEvent.type](SexpSymbol("start"))
+  implicit val DebugVMDisconnectHint: TypeHint[DebugVmDisconnectEvent.type] = TypeHint[DebugVmDisconnectEvent.type](SexpSymbol("disconnect"))
   implicit val DebugExceptionHint: TypeHint[DebugExceptionEvent] = TypeHint[DebugExceptionEvent](SexpSymbol("exception"))
   implicit val DebugThreadStartHint: TypeHint[DebugThreadStartEvent] = TypeHint[DebugThreadStartEvent](SexpSymbol("threadStart"))
   implicit val DebugThreadDeathHint: TypeHint[DebugThreadDeathEvent] = TypeHint[DebugThreadDeathEvent](SexpSymbol("threadDeath"))
@@ -317,8 +317,8 @@ object SwankProtocolResponse {
     def write(ee: DebugEvent): Sexp = ee match {
       case dse: DebugStepEvent => wrap(dse)
       case dbe: DebugBreakEvent => wrap(dbe)
-      case DebugVMStartEvent => wrap(DebugVMStartEvent)
-      case DebugVMDisconnectEvent => wrap(DebugVMDisconnectEvent)
+      case DebugVmStartEvent => wrap(DebugVmStartEvent)
+      case DebugVmDisconnectEvent => wrap(DebugVmDisconnectEvent)
       case dee: DebugExceptionEvent => wrap(dee)
       case dts: DebugThreadStartEvent => wrap(dts)
       case dtd: DebugThreadDeathEvent => wrap(dtd)
@@ -327,8 +327,8 @@ object SwankProtocolResponse {
     def read(hint: SexpSymbol, value: Sexp): DebugEvent = hint match {
       case s if s == DebugStepHint.hint => value.convertTo[DebugStepEvent]
       case s if s == DebugBreakHint.hint => value.convertTo[DebugBreakEvent]
-      case s if s == DebugVMStartHint.hint => DebugVMStartEvent
-      case s if s == DebugVMDisconnectHint.hint => DebugVMDisconnectEvent
+      case s if s == DebugVMStartHint.hint => DebugVmStartEvent
+      case s if s == DebugVMDisconnectHint.hint => DebugVmDisconnectEvent
       case s if s == DebugExceptionHint.hint => value.convertTo[DebugExceptionEvent]
       case s if s == DebugThreadStartHint.hint => value.convertTo[DebugThreadStartEvent]
       case s if s == DebugThreadDeathHint.hint => value.convertTo[DebugThreadDeathEvent]

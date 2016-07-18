@@ -13,26 +13,26 @@ build:
     - git log | head -n 20
     - host `curl -s http://httpbin.org/ip | jq -r '.origin'` || true ;
     - sbt ++$SCALA_VERSION ensimeConfig ;
-      sbt ++$SCALA_VERSION createHeaders test:createHeaders it:createHeaders test:compile it:compile doc;
+      sbt ++$SCALA_VERSION ";createHeaders ;test:createHeaders ;it:createHeaders ;test:compile ;it:compile ;doc";
       if $(! git diff --exit-code --quiet) ; then
         echo "Code formatting does not meet the project's standards:" ;
         git --no-pager diff ;
         exit 1 ;
       fi
-    - sbt ++$SCALA_VERSION test it:test
-    - if [ "${SCALA_VERSION}" = "2.11.8" ] ; then
-        sbt ++$SCALA_VERSION publishLocal ;
-        git clone --depth 1 https://github.com/ensime/ensime-emacs.git ensime-emacs ;
-        cd ensime-emacs ;
-        echo "1.7" > .java-version ;
-        cask pkg-file ;
-        cask install ;
-        cask build ;
-        export JVM_OPTS="-XX:MaxPermSize=256m -Xss2m -Xms500m -Xmx500m";
-        test/run_emacs_tests.sh ;
-        cd $CI_BUILD_DIR ;
-        unset JVM_OPTS ;
-      fi
+    - sbt ++$SCALA_VERSION ";test ;it:test"
+#    - if [ "${SCALA_VERSION}" = "2.11.8" ] ; then
+#        sbt ++$SCALA_VERSION publishLocal ;
+#        git clone --depth 1 https://github.com/ensime/ensime-emacs.git ensime-emacs ;
+#        cd ensime-emacs ;
+#        echo "1.7" > .java-version ;
+#        cask pkg-file ;
+#        cask install ;
+#        cask build ;
+#        export JVM_OPTS="-XX:MaxPermSize=256m -Xss2m -Xms500m -Xmx500m";
+#        test/run_emacs_tests.sh ;
+#        cd $CI_BUILD_DIR ;
+#        unset JVM_OPTS ;
+#      fi
     - if [ -z "$CI_PULL_REQUEST" ] ; then
         sbt ++$SCALA_VERSION publish ;
         sbt ++$SCALA_VERSION ensime/assembly ;
@@ -54,6 +54,6 @@ deploy:
     host: ensime.typelevel.org
     username: typelevel
     destination_path: ensime.typelevel.org/
-    files: 
+    files:
       - target/scala-2.10/*-assembly.jar
       - target/scala-2.11/*-assembly.jar

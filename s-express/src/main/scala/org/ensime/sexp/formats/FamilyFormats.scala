@@ -2,54 +2,253 @@
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 package org.ensime.sexp.formats
 
-import shapeless._
+import scala.collection.immutable.ListMap
 
+import org.slf4j.LoggerFactory
 import org.ensime.sexp._
+import shapeless._, labelled.{ field, FieldType }
 
 /**
- * Helper methods for generating wrappers for types in a family, also
- * known as "type hints".
+ * Automatically create product/coproduct marshallers (i.e. families
+ * of sealed traits and case classes/objects) for s-express.
  *
- * See https://gist.github.com/fommil/3a04661116c899056197
+ * This uses s-expression data as the underlying format, as opposed to
+ * alists. Alists are arguably a better wire format because they allow
+ * for arbitrarily complex keys, but we're applying the Principle of
+ * Least Power.
  *
- * Will be replaced by a port of spray-json-shapeless.
+ * Based on spray-json-shapeless, with the same caveats.
  */
-trait FamilyFormats {
-  case class TypeHint[T](hint: SexpSymbol)
-  implicit def typehint[T](implicit t: Typeable[T]): TypeHint[T] =
-    TypeHint(SexpSymbol(":" + t.describe.replaceAll("\\.type$", "")))
+trait FamilyFormats extends LowPriorityFamilyFormats {
+  this: StandardFormats =>
+}
 
-  // always serialises to Nil, and is differentiated by the TraitFormat
-  // scala names https://github.com/milessabin/shapeless/issues/256
-  implicit def singletonFormat[T <: Singleton](implicit w: Witness.Aux[T]): SexpFormat[T] = new SexpFormat[T] {
-    def write(t: T) = SexpNil
-    def read(v: Sexp) =
-      if (v == SexpNil) w.value
-      else deserializationError(v)
-  }
+private[formats] trait LowPriorityFamilyFormats
+    extends SexpFormatHints {
+  this: StandardFormats with FamilyFormats =>
 
-  abstract class TraitFormat[T] extends SexpFormat[T] {
-    protected def wrap[E](t: E)(implicit th: TypeHint[E], sf: SexpFormat[E]): Sexp = {
-      val contents = t.toSexp
-      // special cases: empty case clases, and case objects (hopefully)
-      if (contents == SexpNil) SexpList(th.hint)
-      else SexpData(th.hint -> contents)
+  private[formats] def log = LoggerFactory.getLogger(getClass)
+
+  /**
+   * a `SexpFormat[HList]` or `SexpFormat[Coproduct]` would not retain the
+   * type information for the full generic that it is serialising.
+   * This allows us to pass the wrapped type, achieving: 1) custom
+   * `CoproductHint`s on a per-trait level 2) configurable `null` behaviour
+   * on a per product level 3) clearer error messages.
+   *
+   * This is intentionally not an `SexpFormat` to avoid ambiguous
+   * implicit errors, even though it implements its interface.
+   */
+  abstract class WrappedSexpFormat[Wrapped, SubRepr](
+      implicit
+      tpe: Typeable[Wrapped]
+  ) {
+    final def read(s: Sexp): SubRepr = s match {
+      case SexpNil => readData(ListMap.empty)
+      case key: SexpSymbol => readData(ListMap(key -> SexpNil))
+      case SexpData(data) => readData(data)
+      case other => deserializationError(other)
+    }
+    def readData(j: SexpData): SubRepr
+
+    final def write(r: SubRepr): Sexp = writeData(r).toSeq match {
+      case Seq((key, SexpNil)) => key
+      case data => squash(data)
     }
 
-    // implement by matching on the implementations and passing off to wrap
-    // def write(t: T): Sexp
+    def writeData(r: SubRepr): SexpData
+  }
 
-    final def read(sexp: Sexp): T = sexp match {
-      case SexpList(List(hint @ SexpSymbol(_))) => read(hint, SexpNil)
-      case SexpData(map) if map.size == 1 =>
-        map.head match {
-          case (hint, value) => read(hint, value)
+  implicit def hNilFormat[Wrapped](
+    implicit
+    t: Typeable[Wrapped]
+  ): WrappedSexpFormat[Wrapped, HNil] = new WrappedSexpFormat[Wrapped, HNil] {
+    override def readData(s: SexpData) = HNil
+    override def writeData(n: HNil) = ListMap.empty
+  }
+
+  implicit def hListFormat[Wrapped, Key <: Symbol, Value, Remaining <: HList](
+    implicit
+    t: Typeable[Wrapped],
+    ph: ProductHint[Wrapped],
+    key: Witness.Aux[Key],
+    sfh: Lazy[SexpFormat[Value]],
+    sft: WrappedSexpFormat[Wrapped, Remaining]
+  ): WrappedSexpFormat[Wrapped, FieldType[Key, Value] :: Remaining] =
+    new WrappedSexpFormat[Wrapped, FieldType[Key, Value] :: Remaining] {
+      private[this] val fieldName: SexpSymbol = ph.field(key.value)
+
+      override def readData(s: SexpData) = {
+        val resolved: Value = s.get(fieldName) match {
+          case None if ph.nulls == AlwaysSexpNil =>
+            val found = s.map(_._1.value)
+            throw new DeserializationException(s"missing ${fieldName.value}, found ${found.mkString(",")}")
+
+          case value => sfh.value.read(value.getOrElse(SexpNil))
+        }
+        val remaining = sft.readData(s)
+        field[Key](resolved) :: remaining
+      }
+
+      override def writeData(ft: FieldType[Key, Value] :: Remaining) = sfh.value.write(ft.head) match {
+        case SexpNil if ph.nulls == NeverSexpNil => sft.writeData(ft.tail)
+        case value => ListMap(fieldName -> value) ++: sft.writeData(ft.tail)
+      }
+    }
+
+  implicit def cNilFormat[Wrapped](
+    implicit
+    t: Typeable[Wrapped]
+  ): WrappedSexpFormat[Wrapped, CNil] = new WrappedSexpFormat[Wrapped, CNil] {
+    override def readData(s: SexpData) =
+      throw new DeserializationException(s"read should never be called for CNil, $s")
+    override def writeData(c: CNil) =
+      throw new DeserializationException("write should never be called for CNil")
+  }
+
+  implicit def coproductFormat[Wrapped, Name <: Symbol, Instance, Remaining <: Coproduct](
+    implicit
+    tpe: Typeable[Wrapped],
+    th: CoproductHint[Wrapped],
+    key: Witness.Aux[Name],
+    sfh: Lazy[SexpFormat[Instance]],
+    sft: WrappedSexpFormat[Wrapped, Remaining]
+  ): WrappedSexpFormat[Wrapped, FieldType[Name, Instance] :+: Remaining] =
+    new WrappedSexpFormat[Wrapped, FieldType[Name, Instance] :+: Remaining] {
+
+      override def readData(s: SexpData) = th.read(s, key.value) match {
+        case Some(product) =>
+          val recovered = sfh.value.read(squash(product))
+          Inl(field[Name](recovered))
+
+        case None =>
+          Inr(sft.readData(s))
+      }
+
+      override def writeData(lr: FieldType[Name, Instance] :+: Remaining) = lr match {
+        case Inl(l) => sfh.value.write(l) match {
+          case SexpNil => th.write(ListMap.empty, key.value)
+          case SexpData(data) => th.write(data, key.value)
+          case other => serializationError(s"expected SexpData, got $other")
         }
 
-      case x => deserializationError(x)
+        case Inr(r) => sft.writeData(r)
+      }
+
     }
 
-    // implement by matching on the hint and passing off to convertTo[Impl]
-    protected def read(hint: SexpSymbol, value: Sexp): T
+  /**
+   * Format for `LabelledGenerics` that uses the `HList` or `Coproduct`
+   * marshaller above.
+   *
+   * `Blah.Aux[T, Repr]` is a trick to work around scala compiler
+   * constraints. We'd really like to have only one type parameter
+   * (`T`) implicit list `g: LabelledGeneric[T], f:
+   * Cached[Strict[SexpFormat[T.Repr]]]` but that's not possible.
+   */
+  implicit def familyFormat[T, Repr](
+    implicit
+    gen: LabelledGeneric.Aux[T, Repr],
+    sg: Cached[Strict[WrappedSexpFormat[T, Repr]]],
+    tpe: Typeable[T]
+  ): SexpFormat[T] = new SexpFormat[T] {
+    if (log.isTraceEnabled)
+      log.trace(s"creating ${tpe.describe}")
+
+    def read(s: Sexp): T = gen.from(sg.value.value.read(s))
+    def write(t: T): Sexp = sg.value.value.write(gen.to(t))
   }
+}
+
+trait SexpFormatHints {
+  private[formats] def squash(d: Seq[(SexpSymbol, Sexp)]): Sexp =
+    d.foldRight(SexpNil: Sexp) {
+      case ((key, value), acc) => SexpCons(key, SexpCons(value, acc))
+    }
+
+  private[formats] def squash(d: SexpData): Sexp = squash(d.toSeq)
+
+  trait CoproductHint[T] {
+    /**
+     * Given the `SexpData` for the sealed family, disambiguate and
+     * extract the `SexpData` associated to the `Name` implementation
+     * (if available) or otherwise return `None`.
+     */
+    def read[Name <: Symbol](s: SexpData, n: Name): Option[SexpData]
+
+    /**
+     * Given the `SexpData` for the contained product type of `Name`,
+     * encode disambiguation information for later retrieval.
+     */
+    def write[Name <: Symbol](s: SexpData, n: Name): SexpData
+
+    /**
+     * Override to provide custom field naming.
+     * Caching is recommended for performance.
+     */
+    protected def field(orig: String): SexpSymbol
+  }
+
+  /**
+   * Product types are disambiguated by a `(:key value ...)`. Of
+   * course, this will fail if the product type has a field with the
+   * same name as the key. The default key is the word "type" which is
+   * a keyword in Scala so unlikely to collide with too many case
+   * classes.
+   */
+  class FlatCoproductHint[T: Typeable](key: SexpSymbol = SexpSymbol(":type")) extends CoproductHint[T] {
+    override def field(orig: String): SexpSymbol = SexpSymbol(orig)
+
+    def read[Name <: Symbol](d: SexpData, n: Name): Option[SexpData] = {
+      if (d.get(key) == Some(field(n.name))) Some(d)
+      else None
+    }
+    def write[Name <: Symbol](d: SexpData, n: Name): SexpData = {
+      ListMap(key -> field(n.name)) ++: d
+    }
+  }
+
+  /**
+   * Product types are disambiguated by an extra layer containing a
+   * single key which is the name of the type of product contained in
+   * the value. e.g. `(:my-type (...))`
+   */
+  class NestedCoproductHint[T: Typeable] extends CoproductHint[T] {
+    override def field(orig: String): SexpSymbol = SexpSymbol(s":${orig}")
+
+    def read[Name <: Symbol](d: SexpData, n: Name): Option[SexpData] = {
+      d.get(field(n.name)).collect {
+        case SexpNil => ListMap.empty
+        case SexpData(data) => data
+      }
+    }
+    def write[Name <: Symbol](d: SexpData, n: Name): SexpData = {
+      ListMap(field(n.name) -> squash(d))
+    }
+  }
+
+  implicit def coproductHint[T: Typeable]: CoproductHint[T] = new NestedCoproductHint[T]
+
+  /**
+   * Sometimes the wire format needs to match an existing format and
+   * `SexpNil` behaviour needs to be customised. This allows null
+   * behaviour to be defined at the product level. Field level control
+   * is only possible with a user-defined `SexpFormat`.
+   */
+  sealed trait SexpNilBehaviour
+  /** All values serialising to `SexpNil` will be included in the wire format. */
+  case object AlwaysSexpNil extends SexpNilBehaviour
+  /** No values serialising to `SexpNil` will be included in the wire format. */
+  case object NeverSexpNil extends SexpNilBehaviour
+
+  trait ProductHint[T] {
+    def nulls: SexpNilBehaviour
+    def field[Key <: Symbol](key: Key): SexpSymbol
+  }
+  class BasicProductHint[T] extends ProductHint[T] {
+    override def nulls: SexpNilBehaviour = NeverSexpNil
+    override def field[Key <: Symbol](key: Key): SexpSymbol = SexpSymbol(s":${key.name}")
+  }
+
+  implicit def productHint[T]: ProductHint[T] = new BasicProductHint
 }

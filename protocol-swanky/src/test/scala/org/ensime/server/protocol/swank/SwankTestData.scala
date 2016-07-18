@@ -14,7 +14,7 @@ object SwankTestData extends EnsimeTestData {
 
   val symbolDesignationsStr = s"""(:file $symFile :syms ((object 7 9) (trait 11 22)))"""
 
-  val symbolInfoStr = """(:name "name" :local-name "localName" :type """ + typeInfoStr + """)"""
+  val symbolInfoStr = """(:name "name" :local-name "localName" :type (:arrow-type nil :name "type1" :decl-as method :full-name "FOO.type1"))"""
 
   val implicitInfosStr = s"""((:type conversion :start 5 :end 6 :fun $symbolInfoStr) (:type param :start 7 :end 8 :fun $symbolInfoStr :params ($symbolInfoStr $symbolInfoStr) :fun-is-implicit t))"""
 

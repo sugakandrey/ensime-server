@@ -75,6 +75,8 @@ class SemanticHighlighting(val global: RichPresentationCompiler) extends Compile
             } else {
               false
             }
+          } else if (sym.hasFlag(PARAMACCESSOR)) {
+            add(ValFieldSymbol)
           } else if (sym.isMethod) {
             if (sym.nameString == "apply" || sym.nameString == "update") { true }
             else if (sym.name.isOperatorName) {

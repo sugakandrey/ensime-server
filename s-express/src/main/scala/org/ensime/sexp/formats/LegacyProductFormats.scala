@@ -5,7 +5,7 @@ package org.ensime.sexp.formats
 import org.ensime.sexp._
 import shapeless._
 
-trait LowPriorityProductFormats {
+trait LegacyLowPriorityProductFormats {
 
   /*
    Implementation note: this (and the `FamilyFormat`s) is likely to be
@@ -95,7 +95,7 @@ trait LowPriorityProductFormats {
   def skipNilValues: Boolean = false
 }
 
-trait ProductFormats extends LowPriorityProductFormats {
+trait LegacyProductFormats extends LegacyLowPriorityProductFormats {
   // higher priority so that tuples and case classes are not ambiguous
   implicit def tupleProductFormat[T, R <: HList, T2](
     implicit
@@ -118,7 +118,7 @@ trait ProductFormats extends LowPriorityProductFormats {
  * that uses camel case. This mix-in provides that behaviour.
  */
 trait CamelCaseToDashes {
-  this: LowPriorityProductFormats =>
+  this: LegacyLowPriorityProductFormats =>
   override def toWireName(field: String): String =
     field.replaceAll("([A-Z])", "-$1").toLowerCase.replaceAll("^-", "")
 }

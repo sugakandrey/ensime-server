@@ -43,7 +43,7 @@ object ProjectFixture extends Matchers {
       case e: DebugThreadStartEvent => true
       case e: DebugThreadDeathEvent => true
       case e: DebugVmError => true
-      case DebugVMDisconnectEvent => true
+      case DebugVmDisconnectEvent => true
       case ClearAllScalaNotesEvent => true
       case ClearAllJavaNotesEvent => true
     }

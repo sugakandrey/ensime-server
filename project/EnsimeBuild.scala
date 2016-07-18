@@ -165,8 +165,14 @@ object EnsimeBuild extends Build {
     ) enablePlugins BuildInfoPlugin settings (
         buildInfoPackage := organization.value,
         buildInfoKeys += BuildInfoKey.action("gitSha")(Try("git rev-parse --verify HEAD".!! dropRight 1) getOrElse "n/a"),
-        buildInfoOptions += BuildInfoOption.BuildTime
+        buildInfoKeys += BuildInfoKey.action("builtAtString")(currentDateString())
       )
+
+  private def currentDateString() = {
+    val dtf = new java.text.SimpleDateFormat("yyyy-MM-dd")
+    dtf.setTimeZone(java.util.TimeZone.getTimeZone("UTC"))
+    dtf.format(new java.util.Date())
+  }
 
   val luceneVersion = "5.5.1"
   val streamsVersion = "2.0.4"
@@ -186,7 +192,6 @@ object EnsimeBuild extends Build {
           "com.typesafe.akka" %% "akka-stream-experimental" % streamsVersion,
           "com.typesafe.akka" %% "akka-http-core-experimental" % streamsVersion,
           "com.typesafe.akka" %% "akka-http-experimental" % streamsVersion,
-          "com.typesafe.akka" %% "akka-http-spray-json-experimental" % streamsVersion,
           "com.typesafe.akka" %% "akka-http-xml-experimental" % streamsVersion,
           "com.typesafe.akka" %% "akka-http-testkit-experimental" % streamsVersion % "test,it"
         ) ++ Sensible.testLibs("it,test") ++ Sensible.shapeless(scalaVersion.value)

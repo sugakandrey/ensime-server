@@ -1,14 +1,13 @@
 // Copyright: 2010 - 2016 https://github.com/ensime/ensime-server/graphs
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
-package org.ensime.jerk
+package org.ensime.jerky
 
 import org.ensime.api._
 import org.ensime.util.{ EnsimeSpec, EscapingStringInterpolation }
 
-class JerkFormatsSpec extends EnsimeSpec with SprayJsonTestSupport with EnsimeTestData {
+class JerkyFormatsSpec extends EnsimeSpec with SprayJsonTestSupport with EnsimeTestData {
 
-  import JerkFormats._
-  import JerkEnvelopeFormats._
+  import JerkyFormats._
 
   import EscapingStringInterpolation._
 
@@ -31,6 +30,16 @@ class JerkFormatsSpec extends EnsimeSpec with SprayJsonTestSupport with EnsimeTe
       RpcResponseEnvelope(None, SendBackgroundMessageEvent("ABCDEF", 1)),
       """{"payload":{"typehint":"SendBackgroundMessageEvent","detail":"ABCDEF","code":1}}"""
     )
+  }
+
+  def roundtrip(value: RpcRequest, via: String): Unit = {
+    val enveloped = RpcRequestEnvelope(value, -1)
+    roundtrip(enveloped, s"""{"req":$via, "callId":-1}""")
+  }
+
+  def roundtrip(value: EnsimeServerMessage, via: String): Unit = {
+    val enveloped = RpcResponseEnvelope(None, value)
+    roundtrip(enveloped, s"""{"payload":$via}""")
   }
 
   it should "roundtrip startup messages" in {
@@ -336,12 +345,12 @@ class JerkFormatsSpec extends EnsimeSpec with SprayJsonTestSupport with EnsimeTe
     )
 
     roundtrip(
-      DebugVMStartEvent: EnsimeServerMessage,
-      """{"typehint":"DebugVMStartEvent"}"""
+      DebugVmStartEvent: EnsimeServerMessage,
+      """{"typehint":"DebugVmStartEvent"}"""
     )
     roundtrip(
-      DebugVMDisconnectEvent: EnsimeServerMessage,
-      """{"typehint":"DebugVMDisconnectEvent"}"""
+      DebugVmDisconnectEvent: EnsimeServerMessage,
+      """{"typehint":"DebugVmDisconnectEvent"}"""
     )
     roundtrip(
       DebugExceptionEvent(33L, dtid, "threadNameStr", Some(sourcePos1.file), Some(sourcePos1.line)): EnsimeServerMessage,

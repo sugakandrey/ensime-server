@@ -7,6 +7,7 @@ import org.ensime.api._
 import org.ensime.server.protocol.swank._
 import org.ensime.sexp._
 
+@deprecating("use SWANKY on WebSockets")
 class SwankProtocol extends FramedStringProtocol {
   import SwankFormats._
 
