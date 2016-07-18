@@ -45,26 +45,4 @@ class ScalapSymbolToFqnSpec extends EnsimeSpec
       verify(field.javaName, field.scalaName, DeclaredAs.Field, cc)
     }
   }
-
-  it should "index all class file in typelevel libraries" in withPresCompiler { (config, cc) =>
-    val vfs = cc.vfs
-    val jars = config.allJars.filter(!_.getName.contains("macro-compat"))
-    jars.foreach { file =>
-      val jar = vfs.vjar(file)
-      val classes = (jar.findFiles(ClassfileSelector) match {
-        case null => Nil
-        case files => files.toList
-      }).flatMap(new ClassfileDepickler(_).getClasses)
-      classes.foreach { scalaClass =>
-        verify(scalaClass.javaName, scalaClass.scalaName, scalaClass.declaredAs, cc)
-        scalaClass.fields.foreach { field =>
-          verify(field.javaName, field.scalaName, DeclaredAs.Field, cc)
-        }
-        scalaClass.methods.foreach { method =>
-          val methodSym = cc.askSymbolByScalaName(method.scalaName, Some(DeclaredAs.Method)).get
-          methodSym shouldBe a[cc.TermSymbol]
-        }
-      }
-    }
-  }
 }

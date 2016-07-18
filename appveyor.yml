@@ -23,10 +23,9 @@ install:
   - cmd: SET SBT_TASK_LIMIT=2
   - cmd: SET GC_LOGGING=true
 build_script:
-  - sbt ensimeConfig
-  - sbt compile test:compile it:compile
+  - sbt ";ensimeConfig ;test:compile ;it:compile"
 test_script:
-  - sbt test it:test
+  - sbt ";test ;it:test"
 cache:
   - C:\sbt\
   - C:\Users\appveyor\.m2

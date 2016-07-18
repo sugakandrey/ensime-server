@@ -13,13 +13,13 @@ build:
     - git log | head -n 20
     - host `curl -s http://httpbin.org/ip | jq -r '.origin'` || true ;
     - sbt ++$SCALA_VERSION ensimeConfig ;
-      sbt ++$SCALA_VERSION createHeaders test:createHeaders it:createHeaders test:compile it:compile doc;
+      sbt ++$SCALA_VERSION ";createHeaders ;test:createHeaders ;it:createHeaders ;test:compile ;it:compile ;doc";
       if $(! git diff --exit-code --quiet) ; then
         echo "Code formatting does not meet the project's standards:" ;
         git --no-pager diff ;
         exit 1 ;
       fi
-    - sbt ++$SCALA_VERSION test it:test
+    - sbt ++$SCALA_VERSION ";test ;it:test"
 #    - if [ "${SCALA_VERSION}" = "2.11.8" ] ; then
 #        sbt ++$SCALA_VERSION publishLocal ;
 #        git clone --depth 1 https://github.com/ensime/ensime-emacs.git ensime-emacs ;
