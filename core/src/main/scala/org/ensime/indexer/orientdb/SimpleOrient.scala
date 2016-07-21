@@ -174,22 +174,27 @@ package object syntax {
       implicit
       graph: Graph,
       bdf: BigDataFormat[Method],
-      bdfId: BigDataFormatId[Method, Int],
+      methodId: BigDataFormatId[Method, Int],
+      fqnId: BigDataFormatId[FqnSymbol, String],
       edgeBdf: BigDataFormat[OwningClass.type]
     ): VertexT[Member] = {
       val props = m.toProperties
       val vs = classV.getChildVertices[Member, OwningClass.type]
-      val target = vs.find(_.getProperty[Int](bdfId.key) == m.indexInParent) match {
+      val target = vs.find(_.getProperty[Int](methodId.key) == methodId.value(m)) match {
         case Some(vertexT) =>
           vertexT
         case None =>
           val v = graph.addVertex("class:" + m.label)
+          if (fqnId.value(m) == null) {
+            v.setProperty(fqnId.key, classV.getProperty[String](fqnId.key) + "#" + methodId.value(m))
+          }
           val vertexT = VertexT[Member](v)
           insertE(vertexT, classV, OwningClass)
           vertexT
       }
       props.asScala.foreach {
-        case (key, value) => target.setProperty(key, value)
+        case (key, value) =>
+          target.setProperty(key, value)
       }
       target
     }

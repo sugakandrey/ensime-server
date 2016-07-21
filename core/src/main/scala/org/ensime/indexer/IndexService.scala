@@ -95,12 +95,12 @@ class IndexService(path: Path) {
   def persist(check: FileCheck, symbols: List[BytecodeEntryInfo], commit: Boolean, boost: Boolean): Unit = {
     val f = Some(check)
     val fqns: List[Document] = symbols.collect {
-      case BytecodeEntryInfo(_, _, _, Some(bytecodeSymbol), _) =>
+      case BytecodeEntryInfo(_, _, _, bytecodeSymbol, _) =>
         bytecodeSymbol match {
           //        case RawType(name, _) => FieldIndex(name, f).toDocument
           case RawMethod(name, _, _, _, _) => MethodIndex(name.fqnString, f).toDocument
           case RawField(name, _, _, _) => FieldIndex(name.fqnString, f).toDocument
-          case RawClassfile(name, _, _, _, _, _, _, _, _) =>
+          case RawClassfile(name, _, _, _, _, _, _, _, _, _) =>
             val fqn = name.fqnString
             val penalty = calculatePenalty(fqn)
             val document = ClassIndex(fqn, f).toDocument

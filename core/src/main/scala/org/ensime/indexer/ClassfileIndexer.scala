@@ -63,8 +63,16 @@ trait ClassfileIndexer {
         interfaces.toList.map(ClassName.fromInternal),
         Access(access),
         (ACC_DEPRECATED & access) > 0,
-        Nil, Nil, RawSource(None, None)
+        Nil, Nil, RawSource(None, None),
+        isScala = false
       )
+    }
+
+    override def visitAttribute(attr: Attribute): Unit = {
+      val attrType = attr.`type`
+      if (attrType == "Scala" || attrType == "ScalaSig") {
+        clazz = clazz.copy(isScala = true)
+      }
     }
 
     override def visitSource(filename: String, debug: String): Unit = {

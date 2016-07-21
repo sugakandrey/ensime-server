@@ -10,6 +10,7 @@ import org.ensime.indexer._
 
 import scala.tools.scalap.scalax.rules.ScalaSigParserError
 import scala.tools.scalap.scalax.rules.scalasig._
+import scala.collection.{ breakOut, mutable }
 
 trait ScalapSymbolToFqn {
   import ScalaSigApi._
@@ -51,15 +52,16 @@ trait ScalapSymbolToFqn {
 
     val scalaName = aPackage + "." + name
     val parentPrefix = if (sym.isModule) scalaName + "." else scalaName + "#"
-    val fields = sym.children.collect {
+    val fields: Map[String, RawScalapField] = sym.children.collect {
       case ms: MethodSymbol if !ms.isMethod && ms.isLocal =>
-        rawScalaField(ms, parentPrefix)
-    }
+        val field = rawScalaField(ms, parentPrefix)
+        field.javaName.fqnString -> field
+    }(breakOut)
 
-    val methods = sym.children.collect {
+    val methods: mutable.ArrayBuffer[RawScalapMethod] = sym.children.collect {
       case ms: MethodSymbol if ms.isMethod && !ms.name.contains("default") && !ms.name.contains("<init>") =>
         rawScalaMethod(ms, parentPrefix)
-    }
+    }(breakOut)
 
     RawScalapClass(
       javaName,

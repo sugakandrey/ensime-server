@@ -207,7 +207,8 @@ final case class RawClassfile(
     deprecated: Boolean,
     fields: List[RawField],
     methods: List[RawMethod],
-    source: RawSource
+    source: RawSource,
+    isScala: Boolean
 ) extends RawSymbol {
   override def fqn: String = name.fqnString
 }
@@ -242,14 +243,15 @@ sealed trait RawScalapSymbol {
   def scalaName: String
 }
 
+import scala.collection.mutable
 final case class RawScalapClass(
   javaName: ClassName,
   scalaName: String,
   typeSignature: String,
   access: Access,
   declaredAs: DeclaredAs,
-  fields: Seq[RawScalapField],
-  methods: Seq[RawScalapMethod]
+  fields: Map[String, RawScalapField],
+  methods: mutable.ArrayBuffer[RawScalapMethod]
 ) extends RawScalapSymbol
 
 final case class RawScalapField(

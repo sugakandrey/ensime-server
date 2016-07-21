@@ -12,7 +12,6 @@ import com.orientechnologies.orient.core.Orient
 import com.orientechnologies.orient.core.config.OGlobalConfiguration
 import com.orientechnologies.orient.core.intent.OIntentMassiveInsert
 import com.orientechnologies.orient.core.metadata.schema.OType
-import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 import com.tinkerpop.blueprints.Vertex
 import com.tinkerpop.blueprints.impls.orient.OrientGraphFactory
 import org.apache.commons.vfs2.FileObject
@@ -83,6 +82,7 @@ final case class Method(
     scalaName: Option[String],
     indexInParent: Int
 ) extends Member {
+
   override def declAs: DeclaredAs = DeclaredAs.Method
 }
 
@@ -227,24 +227,7 @@ class GraphService(dir: File) extends SLF4JLogging {
       val fileV = RichGraph.upsertV[FileCheck, String](check) // bad atomic behaviour
 
       symbols.foreach {
-        case BytecodeEntryInfo(_, _, _, None, Some(scalapSymbol: RawScalapClass)) =>
-          val scalaName = scalapSymbol.scalaName
-          val classDef = ClassDef(scalapSymbol.javaName.fqnString, null, null, None, None, scalapSymbol.access, Some(scalaName), Some(scalapSymbol.declaredAs))
-          val classV = RichGraph.upsertV[ClassDef, String](classDef)
-
-          scalapSymbol.fields.foreach {
-            case RawScalapField(javaName, fieldScalaName, _, access) =>
-              val field = Field(javaName.fqnString, None, None, None, access, Some(fieldScalaName))
-              RichGraph.upsertV[Field, String](field)
-          }
-
-          scalapSymbol.methods.iterator.zipWithIndex.foreach {
-            case (RawScalapMethod(methodScalaName, signature, access), index) =>
-              val method = Method(classV.getProperty[String]("fqn") + "#" + index, None, None, access, Some(methodScalaName + signature), index)
-              RichGraph.upsertMethodByIndex(method, classV)
-          }
-
-        case BytecodeEntryInfo(file, path, source, Some(bytecodeSymbol), scalapSymbol) =>
+        case BytecodeEntryInfo(file, path, source, bytecodeSymbol, scalapSymbol) =>
           val scalaName = scalapSymbol.map(_.scalaName)
           val declAs = scalapSymbol.map(_.declaredAs)
 
@@ -265,18 +248,20 @@ class GraphService(dir: File) extends SLF4JLogging {
                 val parentV = RichGraph.upsertV[ClassDef, String](cdef)
                 RichGraph.insertE(classV, parentV, IsParent)
               }
+
             case s: RawField =>
               val owningClass = RichGraph.readUniqueV[ClassDef, String](s.name.owner.fqnString)
               val field = Field(s.name.fqnString, Some(s.fqn), None, source, s.access, scalaName)
               val fieldV: VertexT[Member] = RichGraph.upsertV[Field, String](field)
               owningClass.foreach(classV =>
                 RichGraph.insertE(fieldV, classV, OwningClass))
+
             case s: RawMethod =>
               val owningClass = RichGraph.readUniqueV[ClassDef, String](s.name.owner.fqnString)
               val method = Method(s.fqn, s.line, source, s.access, scalaName, s.indexInParent)
-              //              val methodV: VertexT[Member] = RichGraph.upsertV[Method, String](method)
+              val methodV: VertexT[Member] = RichGraph.upsertV[Method, String](method)
               owningClass.foreach(classV =>
-                RichGraph.upsertMethodByIndex(method, classV))
+                RichGraph.insertE(methodV, classV, OwningClass))
             //        case (s: RawType, SourceInfo(_, _, source)) =>
             //          val field = Field(s.fqn, None, None, source, s.access)
             //          val fieldV = RichGraph.upsertV[Field, String](field)
