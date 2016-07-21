@@ -8,8 +8,9 @@ import java.nio.charset.StandardCharsets
 import org.ensime.api.DeclaredAs
 import org.ensime.indexer._
 
-import scala.tools.scalap.scalax.rules.ScalaSigParserError
 import scala.tools.scalap.scalax.rules.scalasig._
+import scala.collection.{ breakOut, mutable }
+import scala.util.control.NonFatal
 
 trait ScalapSymbolToFqn {
   import ScalaSigApi._
@@ -22,7 +23,7 @@ trait ScalapSymbolToFqn {
       code(printer)
       new String(baos.toByteArray, StandardCharsets.UTF_8)
     } catch {
-      case e: ScalaSigParserError => ""
+      case NonFatal(e) => ""
     }
   }
 
@@ -30,6 +31,16 @@ trait ScalapSymbolToFqn {
     if (sym.isPrivate) Private
     else if (sym.isProtected) Protected
     else Public
+
+  def rawType(s: AliasSymbol, parentPrefix: String): RawType = {
+    val javaName = FieldName(className(s.symbolInfo.owner), s.name)
+    val scalaName = parentPrefix + s.name
+    val access = getAccess(s)
+    val typeSignature = withScalaSigPrinter { printer =>
+      printer.printType(s.infoType, " = ")(printer.TypeFlags(true))
+    }
+    RawType(javaName, scalaName, access, typeSignature)
+  }
 
   def rawScalaClass(sym: ClassSymbol): RawScalapClass = {
     val javaName = className(sym)
@@ -51,15 +62,22 @@ trait ScalapSymbolToFqn {
 
     val scalaName = aPackage + "." + name
     val parentPrefix = if (sym.isModule) scalaName + "." else scalaName + "#"
-    val fields = sym.children.collect {
+    val fields: Map[String, RawScalapField] = sym.children.collect {
       case ms: MethodSymbol if !ms.isMethod && ms.isLocal =>
-        rawScalaField(ms, parentPrefix)
-    }
+        val field = rawScalaField(ms, parentPrefix)
+        field.javaName.fqnString -> field
+    }(breakOut)
 
-    val methods = sym.children.collect {
+    val methods: mutable.ArrayBuffer[RawScalapMethod] = sym.children.collect {
       case ms: MethodSymbol if ms.isMethod && !ms.name.contains("default") && !ms.name.contains("<init>") =>
         rawScalaMethod(ms, parentPrefix)
-    }
+    }(breakOut)
+
+    val aliases: Map[String, RawType] = sym.children.collect {
+      case as: AliasSymbol =>
+        val alias = rawType(as, parentPrefix)
+        alias.javaName.fqnString -> alias
+    }(breakOut)
 
     RawScalapClass(
       javaName,
@@ -68,7 +86,8 @@ trait ScalapSymbolToFqn {
       access,
       declaredAs,
       fields,
-      methods
+      methods,
+      aliases
     )
   }
 

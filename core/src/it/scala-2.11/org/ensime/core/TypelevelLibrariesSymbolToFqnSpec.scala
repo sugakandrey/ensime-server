@@ -35,10 +35,10 @@ class TypelevelLibrariesSymbolToFqnSpec extends EnsimeSpec
       val classes = (jar.findFiles(ClassfileSelector) match {
         case null => Nil
         case files => files.toList
-      }).flatMap(new ClassfileDepickler(_).getClasses)
+      }).flatMap(new ClassfileDepickler(_).getClasses.values)
       classes.foreach { scalaClass =>
         verify(scalaClass.javaName, scalaClass.scalaName, scalaClass.declaredAs, cc)
-        scalaClass.fields.foreach { field =>
+        scalaClass.fields.valuesIterator.foreach { field =>
           verify(field.javaName, field.scalaName, DeclaredAs.Field, cc)
         }
         scalaClass.methods.foreach { method =>

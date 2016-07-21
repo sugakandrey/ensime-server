@@ -41,7 +41,7 @@ class ScalapSymbolToFqnSpec extends EnsimeSpec
     val vfs = cc.vfs
 
     val predef = vfs.vres("scala/Predef.class")
-    val fieldNames = new ClassfileDepickler(predef).getClasses.values.flatMap(_.fields)
+    val fieldNames = new ClassfileDepickler(predef).getClasses.values.flatMap(_.fields.valuesIterator)
     fieldNames.foreach { field =>
       verify(field.javaName, field.scalaName, DeclaredAs.Field, cc)
     }
