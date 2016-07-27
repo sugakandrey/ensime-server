@@ -36,7 +36,7 @@ sealed trait FqnSymbol {
   def scalaName: Option[String]
 
   def sourceFileObject(implicit vfs: EnsimeVFS): Option[FileObject] = source.map(vfs.vfile)
-  def searchResultString: String = s"$declAs ${scalaName.getOrElse(fqn)}"
+  def toSearchResult: String = s"$declAs ${scalaName.getOrElse(fqn)}"
 }
 
 sealed trait Hierarchy

@@ -7,7 +7,7 @@ import java.util.concurrent.Semaphore
 import scala.concurrent._
 import scala.concurrent.duration._
 import scala.util.{ Failure, Properties, Success }
-import scala.collection.{ mutable => m, Map, Set}
+import scala.collection.{ mutable => m, Map, Set }
 import akka.actor._
 import akka.event.slf4j.SLF4JLogging
 import org.apache.commons.vfs2._
@@ -89,8 +89,7 @@ class SearchService(
 
   private def scanGrouped(
     f: FileObject,
-    initial: m.MultiMap[FileObject, FileObject]
-    = new m.HashMap[FileObject, m.Set[FileObject]] with m.MultiMap[FileObject, FileObject]
+    initial: m.MultiMap[FileObject, FileObject] = new m.HashMap[FileObject, m.Set[FileObject]] with m.MultiMap[FileObject, FileObject]
   ): Map[FileObject, Set[FileObject]] = f.findFiles(ClassfileSelector) match {
     case null => initial
     case res =>

@@ -206,21 +206,51 @@ class SearchServiceSpec extends EnsimeSpec
 
   it should "not find entries from deleted jars" in withSearchService { (config, service) =>
     implicit val s = service
-    val scalatestJar = config.allJars.find(_.getName.contains("scalatest"))
-    scalatestJar shouldBe 'defined
-    scalatestJar.get shouldBe 'exists
-
-    val hits = service.searchClasses("Matchers", 25)
-    hits.length should ===(25)
-
-    val oldPath = scalatestJar.get.getPath
+    val catsJar = config.allJars.find(_.getName.contains("cats"))
+    val oldPath = catsJar.get.getPath
     val newPath = oldPath + "removed"
     val newFile = new File(newPath)
-    scalatestJar.get.renameTo(newFile)
 
-    refresh() shouldBe ((1, 0))
-    searchExpectEmpty("Matchers")
-    newFile.renameTo(new File(oldPath))
+    try {
+      service.findUnique("cats.data.package$.NonEmptyList") shouldBe defined
+      val hits = service.searchClasses("Invariant", 5)
+      hits.length should ===(5)
+
+      catsJar.get.renameTo(newFile)
+
+      refresh() shouldBe ((1, 0))
+      searchExpectEmpty("Invariant")
+      searchExpectEmpty("Xor")
+      searchExpectEmpty("Comonad")
+      service.findUnique("cats.data.package$.NonEmptyList") shouldBe empty
+    } finally {
+      newFile.renameTo(new File(oldPath))
+      refresh()
+    }
+  }
+
+  it should "distinguish between traits/classes/objects" in withSearchService { implicit service =>
+    val aTrait = service.findUnique("org.scalatest.FunSuiteLike")
+    val aClass = service.findUnique("org.scalatest.FunSuite")
+    val anObject = service.findUnique("org.scalatest.SuperEngine$Bundle$")
+    aTrait shouldBe defined
+    aTrait.get.toSearchResult should startWith("Trait")
+    aClass shouldBe defined
+    aClass.get.toSearchResult should startWith("Class")
+    anObject shouldBe defined
+    anObject.get.toSearchResult should startWith("Object")
+  }
+
+  it should "find scala names for scala symbols" in withSearchService { implicit service =>
+    val hits = service.searchClassesMethods(List("TestSuite"), 10)
+    hits.length should be > 0
+    all(hits.map(_.scalaName)) shouldBe defined
+  }
+
+  it should "not find scala names for java symbols" in withSearchService { implicit service =>
+    val hits = service.searchClasses("java.lang", 10)
+    hits.length should ===(10)
+    all(hits.map(_.scalaName)) shouldBe empty
   }
 
   "exact searches" should "find type aliases" in withSearchService { implicit service =>
