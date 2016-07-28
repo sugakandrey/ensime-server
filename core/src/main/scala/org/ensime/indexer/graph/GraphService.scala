@@ -133,7 +133,6 @@ class GraphService(dir: File) extends SLF4JLogging {
 
   implicit val UniqueFqnIndexV = LensId("fqn", FqnIndexLens)
   implicit val UniqueFqnSymbolV = LensId("fqn", FqnSymbolLens)
-  implicit val MethodIndex = LensId("indexInParent", lens[Method] >> 'indexInParent)
 
   // all methods return Future, which means we can do isolation by
   // doing all work on a single worker Thread. We can't optimise until

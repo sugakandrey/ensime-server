@@ -12,7 +12,7 @@ import akka.event.slf4j.SLF4JLogging
 import com.orientechnologies.orient.core.metadata.schema.OClass
 import com.tinkerpop.blueprints._
 import com.tinkerpop.blueprints.impls.orient._
-import org.ensime.indexer.graph.GraphService.{ IsParent, OwningClass }
+import org.ensime.indexer.graph.GraphService.IsParent
 import org.ensime.indexer.graph._
 import org.ensime.indexer.orientdb.api.{ NotUnique, OrientProperty }
 import org.ensime.indexer.stringymap.api._
@@ -167,38 +167,6 @@ package object syntax {
   // the presentation complier doesn't like it if we pimp the Graph,
   // so do it this way instead
   object RichGraph extends SLF4JLogging {
-    def upsertMethodByIndex(
-      m: Method,
-      classV: VertexT[ClassDef]
-    )(
-      implicit
-      graph: Graph,
-      bdf: BigDataFormat[Method],
-      methodId: BigDataFormatId[Method, Int],
-      fqnId: BigDataFormatId[FqnSymbol, String],
-      edgeBdf: BigDataFormat[OwningClass.type]
-    ): VertexT[Member] = {
-      val props = m.toProperties
-      val vs = classV.getChildVertices[Member, OwningClass.type]
-      val target = vs.find(_.getProperty[Int](methodId.key) == methodId.value(m)) match {
-        case Some(vertexT) =>
-          vertexT
-        case None =>
-          val v = graph.addVertex("class:" + m.label)
-          if (fqnId.value(m) == null) {
-            v.setProperty(fqnId.key, classV.getProperty[String](fqnId.key) + "#" + methodId.value(m))
-          }
-          val vertexT = VertexT[Member](v)
-          insertE(vertexT, classV, OwningClass)
-          vertexT
-      }
-      props.asScala.foreach {
-        case (key, value) =>
-          target.setProperty(key, value)
-      }
-      target
-    }
-
     /** Side-effecting vertex insertion. */
     def insertV[T](t: T)(implicit graph: Graph, s: BigDataFormat[T]): VertexT[T] = {
       val props = t.toProperties
@@ -274,8 +242,7 @@ package object syntax {
 
           updates.foreach {
             case (key, value) =>
-              //              if (!old.contains(key) || old(key) != value)
-              if (!old.contains(key))
+              if (!old.contains(key) || old(key) != value)
                 v.setProperty(key, value)
           }
 

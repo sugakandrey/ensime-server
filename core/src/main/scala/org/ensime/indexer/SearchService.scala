@@ -77,7 +77,7 @@ class SearchService(
   // poor man's backpressure.
   val semaphore = new Semaphore(Properties.propOrElse("ensime.index.parallel", "10").toInt, true)
 
-  private[indexer] def getOuterClassFile(f: FileObject): FileObject = {
+  private[indexer] def getTopLevelClassFile(f: FileObject): FileObject = {
     import scala.reflect.NameTransformer
     val filename = f.getName
     val className = filename.getBaseName
@@ -94,7 +94,7 @@ class SearchService(
     case null => initial
     case res =>
       for (fo <- res) {
-        val key = getOuterClassFile(fo)
+        val key = getTopLevelClassFile(fo)
         if (key.exists()) {
           initial.addBinding(key, fo)
         }
@@ -349,12 +349,11 @@ object SearchService {
       scalapSymbol: Option[RawScalapSymbol] = None
   ) {
     def fqn: String = (bytecodeSymbol, scalapSymbol) match {
-      case (Some(s), _) => s.fqn
+      case (Some(bytecode), _) => bytecode.fqn
       case (None, Some(t: RawType)) => t.javaName.fqnString
-      case (_, _) => ""
+      case _ => ""
     }
   }
-
 }
 
 final case class IndexFile(f: FileObject)
@@ -384,7 +383,7 @@ class IndexingQueueActor(searchService: SearchService) extends Actor with ActorL
 
   override def receive: Receive = {
     case IndexFile(f) =>
-      todo.addBinding(searchService.getOuterClassFile(f), f)
+      todo.addBinding(searchService.getTopLevelClassFile(f), f)
       debounce()
 
     case Process if todo.isEmpty => // nothing to do
@@ -398,8 +397,6 @@ class IndexingQueueActor(searchService: SearchService) extends Actor with ActorL
       import ExecutionContext.Implicits.global
 
       log.debug(s"Indexing ${batch.size} groups of files")
-      log.debug(s"todo = $todo")
-      log.debug(s"batch = $batch")
 
       def retry(): Unit = {
         batch.valuesIterator.foreach(_.foreach(self ! IndexFile(_)))
