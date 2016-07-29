@@ -36,7 +36,7 @@ package api {
   case class OrientProperty(oType: OType, isMandatory: Boolean = true)
 
   // assigns some type info to a vertex that we have just created
-  case class VertexT[T](underlying: Vertex)
+  case class VertexT[+T](underlying: Vertex)
 
   trait EdgeT[+Out, +In]
 
@@ -130,6 +130,8 @@ package object syntax {
     def remove(implicit graph: OrientBaseGraph): Unit = graph.removeVertex(v.underlying)
 
     def getProperty[P](key: String): P = v.underlying.getProperty[P](key)
+
+    def setProperty[P](key: String, p: P): Unit = v.underlying.setProperty(key, p)
 
     def getChildVertices[S, E <: EdgeT[S, T]](
       implicit

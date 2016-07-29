@@ -207,7 +207,8 @@ final case class RawClassfile(
     deprecated: Boolean,
     fields: List[RawField],
     methods: List[RawMethod],
-    source: RawSource
+    source: RawSource,
+    isScala: Boolean
 ) extends RawSymbol {
   override def fqn: String = name.fqnString
 }
@@ -216,11 +217,6 @@ final case class RawSource(
   filename: Option[String],
   line: Option[Int]
 )
-
-final case class RawType(
-  fqn: String,
-  access: Access
-) extends RawSymbol
 
 final case class RawField(
     name: FieldName,
@@ -235,30 +231,53 @@ final case class RawMethod(
     name: MethodName,
     access: Access,
     generics: Option[String],
-    line: Option[Int]
+    line: Option[Int],
+    indexInParent: Int
 ) extends RawSymbol {
   override def fqn: String = name.fqnString
 }
 
-final case class RawScalaClass(
+sealed trait RawScalapSymbol {
+  def declaredAs: DeclaredAs
+  def access: Access
+  def scalaName: String
+  def typeSignature: String
+}
+
+import scala.collection.mutable
+final case class RawScalapClass(
   javaName: ClassName,
   scalaName: String,
   typeSignature: String,
   access: Access,
   declaredAs: DeclaredAs,
-  fields: Seq[RawScalaField],
-  methods: Seq[RawScalaMethod]
-)
+  fields: Map[String, RawScalapField],
+  methods: mutable.ArrayBuffer[RawScalapMethod],
+  typeAliases: Map[String, RawType]
+) extends RawScalapSymbol
 
-final case class RawScalaField(
-  javaName: FieldName,
-  scalaName: String,
-  typeInfo: String,
-  access: Access
-)
+final case class RawScalapField(
+    javaName: FieldName,
+    scalaName: String,
+    typeSignature: String,
+    access: Access
+) extends RawScalapSymbol {
+  override def declaredAs = DeclaredAs.Field
+}
 
-final case class RawScalaMethod(
-  scalaName: String,
-  signature: String,
-  access: Access
-)
+final case class RawScalapMethod(
+    scalaName: String,
+    typeSignature: String,
+    access: Access
+) extends RawScalapSymbol {
+  override def declaredAs = DeclaredAs.Method
+}
+
+final case class RawType(
+    javaName: FieldName,
+    scalaName: String,
+    access: Access,
+    typeSignature: String
+) extends RawScalapSymbol {
+  override def declaredAs = DeclaredAs.Field
+}

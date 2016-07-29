@@ -7,7 +7,7 @@ import java.util.concurrent.Semaphore
 import scala.concurrent._
 import scala.concurrent.duration._
 import scala.util.{ Failure, Properties, Success }
-
+import scala.collection.{ mutable => m, Map, Set }
 import akka.actor._
 import akka.event.slf4j.SLF4JLogging
 import org.apache.commons.vfs2._
@@ -77,9 +77,29 @@ class SearchService(
   // poor man's backpressure.
   val semaphore = new Semaphore(Properties.propOrElse("ensime.index.parallel", "10").toInt, true)
 
-  private def scan(f: FileObject) = f.findFiles(ClassfileSelector) match {
-    case null => Nil
-    case res => res.toList
+  private[indexer] def getTopLevelClassFile(f: FileObject): FileObject = {
+    import scala.reflect.NameTransformer
+    val filename = f.getName
+    val className = filename.getBaseName
+    val baseClassName =
+      if (className.contains("$")) NameTransformer.encode(NameTransformer.decode(className).split("\\$")(0)) + ".class"
+      else className
+    vfs.vfile(filename.getURI.substring(0, filename.getURI.length - className.length) + baseClassName)
+  }
+
+  private def scanGrouped(
+    f: FileObject,
+    initial: m.MultiMap[FileObject, FileObject] = new m.HashMap[FileObject, m.Set[FileObject]] with m.MultiMap[FileObject, FileObject]
+  ): Map[FileObject, Set[FileObject]] = f.findFiles(ClassfileSelector) match {
+    case null => initial
+    case res =>
+      for (fo <- res) {
+        val key = getTopLevelClassFile(fo)
+        if (key.exists()) {
+          initial.addBinding(key, fo)
+        }
+      }
+      initial
   }
 
   /**
@@ -110,42 +130,48 @@ class SearchService(
     }
 
     // a snapshot of everything that we want to index
-    def findBases(): Set[FileObject] = {
-      config.modules.flatMap {
+    def findBases(): (Set[FileObject], Map[FileObject, Set[FileObject]]) = {
+      val grouped = new m.HashMap[FileObject, m.Set[FileObject]] with m.MultiMap[FileObject, FileObject]
+      val jars = config.modules.flatMap {
         case (name, m) =>
-          m.targets.flatMap {
+          (m.testTargets ++ m.targets).flatMap {
             case d if !d.exists() => Nil
             case d if d.isJar => List(vfs.vfile(d))
-            case d => scan(vfs.vfile(d))
-          } ::: m.testTargets.flatMap {
-            case d if !d.exists() => Nil
-            case d if d.isJar => List(vfs.vfile(d))
-            case d => scan(vfs.vfile(d))
-          } :::
-            m.compileJars.map(vfs.vfile) ::: m.testJars.map(vfs.vfile)
-      }
-    }.toSet ++ config.javaLibs.map(vfs.vfile)
+            case d => scanGrouped(vfs.vfile(d), grouped); Nil
+          } ::: (m.compileJars ++ m.testJars).map(vfs.vfile)
+      }.toSet ++ config.javaLibs.map(vfs.vfile)
+      (jars, grouped)
+    }
 
-    def indexBase(base: FileObject, fileCheck: Option[FileCheck]): Future[Int] = {
-      val outOfDate = fileCheck.map(_.changed).getOrElse(true)
+    def indexBase(
+      base: FileObject,
+      fileCheck: Option[FileCheck],
+      grouped: Map[FileObject, Set[FileObject]]
+    ): Future[Int] = {
+      val outOfDate = fileCheck.forall(_.changed)
       if (!outOfDate) Future.successful(0)
       else {
-        val boost = isUserFile(base.getName())
-        val check = FileCheck(base)
-        val indexed = extractSymbolsFromClassOrJar(base).flatMap(persist(check, _, commitIndex = false, boost = boost))
+        val boost = isUserFile(base.getName)
+        val indexed = extractSymbolsFromClassOrJar(base, grouped).flatMap(persist(_, commitIndex = false, boost = boost))
         indexed.onComplete { _ => semaphore.release() }
         indexed
       }
     }
 
     // index all the given bases and return number of rows written
-    def indexBases(bases: Set[FileObject], checks: Seq[FileCheck]): Future[Int] = {
+    def indexBases(files: (Set[FileObject], Map[FileObject, Set[FileObject]]), checks: Seq[FileCheck]): Future[Int] = {
+      val (jars, classFiles) = files
       log.debug("Indexing bases...")
       val checksLookup: Map[String, FileCheck] = checks.map(check => (check.filename -> check)).toMap
-      val basesWithChecks: Set[(FileObject, Option[FileCheck])] = bases.map { base =>
-        (base, checksLookup.get(base.getName().getURI()))
-      }
-      Future.sequence(basesWithChecks.map { case (file, check) => indexBase(file, check) }).map(_.sum)
+      val jarsWithChecks = jars.map(jar => (jar, checksLookup.get(jar.getName.getURI)))
+      val basesWithChecks: Seq[(FileObject, Option[FileCheck])] = classFiles.map {
+        case (outerClassFile, _) =>
+          (outerClassFile, checksLookup.get(outerClassFile.getName.getURI))
+      }(collection.breakOut)
+
+      Future.sequence(
+        (jarsWithChecks ++ basesWithChecks).collect { case (file, check) if file.exists() => indexBase(file, check, classFiles) }
+      ).map(_.sum)
     }
 
     def commitIndex(): Future[Unit] = {
@@ -173,15 +199,18 @@ class SearchService(
 
   def refreshResolver(): Unit = resolver.update()
 
-  def persist(check: FileCheck, symbols: List[(RawSymbol, SourceInfo)], commitIndex: Boolean, boost: Boolean): Future[Int] = {
-    val iwork = Future { blocking { index.persist(check, symbols.map(_._1), commitIndex, boost) } }
-    val dwork = db.persist(check, symbols)
+  def persist(symbols: List[SourceSymbolInfo], commitIndex: Boolean, boost: Boolean): Future[Int] = {
+    val iwork = Future { blocking { index.persist(symbols, commitIndex, boost) } }
+    val dwork = db.persist(symbols)
     iwork.flatMap { _ => dwork }
   }
 
   // this method leak semaphore on every call, which must be released
   // when the List[FqnSymbol] has been processed (even if it is empty)
-  def extractSymbolsFromClassOrJar(file: FileObject): Future[List[(RawSymbol, SourceInfo)]] = {
+  def extractSymbolsFromClassOrJar(
+    file: FileObject,
+    grouped: Map[FileObject, Set[FileObject]]
+  ): Future[List[SourceSymbolInfo]] = {
     def global: ExecutionContext = null // detach the global implicit
     val ec = actorSystem.dispatchers.lookup("akka.search-service-dispatcher")
 
@@ -192,14 +221,14 @@ class SearchService(
         file match {
           case classfile if classfile.getName.getExtension == "class" =>
             // too noisy to log
-            val check = FileCheck(classfile)
-            try extractSymbols(classfile, classfile)
+            val files = grouped(classfile)
+            try extractSymbols(classfile, files, classfile)
             finally classfile.close()
           case jar =>
             log.debug(s"indexing $jar")
             val check = FileCheck(jar)
             val vJar = vfs.vjar(jar)
-            try scan(vJar) flatMap (extractSymbols(jar, _))
+            try { (scanGrouped(vJar) flatMap { case (root, files) => extractSymbols(jar, files, root) }).toList }
             finally vfs.nuke(vJar)
         }
       }
@@ -209,26 +238,52 @@ class SearchService(
   private val blacklist = Set("sun/", "sunw/", "com/sun/")
   private val ignore = Set("$$", "$worker$")
   import org.ensime.util.RichFileObject._
-  private def extractSymbols(container: FileObject, f: FileObject): List[(RawSymbol, SourceInfo)] = {
-    f.pathWithinArchive match {
-      case Some(relative) if blacklist.exists(relative.startsWith) => Nil
-      case _ =>
-        val name = container.getName.getURI
-        val path = f.getName.getURI
-        val (clazz, refs) = indexClassfile(f)
+  private def extractSymbols(
+    container: FileObject,
+    files: collection.Set[FileObject],
+    rootClassFile: FileObject
+  ): List[SourceSymbolInfo] = {
+    val depickler = new ClassfileDepickler(rootClassFile)
+    val name = container.getName.getURI
+    val scalapClasses = depickler.getClasses
 
-        val depickler = new ClassfileDepickler(f)
+    files.flatMap { f =>
+      f.pathWithinArchive match {
+        case Some(relative) if blacklist.exists(relative.startsWith) => Nil
+        case _ =>
+          val path = f.getName.getURI
+          val file = if (path.startsWith("jar") || path.startsWith("zip")) {
+            FileCheck(container)
+          } else FileCheck(f)
+          val (clazz, refs) = indexClassfile(f)
 
-        val source = resolver.resolve(clazz.name.pack, clazz.source)
-        val sourceUri = source.map(_.getName.getURI)
+          val source = resolver.resolve(clazz.name.pack, clazz.source)
+          val sourceUri = source.map(_.getName.getURI)
+          val scalapClassInfo = scalapClasses.get(clazz.name.fqnString)
 
-        val sourceFileInfo = SourceInfo(name, path, sourceUri)
-        if (clazz.access != Public) Nil
-        else {
-          (clazz :: clazz.methods ::: clazz.fields ::: depickler.getTypeAliases.toList).map(_ -> sourceFileInfo)
-        }
-    }
-  }.filterNot(sym => ignore.exists(sym._1.fqn.contains))
+          scalapClassInfo match {
+            case _ if clazz.access != Public => Nil
+            case None if clazz.isScala => List(SourceSymbolInfo(file, path, None, None, None))
+            case Some(scalapSymbol) =>
+              val classInfo = SourceSymbolInfo(file, path, sourceUri, Some(clazz), Some(scalapSymbol))
+              val fields = clazz.fields.map(f =>
+                SourceSymbolInfo(file, path, sourceUri, Some(f), scalapSymbol.fields.get(f.fqn)))
+              val methods = clazz.methods.map(m => {
+                val scalapMethod =
+                  if (m.indexInParent < scalapSymbol.methods.size) Some(scalapSymbol.methods(m.indexInParent))
+                  else None
+                SourceSymbolInfo(file, path, sourceUri, Some(m), scalapMethod)
+              })
+              val aliases = scalapSymbol.typeAliases.valuesIterator.map(alias =>
+                SourceSymbolInfo(file, path, sourceUri, None, Some(alias))).toList
+              classInfo :: fields ::: methods ::: aliases
+            case None =>
+              (clazz :: clazz.methods ::: clazz.fields)
+                .map(s => SourceSymbolInfo(file, path, sourceUri, Some(s)))
+          }
+      }
+    }.filterNot(sym => ignore.exists(sym.fqn.contains))
+  }.toList
 
   /** free-form search for classes */
   def searchClasses(query: String, max: Int): List[FqnSymbol] = {
@@ -286,7 +341,19 @@ class SearchService(
 }
 
 object SearchService {
-  case class SourceInfo(file: String, path: String, source: Option[String])
+  case class SourceSymbolInfo(
+      file: FileCheck,
+      path: String,
+      source: Option[String],
+      bytecodeSymbol: Option[RawSymbol],
+      scalapSymbol: Option[RawScalapSymbol] = None
+  ) {
+    def fqn: String = (bytecodeSymbol, scalapSymbol) match {
+      case (Some(bytecode), _) => bytecode.fqn
+      case (None, Some(t: RawType)) => t.javaName.fqnString
+      case _ => ""
+    }
+  }
 }
 
 final case class IndexFile(f: FileObject)
@@ -301,7 +368,7 @@ class IndexingQueueActor(searchService: SearchService) extends Actor with ActorL
   // De-dupes files that have been updated since we were last told to
   // index them. No need to aggregate values: the latest wins. Key is
   // the URI because FileObject doesn't implement equals
-  var todo = Map.empty[String, FileObject]
+  val todo = new m.HashMap[FileObject, m.Set[FileObject]] with m.MultiMap[FileObject, FileObject]
 
   // debounce and give us a chance to batch (which is *much* faster)
   var worker: Cancellable = _
@@ -316,42 +383,45 @@ class IndexingQueueActor(searchService: SearchService) extends Actor with ActorL
 
   override def receive: Receive = {
     case IndexFile(f) =>
-      todo += f.getName.getURI -> f
+      f match {
+        case jar if jar.getName.getExtension == "jar" => todo.addBinding(jar, jar)
+        case classFile => todo.addBinding(searchService.getTopLevelClassFile(classFile), classFile)
+      }
       debounce()
 
     case Process if todo.isEmpty => // nothing to do
 
     case Process =>
-      val (batch, remaining) = todo.splitAt(500)
-      todo = remaining
-      if (remaining.nonEmpty)
+      val batch = todo.take(250)
+      batch.keys.foreach(todo.remove)
+      if (todo.nonEmpty)
         debounce()
 
       import ExecutionContext.Implicits.global
 
-      log.debug(s"Indexing ${batch.size} files")
+      log.debug(s"Indexing ${batch.size} groups of files")
 
       def retry(): Unit = {
-        batch.foreach(self !)
+        batch.valuesIterator.foreach(_.foreach(self ! IndexFile(_)))
       }
 
-      Future.sequence(batch.map {
-        case (url, f) =>
-          val filename = f.getName.getPath
+      batch.grouped(10).foreach(chunk => Future.sequence(chunk.map {
+        case (outerClassFile, _) =>
+          val filename = outerClassFile.getName.getPath
           // I don't trust VFS's f.exists()
           if (!File(filename).exists()) {
             Future {
               searchService.semaphore.acquire() // nasty, but otherwise we leak
-              f -> Nil
+              outerClassFile -> Nil
             }
-          } else searchService.extractSymbolsFromClassOrJar(f).map(f -> )
+          } else searchService.extractSymbolsFromClassOrJar(outerClassFile, batch).map(outerClassFile -> )
       }).onComplete {
         case Failure(t) =>
           searchService.semaphore.release()
           log.error(t, s"failed to index batch of ${batch.size} files. $advice")
           retry()
         case Success(indexed) =>
-          searchService.delete(indexed.map(_._1)(collection.breakOut)).onComplete {
+          searchService.delete(indexed.flatMap(f => batch(f._1))(collection.breakOut)).onComplete {
             case Failure(t) =>
               searchService.semaphore.release()
               log.error(t, s"failed to remove stale entries in ${batch.size} files. $advice")
@@ -359,7 +429,7 @@ class IndexingQueueActor(searchService: SearchService) extends Actor with ActorL
             case Success(_) => indexed.foreach {
               case (file, syms) =>
                 val boost = searchService.isUserFile(file.getName)
-                val persisting = searchService.persist(FileCheck(file), syms, commitIndex = true, boost = boost)
+                val persisting = searchService.persist(syms, commitIndex = true, boost = boost)
 
                 persisting.onComplete {
                   case _ => searchService.semaphore.release()
@@ -374,7 +444,7 @@ class IndexingQueueActor(searchService: SearchService) extends Actor with ActorL
             }
           }
 
-      }
+      })
   }
 
 }

@@ -29,9 +29,10 @@ class Indexer(
       name => name.fqn.endsWith("$") || name.fqn.endsWith("$class")
     }.map(typeResult)
 
+  private val typeDecls: Set[DeclaredAs] = Set(DeclaredAs.Class, DeclaredAs.Trait, DeclaredAs.Object)
   def oldSearchSymbols(terms: List[String], max: Int) =
     index.searchClassesMethods(terms, max).flatMap {
-      case hit if hit.declAs == DeclaredAs.Class => Some(typeResult(hit))
+      case hit if typeDecls.contains(hit.declAs) => Some(typeResult(hit))
       case hit if hit.declAs == DeclaredAs.Method => Some(MethodSearchResult(
         hit.fqn, hit.fqn.split("\\.").last, hit.declAs,
         LineSourcePositionHelper.fromFqnSymbol(hit)(config, vfs),

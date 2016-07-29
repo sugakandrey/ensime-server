@@ -2,7 +2,6 @@
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 package org.ensime.indexer
 
-import scala.collection.breakOut
 import scala.tools.scalap.scalax.rules.scalasig._
 
 import com.google.common.io.ByteStreams
@@ -27,31 +26,12 @@ class ClassfileDepickler(file: FileObject) extends ScalapSymbolToFqn {
     } finally in.close()
   }
 
-  def getTypeAliases: Seq[RawType] = withScalaSig { sig =>
+  private val ignore = Set("<local child>", "<refinement>", "anon")
+  def getClasses: Map[String, RawScalapClass] = scalasig.fold(Map.empty[String, RawScalapClass]) { sig =>
     sig.symbols.collect {
-      case s: AliasSymbol => RawType(symbolName(s), access(s))
-    }(breakOut)
-  }
-
-  def getClasses: Seq[RawScalaClass] = withScalaSig { sig =>
-    sig.symbols.collect {
-      case s: ClassSymbol if !(s.name.contains("<local child>") || s.name.contains("<refinement>") || s.name.contains("anon") || s.isSynthetic) => rawScalaClass(s)
-    }(breakOut)
-  }
-
-  private def withScalaSig[A](code: ScalaSig => Seq[A]): Seq[A] = scalasig.fold(Seq.empty[A])(sig => code(sig))
-
-  private def access(sym: Symbol): Access = {
-    if (sym.isPrivate) Private
-    else if (sym.isProtected) Protected
-    else Public
-  }
-
-  private def symbolName(a: Symbol): String = {
-    a.parent match {
-      case Some(s: SymbolInfoSymbol) => symbolName(s) + "$" + a.name
-      case Some(s: Symbol) => s.toString + "." + a.name
-      case None => a.name
-    }
+      case s: ClassSymbol if !(ignore.exists(s.name.contains) || s.isSynthetic) =>
+        val aClass = rawScalaClass(s)
+        aClass.javaName.fqnString -> aClass
+    }.toMap
   }
 }

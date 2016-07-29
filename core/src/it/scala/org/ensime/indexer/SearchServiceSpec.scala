@@ -55,13 +55,13 @@ class SearchServiceSpec extends EnsimeSpec
   it should "remove classfiles that have been deleted" in {
     withSearchService { (config, service) =>
       implicit val s = service
-      val classfile = config.subprojects.head.targets.head / "org/example/Foo.class"
+      val classfile = config.subprojects.head.targets.head / "org/example/Foo$.class"
 
       classfile shouldBe 'exists
 
       classfile.delete()
       refresh() shouldBe ((1, 0))
-      searchExpectEmpty("org.example.Foo")
+      searchExpectEmpty("org.example.Foo$")
     }
   }
 
@@ -183,7 +183,7 @@ class SearchServiceSpec extends EnsimeSpec
     )
     matchersHits should be(sorted)
 
-    val regexHits = service.searchClasses("Regex", 10).map(_.fqn)
+    val regexHits = service.searchClasses("Regex", 8).map(_.fqn)
     regexHits.take(2) should contain theSameElementsAs Seq(
       "scala.util.matching.Regex",
       "scala.util.matching.Regex$"
@@ -204,8 +204,32 @@ class SearchServiceSpec extends EnsimeSpec
     all(hits) should startWith regex ("org.example|org.boost")
   }
 
+  it should "distinguish between traits/classes/objects" in withSearchService { implicit service =>
+    val aTrait = service.findUnique("org.scalatest.FunSuiteLike")
+    val aClass = service.findUnique("org.scalatest.FunSuite")
+    val anObject = service.findUnique("org.scalatest.SuperEngine$Bundle$")
+    aTrait shouldBe defined
+    aTrait.get.toSearchResult should startWith("Trait")
+    aClass shouldBe defined
+    aClass.get.toSearchResult should startWith("Class")
+    anObject shouldBe defined
+    anObject.get.toSearchResult should startWith("Object")
+  }
+
+  it should "find scala names for scala symbols" in withSearchService { implicit service =>
+    val hits = service.searchClassesMethods(List("TestSuite"), 10)
+    hits.length should be > 0
+    all(hits.map(_.scalaName)) shouldBe defined
+  }
+
+  it should "not find scala names for java symbols" in withSearchService { implicit service =>
+    val hits = service.searchClasses("java.lang", 10)
+    hits.length should ===(10)
+    all(hits.map(_.scalaName)) shouldBe empty
+  }
+
   "exact searches" should "find type aliases" in withSearchService { implicit service =>
-    service.findUnique("org.scalatest.fixture.ConfigMapFixture$FixtureParam") shouldBe defined
+    service.findUnique("org.scalatest.fixture.ConfigMapFixture.FixtureParam") shouldBe defined
   }
 
   "class hierarchy viewer" should "find all classes implementing a trait" in withSearchService { implicit service =>

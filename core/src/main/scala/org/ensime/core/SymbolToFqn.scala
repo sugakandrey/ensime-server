@@ -80,7 +80,7 @@ trait SymbolToFqn { self: Global with PresentationCompilerBackCompat =>
     MethodName(clazz, name, descriptor)
   }
 
-  private def fieldName(sym: TermSymbol): FieldName = {
+  private def fieldName(sym: Symbol): FieldName = {
     val clazz = className(sym.owner)
     val name = sym.encodedName
     FieldName(clazz, name)
@@ -88,6 +88,7 @@ trait SymbolToFqn { self: Global with PresentationCompilerBackCompat =>
 
   def toFqn(sym: Symbol): FullyQualifiedName = sym match {
     case p if sym.hasPackageFlag => packageName(sym)
+    case ts: AliasTypeSymbol => fieldName(ts)
     case ts: TypeSymbol => normaliseClass(className(ts))
     case ms: ModuleSymbol => className(ms)
     case ms: MethodSymbol => methodName(ms)

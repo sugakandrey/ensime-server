@@ -32,7 +32,8 @@ class ClassfileIndexerSpec extends EnsimeSpec with IsolatedEnsimeVFSFixture {
         ),
         access = Public,
         generics = None,
-        line = Some(4)
+        line = Some(4),
+        0
       )
     )
     clazz.source shouldBe RawSource(Some("Test.java"), Some(1))

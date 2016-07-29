@@ -19,7 +19,8 @@ package api {
   import java.sql.Timestamp
 
   import com.orientechnologies.orient.core.metadata.schema.OType
-  import org.ensime.indexer.{ Access, Private, Protected, Public, Default }
+  import org.ensime.api.DeclaredAs
+  import org.ensime.indexer.{ Access, Default, Private, Protected, Public }
   import org.ensime.indexer.orientdb.api.OrientProperty
 
   trait BigDataFormat[T] {
@@ -95,6 +96,44 @@ package api {
       def toOrientProperty: OrientProperty = OrientProperty(OType.INTEGER)
     }
 
+    implicit object DeclaredAsSPrimitive extends SPrimitive[DeclaredAs] {
+      trait SingletonByName[A, C <: Coproduct] {
+        def map: Map[String, A]
+      }
+      object SingletonByName {
+        implicit def CNilSingleton[A]: SingletonByName[A, CNil] =
+          new SingletonByName[A, CNil] { def map = Map.empty }
+
+        implicit def coproductSingletons[A, H <: A, T <: Coproduct](
+          implicit
+          tsbn: SingletonByName[A, T],
+          witness: Witness.Aux[H],
+          tpe: Typeable[H]
+        ): SingletonByName[A, H :+: T] = new SingletonByName[A, H :+: T] {
+          def map = {
+            val label = tpe.describe.replaceAll(".type", "")
+            tsbn.map + (label -> witness.value)
+          }
+        }
+      }
+
+      trait AdtToMap[A] {
+        def map: Map[String, A]
+      }
+      object AdtToMap {
+        implicit def fromSingletonByName[A, C <: Coproduct](
+          implicit
+          gen: Generic.Aux[A, C],
+          singletonByName: SingletonByName[A, C]
+        ): AdtToMap[A] = new AdtToMap[A] { def map: Map[String, A] = singletonByName.map }
+      }
+
+      val map: Map[String, DeclaredAs] = implicitly[AdtToMap[DeclaredAs]].map
+
+      def toValue(v: DeclaredAs): java.lang.String = if (v == null) null else StringSPrimitive.toValue(v.toString)
+      def fromValue(v: AnyRef): DeclaredAs = map(StringSPrimitive.fromValue(v))
+      def toOrientProperty: OrientProperty = OrientProperty(OType.STRING)
+    }
   }
 }
 

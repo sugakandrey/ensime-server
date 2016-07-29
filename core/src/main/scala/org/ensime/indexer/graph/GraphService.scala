@@ -17,7 +17,7 @@ import com.tinkerpop.blueprints.impls.orient.OrientGraphFactory
 import org.apache.commons.vfs2.FileObject
 import org.ensime.api.DeclaredAs
 import org.ensime.indexer.IndexService.FqnIndex
-import org.ensime.indexer.SearchService.SourceInfo
+import org.ensime.indexer.SearchService.SourceSymbolInfo
 import org.ensime.indexer._
 import org.ensime.indexer.orientdb.api._
 import org.ensime.indexer.orientdb.syntax._
@@ -33,8 +33,10 @@ sealed trait FqnSymbol {
   def source: Option[String]
   def declAs: DeclaredAs
   def access: Access
+  def scalaName: Option[String]
 
   def sourceFileObject(implicit vfs: EnsimeVFS): Option[FileObject] = source.map(vfs.vfile)
+  def toSearchResult: String = s"$declAs ${scalaName.getOrElse(fqn)}"
 }
 
 sealed trait Hierarchy
@@ -52,9 +54,11 @@ final case class ClassDef(
     path: String, // the VFS handle (e.g. classes in jars)
     source: Option[String],
     line: Option[Int],
-    access: Access
+    access: Access,
+    scalaName: Option[String],
+    scalapDeclaredAs: Option[DeclaredAs]
 ) extends FqnSymbol with Hierarchy {
-  override def declAs: DeclaredAs = DeclaredAs.Class
+  override def declAs: DeclaredAs = scalapDeclaredAs.getOrElse(DeclaredAs.Class)
 }
 
 sealed trait Member extends FqnSymbol
@@ -64,7 +68,8 @@ final case class Field(
     internal: Option[String],
     line: Option[Int],
     source: Option[String],
-    access: Access
+    access: Access,
+    scalaName: Option[String]
 ) extends Member {
   override def declAs: DeclaredAs = DeclaredAs.Field
 }
@@ -73,8 +78,11 @@ final case class Method(
     fqn: String,
     line: Option[Int],
     source: Option[String],
-    access: Access
+    access: Access,
+    scalaName: Option[String],
+    indexInParent: Int
 ) extends Member {
+
   override def declAs: DeclaredAs = DeclaredAs.Method
 }
 
@@ -90,6 +98,8 @@ object FileCheck extends ((String, Timestamp) => FileCheck) {
     else new Timestamp(-1L)
     FileCheck(name, ts)
   }
+
+  def fromPath(path: String)(implicit vfs: EnsimeVFS): FileCheck = apply(vfs.vfile(path))
 }
 
 // core/it:test-only *Search* -- -z prestine
@@ -212,33 +222,60 @@ class GraphService(dir: File) extends SLF4JLogging {
     }
   }
 
-  def persist(check: FileCheck, symbols: Seq[(RawSymbol, SourceInfo)]): Future[Int] = withGraphAsync { implicit g =>
+  def persist(symbols: Seq[SourceSymbolInfo]): Future[Int] = withGraphAsync { implicit g =>
+    val checks = scala.collection.mutable.Map.empty[String, VertexT[FileCheck]]
     if (symbols.isEmpty) 0
     else {
-      val fileV = RichGraph.upsertV[FileCheck, String](check) // bad atomic behaviour
-
       symbols.foreach {
-        case (s: RawClassfile, SourceInfo(file, path, source)) =>
-          val classDef = ClassDef(s.name.fqnString, file, path, source, s.source.line, s.access)
-          val classV = RichGraph.upsertV[ClassDef, String](classDef)
-          RichGraph.insertE(classV, fileV, DefinedIn)
-          // nulls are used, because these fields are not really optional and are guaranteed to be
-          // set in the graph after the indexing is completed.
-          val superClass = s.superClass.map(name => ClassDef(name.fqnString, null, null, None, None, null))
-          val interfaces = s.interfaces.map(name => ClassDef(name.fqnString, null, null, None, None, null))
-          (superClass.toList ::: interfaces).foreach { cdef =>
-            val parentV = RichGraph.upsertV[ClassDef, String](cdef)
-            RichGraph.insertE(classV, parentV, IsParent)
+        case info @ SourceSymbolInfo(file, path, source, bytecodeSymbol, scalapSymbol) =>
+          val fileV = checks.getOrElseUpdate(file.filename, RichGraph.upsertV[FileCheck, String](file))
+          (bytecodeSymbol, scalapSymbol) match {
+            case (None, None) => // no symbols were extracted from the file, only persist FileCheck
+            case (None, Some(t: RawType)) => // only scalap symbol (type alias case)
+              val owningClass = RichGraph.readUniqueV[ClassDef, String](t.javaName.owner.fqnString)
+              val field = Field(t.javaName.fqnString, None, None, source, t.access, Some(t.scalaName + t.typeSignature))
+              val fieldV: VertexT[Member] = RichGraph.upsertV[Field, String](field)
+              owningClass.foreach(classV =>
+                RichGraph.insertE(fieldV, classV, OwningClass))
+            case (Some(bytecode), scalap) => // bytecode and possibly scalap symbols present (regular java/scala symbol)
+              val scalaName = scalap.map(_.scalaName)
+              val typeSignature = scalap.map(_.typeSignature)
+              val declAs = scalap.map(_.declaredAs)
+
+              bytecode match {
+                case s: RawClassfile =>
+                  val classDef = ClassDef(s.fqn, file.filename, path, source, s.source.line, s.access, scalaName, declAs)
+                  val classV = RichGraph.upsertV[ClassDef, String](classDef)
+                  RichGraph.insertE(classV, fileV, DefinedIn)
+                  // nulls are used, because these fields are not really optional and are guaranteed to be
+                  // set in the graph after the indexing is completed.
+                  val superClass = s.superClass.map(
+                    name => ClassDef(name.fqnString, null, null, None, None, null, None, None)
+                  )
+                  val interfaces = s.interfaces.map(
+                    name => ClassDef(name.fqnString, null, null, None, None, null, None, None)
+                  )
+                  (superClass.toList ::: interfaces).foreach { cdef =>
+                    val parentV = RichGraph.upsertV[ClassDef, String](cdef)
+                    RichGraph.insertE(classV, parentV, IsParent)
+                  }
+
+                case s: RawField =>
+                  val owningClass = RichGraph.readUniqueV[ClassDef, String](s.name.owner.fqnString)
+                  val field = Field(s.name.fqnString, Some(s.fqn), None, source, s.access, scalaName)
+                  val fieldV: VertexT[Member] = RichGraph.upsertV[Field, String](field)
+                  owningClass.foreach(classV =>
+                    RichGraph.insertE(fieldV, classV, OwningClass))
+
+                case s: RawMethod =>
+                  val owningClass = RichGraph.readUniqueV[ClassDef, String](s.name.owner.fqnString)
+                  val method = Method(s.fqn, s.line, source, s.access, (scalaName ++ typeSignature).reduceOption(_ + _), s.indexInParent)
+                  val methodV: VertexT[Member] = RichGraph.upsertV[Method, String](method)
+                  owningClass.foreach(classV =>
+                    RichGraph.insertE(methodV, classV, OwningClass))
+              }
+            case (_, _) => throw new AssertionError(s"Illegal combination of bytecode and scalap information in $info")
           }
-        case (s: RawField, SourceInfo(_, _, source)) =>
-          val field = Field(s.name.fqnString, Some(s.clazz.internalString), None, source, s.access)
-          RichGraph.upsertV[Field, String](field)
-        case (s: RawMethod, SourceInfo(_, _, source)) =>
-          val method = Method(s.name.fqnString, s.line, source, s.access)
-          val methodV = RichGraph.upsertV[Method, String](method)
-        case (s: RawType, SourceInfo(_, _, source)) =>
-          val field = Field(s.fqn, None, None, source, s.access)
-          val fieldV = RichGraph.upsertV[Field, String](field)
       }
       symbols.size
     }

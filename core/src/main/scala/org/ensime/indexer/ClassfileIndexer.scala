@@ -63,8 +63,16 @@ trait ClassfileIndexer {
         interfaces.toList.map(ClassName.fromInternal),
         Access(access),
         (ACC_DEPRECATED & access) > 0,
-        Nil, Nil, RawSource(None, None)
+        Nil, Nil, RawSource(None, None),
+        isScala = false
       )
+    }
+
+    override def visitAttribute(attr: Attribute): Unit = {
+      val attrType = attr.`type`
+      if (attrType == "Scala" || attrType == "ScalaSig") {
+        clazz = clazz.copy(isScala = true)
+      }
     }
 
     override def visitSource(filename: String, debug: String): Unit = {
@@ -102,10 +110,10 @@ trait ClassfileIndexer {
                 case _ =>
                   clazz = clazz.copy(source = clazz.source.copy(line = firstLine))
               }
-
+            case name if name.contains("default") =>
             case name =>
               val descriptor = DescriptorParser.parse(desc)
-              val method = RawMethod(MethodName(clazz.name, name, descriptor), Access(access), Option(signature), firstLine)
+              val method = RawMethod(MethodName(clazz.name, name, descriptor), Access(access), Option(signature), firstLine, clazz.methods.size)
               clazz = clazz.copy(methods = method :: clazz.methods)
           }
         }
