@@ -41,11 +41,17 @@ class JarTargetTest extends EnsimeSpec
     withEnsimeConfig { implicit config =>
       withTestKit { implicit tk =>
         withProject { (project, asyncHelper) =>
+          import tk._
           mainTarget should be a 'file
 
           // no scaling here
           eventually(timeout(30 seconds), interval(1 second)) {
             mainTarget.delete() shouldBe true
+          }
+
+          eventually(interval(1 second)) {
+            project ! PublicSymbolSearchReq(List("Foo"), 10)
+            expectMsgType[SymbolSearchResults].syms shouldBe 'empty
           }
         }
       }

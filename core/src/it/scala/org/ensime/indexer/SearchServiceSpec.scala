@@ -204,31 +204,6 @@ class SearchServiceSpec extends EnsimeSpec
     all(hits) should startWith regex ("org.example|org.boost")
   }
 
-  it should "not find entries from deleted jars" in withSearchService { (config, service) =>
-    implicit val s = service
-    val catsJar = config.allJars.find(_.getName.contains("cats"))
-    val oldPath = catsJar.get.getPath
-    val newPath = oldPath + "removed"
-    val newFile = new File(newPath)
-
-    try {
-      service.findUnique("cats.data.package$.NonEmptyList") shouldBe defined
-      val hits = service.searchClasses("Invariant", 5)
-      hits.length should ===(5)
-
-      catsJar.get.renameTo(newFile)
-
-      refresh() shouldBe ((1, 0))
-      searchExpectEmpty("Invariant")
-      searchExpectEmpty("Xor")
-      searchExpectEmpty("Comonad")
-      service.findUnique("cats.data.package$.NonEmptyList") shouldBe empty
-    } finally {
-      newFile.renameTo(new File(oldPath))
-      refresh()
-    }
-  }
-
   it should "distinguish between traits/classes/objects" in withSearchService { implicit service =>
     val aTrait = service.findUnique("org.scalatest.FunSuiteLike")
     val aClass = service.findUnique("org.scalatest.FunSuite")

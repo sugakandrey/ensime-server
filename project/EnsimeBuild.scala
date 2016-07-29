@@ -202,10 +202,7 @@ object EnsimeBuild extends Build {
 
   lazy val testingSimple = Project("testingSimple", file("testing/simple")) settings (
     scalacOptions in Compile := Seq(),
-    libraryDependencies ++= Seq(
-      "org.scalatest" %% "scalatest" % Sensible.scalatestVersion % "test" intransitive (),
-      "org.typelevel" %% "cats-core" % "0.6.1" % Test intransitive()
-    )
+    libraryDependencies += "org.scalatest" %% "scalatest" % Sensible.scalatestVersion % "test" intransitive ()
   )
 
   lazy val testingSimpleJar = Project("testingSimpleJar", file("testing/simpleJar")).settings(
