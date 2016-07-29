@@ -116,7 +116,7 @@ class IndexService(path: Path) {
     if (boost) {
       fqns foreach { fqn =>
         val currentBoost = fqn.boost("fqn")
-        fqn.boostText("fqn", currentBoost + .5f)
+        fqn.boostText("fqn", currentBoost + .25f)
       }
     }
 
@@ -149,7 +149,7 @@ class IndexService(path: Path) {
 
   def searchClassesMethods(terms: List[String], max: Int): List[FqnIndex] = {
     val query = new DisjunctionMaxQuery(
-      terms.map(buildTermClassMethodQuery), 0f
+      terms.map(buildTermClassMethodQuery), 0.3f
     )
     lucene.search(query, max).map(_.toEntity[ClassIndex]).distinct
   }

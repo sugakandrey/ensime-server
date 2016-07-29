@@ -383,7 +383,10 @@ class IndexingQueueActor(searchService: SearchService) extends Actor with ActorL
 
   override def receive: Receive = {
     case IndexFile(f) =>
-      todo.addBinding(searchService.getTopLevelClassFile(f), f)
+      f match {
+        case jar if jar.getName.getExtension == "jar" => todo.addBinding(jar, jar)
+        case classFile => todo.addBinding(searchService.getTopLevelClassFile(classFile), classFile)
+      }
       debounce()
 
     case Process if todo.isEmpty => // nothing to do

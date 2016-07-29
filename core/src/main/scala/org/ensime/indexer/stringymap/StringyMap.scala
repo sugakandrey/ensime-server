@@ -97,16 +97,41 @@ package api {
     }
 
     implicit object DeclaredAsSPrimitive extends SPrimitive[DeclaredAs] {
-      def toValue(v: DeclaredAs): java.lang.String = if (v == null) null else StringSPrimitive.toValue(v.toString)
-      def fromValue(v: AnyRef): DeclaredAs = StringSPrimitive.fromValue(v) match {
-        case "Method" => DeclaredAs.Method
-        case "Field" => DeclaredAs.Field
-        case "Trait" => DeclaredAs.Trait
-        case "Object" => DeclaredAs.Object
-        case "Interface" => DeclaredAs.Interface
-        case "Class" => DeclaredAs.Class
-        case "Nil" => DeclaredAs.Nil
+      trait SingletonByName[A, C <: Coproduct] {
+        def map: Map[String, A]
       }
+      object SingletonByName {
+        implicit def CNilSingleton[A]: SingletonByName[A, CNil] =
+          new SingletonByName[A, CNil] { def map = Map.empty }
+
+        implicit def coproductSingletons[A, H <: A, T <: Coproduct](
+          implicit
+          tsbn: SingletonByName[A, T],
+          witness: Witness.Aux[H],
+          tpe: Typeable[H]
+        ): SingletonByName[A, H :+: T] = new SingletonByName[A, H :+: T] {
+          def map = {
+            val label = tpe.describe.replaceAll(".type", "")
+            tsbn.map + (label -> witness.value)
+          }
+        }
+      }
+
+      trait AdtToMap[A] {
+        def map: Map[String, A]
+      }
+      object AdtToMap {
+        implicit def fromSingletonByName[A, C <: Coproduct](
+          implicit
+          gen: Generic.Aux[A, C],
+          singletonByName: SingletonByName[A, C]
+        ): AdtToMap[A] = new AdtToMap[A] { def map: Map[String, A] = singletonByName.map }
+      }
+
+      val map: Map[String, DeclaredAs] = implicitly[AdtToMap[DeclaredAs]].map
+
+      def toValue(v: DeclaredAs): java.lang.String = if (v == null) null else StringSPrimitive.toValue(v.toString)
+      def fromValue(v: AnyRef): DeclaredAs = map(StringSPrimitive.fromValue(v))
       def toOrientProperty: OrientProperty = OrientProperty(OType.STRING)
     }
   }
