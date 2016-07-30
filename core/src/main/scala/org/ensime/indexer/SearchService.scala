@@ -45,6 +45,8 @@ class SearchService(
   /**
    * Changelog:
    *
+   * 2.2g - persist scalap information (scala names, type sigs, etc)
+   *
    * 2.1g - remodel OrientDB schema with new domain objects
    *
    * 2.0 - upgrade Lucene, format not backwards compatible.
@@ -65,7 +67,7 @@ class SearchService(
    *
    * 1.0 - initial schema
    */
-  private val version = "2.0"
+  private val version = "2.2"
 
   private val index = new IndexService((config.cacheDir / ("index-" + version)).toPath)
   private val db = new GraphService(config.cacheDir / ("graph-" + version))
@@ -229,7 +231,7 @@ class SearchService(
             val check = FileCheck(jar)
             val vJar = vfs.vjar(jar)
             try { (scanGrouped(vJar) flatMap { case (root, files) => extractSymbols(jar, files, root) }).toList }
-            finally vfs.nuke(vJar)
+            finally { log.debug(s"finished indexing $jar"); vfs.nuke(vJar) }
         }
       }
     }(ec)

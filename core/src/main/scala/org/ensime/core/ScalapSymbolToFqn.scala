@@ -9,7 +9,7 @@ import org.ensime.api.DeclaredAs
 import org.ensime.indexer._
 
 import scala.tools.scalap.scalax.rules.scalasig._
-import scala.collection.{ breakOut, mutable }
+import scala.collection.breakOut
 import scala.util.control.NonFatal
 
 trait ScalapSymbolToFqn {
@@ -68,7 +68,7 @@ trait ScalapSymbolToFqn {
         field.javaName.fqnString -> field
     }(breakOut)
 
-    val methods: mutable.ArrayBuffer[RawScalapMethod] = sym.children.collect {
+    val methods: Vector[RawScalapMethod] = sym.children.collect {
       case ms: MethodSymbol if ms.isMethod && !ms.name.contains("default") && !ms.name.contains("<init>") =>
         rawScalaMethod(ms, parentPrefix)
     }(breakOut)

@@ -244,7 +244,6 @@ sealed trait RawScalapSymbol {
   def typeSignature: String
 }
 
-import scala.collection.mutable
 final case class RawScalapClass(
   javaName: ClassName,
   scalaName: String,
@@ -252,7 +251,7 @@ final case class RawScalapClass(
   access: Access,
   declaredAs: DeclaredAs,
   fields: Map[String, RawScalapField],
-  methods: mutable.ArrayBuffer[RawScalapMethod],
+  methods: Vector[RawScalapMethod],
   typeAliases: Map[String, RawType]
 ) extends RawScalapSymbol
 
