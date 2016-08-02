@@ -102,7 +102,7 @@ object EnsimeBuild extends Build {
     api % "test->test" // for the test data
   ) settings (
       libraryDependencies ++= Seq(
-        "com.github.fommil" %% "spray-json-shapeless" % "1.2.0",
+        "com.github.fommil" %% "spray-json-shapeless" % "1.3.0",
         "com.typesafe.akka" %% "akka-slf4j" % Sensible.akkaVersion
       ) ++ Sensible.shapeless(scalaVersion.value)
     )
@@ -142,7 +142,7 @@ object EnsimeBuild extends Build {
       libraryDependencies ++= Seq(
         "com.h2database" % "h2" % "1.4.192",
         "com.typesafe.slick" %% "slick" % "3.1.1",
-        "com.zaxxer" % "HikariCP" % "2.4.6",
+        "com.zaxxer" % "HikariCP" % "2.4.7",
         "org.apache.lucene" % "lucene-core" % luceneVersion,
         "org.apache.lucene" % "lucene-analyzers-common" % luceneVersion,
         "org.ow2.asm" % "asm-commons" % "5.1",
@@ -172,7 +172,7 @@ object EnsimeBuild extends Build {
     dtf.format(new java.util.Date())
   }
 
-  val luceneVersion = "5.5.1"
+  val luceneVersion = "5.5.2"
   val streamsVersion = "2.0.4"
   lazy val server = Project("server", file("server")).dependsOn(
     core, swanky, jerky,
