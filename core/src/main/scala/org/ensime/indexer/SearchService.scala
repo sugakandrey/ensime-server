@@ -42,6 +42,8 @@ class SearchService(
 
   private val QUERY_TIMEOUT = 30 seconds
 
+  private[indexer] val ensimeVfs = vfs
+
   /**
    * Changelog:
    *
@@ -91,14 +93,14 @@ class SearchService(
 
   private def scanGrouped(
     f: FileObject,
-    initial: m.MultiMap[FileObject, FileObject] = new m.HashMap[FileObject, m.Set[FileObject]] with m.MultiMap[FileObject, FileObject]
-  ): Map[FileObject, Set[FileObject]] = f.findFiles(ClassfileSelector) match {
+    initial: m.MultiMap[FileName, FileObject] = new m.HashMap[FileName, m.Set[FileObject]] with m.MultiMap[FileName, FileObject]
+  ): Map[FileName, Set[FileObject]] = f.findFiles(ClassfileSelector) match {
     case null => initial
     case res =>
       for (fo <- res) {
         val key = getTopLevelClassFile(fo)
         if (key.exists()) {
-          initial.addBinding(key, fo)
+          initial.addBinding(key.getName, fo)
         }
       }
       initial
@@ -132,8 +134,8 @@ class SearchService(
     }
 
     // a snapshot of everything that we want to index
-    def findBases(): (Set[FileObject], Map[FileObject, Set[FileObject]]) = {
-      val grouped = new m.HashMap[FileObject, m.Set[FileObject]] with m.MultiMap[FileObject, FileObject]
+    def findBases(): (Set[FileObject], Map[FileName, Set[FileObject]]) = {
+      val grouped = new m.HashMap[FileName, m.Set[FileObject]] with m.MultiMap[FileName, FileObject]
       val jars = config.modules.flatMap {
         case (name, m) =>
           (m.testTargets ++ m.targets).flatMap {
@@ -146,33 +148,40 @@ class SearchService(
     }
 
     def indexBase(
-      base: FileObject,
+      baseName: FileName,
       fileCheck: Option[FileCheck],
-      grouped: Map[FileObject, Set[FileObject]]
+      grouped: Map[FileName, Set[FileObject]]
     ): Future[Int] = {
       val outOfDate = fileCheck.forall(_.changed)
-      if (!outOfDate) Future.successful(0)
+      val base = vfs.vfile(baseName.getURI)
+      if (!outOfDate || !base.exists()) Future.successful(0)
       else {
-        val boost = isUserFile(base.getName)
+        val boost = isUserFile(baseName)
         val indexed = extractSymbolsFromClassOrJar(base, grouped).flatMap(persist(_, commitIndex = false, boost = boost))
         indexed.onComplete { _ => semaphore.release() }
+        if (baseName.getExtension == "jar") {
+          log.debug(s"finished indexing $base")
+        }
         indexed
       }
     }
 
     // index all the given bases and return number of rows written
-    def indexBases(files: (Set[FileObject], Map[FileObject, Set[FileObject]]), checks: Seq[FileCheck]): Future[Int] = {
+    def indexBases(files: (Set[FileObject], Map[FileName, Set[FileObject]]), checks: Seq[FileCheck]): Future[Int] = {
       val (jars, classFiles) = files
       log.debug("Indexing bases...")
       val checksLookup: Map[String, FileCheck] = checks.map(check => (check.filename -> check)).toMap
-      val jarsWithChecks = jars.map(jar => (jar, checksLookup.get(jar.getName.getURI)))
-      val basesWithChecks: Seq[(FileObject, Option[FileCheck])] = classFiles.map {
+      val jarsWithChecks = jars.map { jar =>
+        val name = jar.getName
+        (name, checksLookup.get(name.getURI))
+      }
+      val basesWithChecks: Seq[(FileName, Option[FileCheck])] = classFiles.map {
         case (outerClassFile, _) =>
-          (outerClassFile, checksLookup.get(outerClassFile.getName.getURI))
+          (outerClassFile, checksLookup.get(outerClassFile.getURI))
       }(collection.breakOut)
 
       Future.sequence(
-        (jarsWithChecks ++ basesWithChecks).collect { case (file, check) if file.exists() => indexBase(file, check, classFiles) }
+        (jarsWithChecks ++ basesWithChecks).collect { case (file, check) => indexBase(file, check, classFiles) }
       ).map(_.sum)
     }
 
@@ -211,7 +220,7 @@ class SearchService(
   // when the List[FqnSymbol] has been processed (even if it is empty)
   def extractSymbolsFromClassOrJar(
     file: FileObject,
-    grouped: Map[FileObject, Set[FileObject]]
+    grouped: Map[FileName, Set[FileObject]]
   ): Future[List[SourceSymbolInfo]] = {
     def global: ExecutionContext = null // detach the global implicit
     val ec = actorSystem.dispatchers.lookup("akka.search-service-dispatcher")
@@ -223,15 +232,15 @@ class SearchService(
         file match {
           case classfile if classfile.getName.getExtension == "class" =>
             // too noisy to log
-            val files = grouped(classfile)
+            val files = grouped(classfile.getName)
             try extractSymbols(classfile, files, classfile)
-            finally classfile.close()
+            finally { files.foreach(_.close()); classfile.close() }
           case jar =>
             log.debug(s"indexing $jar")
             val check = FileCheck(jar)
             val vJar = vfs.vjar(jar)
-            try { (scanGrouped(vJar) flatMap { case (root, files) => extractSymbols(jar, files, root) }).toList }
-            finally { log.debug(s"finished indexing $jar"); vfs.nuke(vJar) }
+            try { (scanGrouped(vJar) flatMap { case (root, files) => extractSymbols(jar, files, vfs.vfile(root.getURI)) }).toList }
+            finally { vfs.nuke(vJar) }
         }
       }
     }(ec)
@@ -370,10 +379,12 @@ class IndexingQueueActor(searchService: SearchService) extends Actor with ActorL
   // De-dupes files that have been updated since we were last told to
   // index them. No need to aggregate values: the latest wins. Key is
   // the URI because FileObject doesn't implement equals
-  val todo = new m.HashMap[FileObject, m.Set[FileObject]] with m.MultiMap[FileObject, FileObject]
+  private val todo = new m.HashMap[FileName, m.Set[FileObject]] with m.MultiMap[FileName, FileObject]
+
+  private val vfs = searchService.ensimeVfs
 
   // debounce and give us a chance to batch (which is *much* faster)
-  var worker: Cancellable = _
+  private var worker: Cancellable = _
 
   private val advice = "If the problem persists, you may need to restart ensime."
 
@@ -385,10 +396,11 @@ class IndexingQueueActor(searchService: SearchService) extends Actor with ActorL
 
   override def receive: Receive = {
     case IndexFile(f) =>
-      f match {
-        case jar if jar.getName.getExtension == "jar" => todo.addBinding(jar, jar)
-        case classFile => todo.addBinding(searchService.getTopLevelClassFile(classFile), classFile)
+      val topLevelClassFile = f match {
+        case jar if jar.getName.getExtension == "jar" => jar
+        case classFile => searchService.getTopLevelClassFile(classFile)
       }
+      todo.addBinding(topLevelClassFile.getName, topLevelClassFile)
       debounce()
 
     case Process if todo.isEmpty => // nothing to do
@@ -409,14 +421,14 @@ class IndexingQueueActor(searchService: SearchService) extends Actor with ActorL
 
       batch.grouped(10).foreach(chunk => Future.sequence(chunk.map {
         case (outerClassFile, _) =>
-          val filename = outerClassFile.getName.getPath
+          val filename = outerClassFile.getPath
           // I don't trust VFS's f.exists()
           if (!File(filename).exists()) {
             Future {
               searchService.semaphore.acquire() // nasty, but otherwise we leak
               outerClassFile -> Nil
             }
-          } else searchService.extractSymbolsFromClassOrJar(outerClassFile, batch).map(outerClassFile -> )
+          } else searchService.extractSymbolsFromClassOrJar(vfs.vfile(outerClassFile.getURI), batch).map(outerClassFile -> )
       }).onComplete {
         case Failure(t) =>
           searchService.semaphore.release()
@@ -430,7 +442,7 @@ class IndexingQueueActor(searchService: SearchService) extends Actor with ActorL
               retry()
             case Success(_) => indexed.foreach {
               case (file, syms) =>
-                val boost = searchService.isUserFile(file.getName)
+                val boost = searchService.isUserFile(file)
                 val persisting = searchService.persist(syms, commitIndex = true, boost = boost)
 
                 persisting.onComplete {
