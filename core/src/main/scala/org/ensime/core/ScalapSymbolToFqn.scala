@@ -33,7 +33,8 @@ trait ScalapSymbolToFqn {
     else Public
 
   def rawType(s: AliasSymbol, parentPrefix: String): RawType = {
-    val javaName = FieldName(className(s.symbolInfo.owner), s.name)
+    val parentName = className(s.symbolInfo.owner)
+    val javaName = ClassName(parentName.pack, parentName.name + "$" + s.name)
     val scalaName = parentPrefix + s.name
     val access = getAccess(s)
     val typeSignature = withScalaSigPrinter { printer =>
@@ -75,7 +76,7 @@ trait ScalapSymbolToFqn {
 
     val aliases: Map[String, RawType] = sym.children.collect {
       case as: AliasSymbol =>
-        val alias = rawType(as, parentPrefix)
+        val alias = rawType(as, scalaName)
         alias.javaName.fqnString -> alias
     }(breakOut)
 

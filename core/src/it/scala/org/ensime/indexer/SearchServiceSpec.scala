@@ -229,7 +229,7 @@ class SearchServiceSpec extends EnsimeSpec
   }
 
   "exact searches" should "find type aliases" in withSearchService { implicit service =>
-    service.findUnique("org.scalatest.fixture.ConfigMapFixture.FixtureParam") shouldBe defined
+    service.findUnique("org.scalatest.fixture.ConfigMapFixture$FixtureParam") shouldBe defined
   }
 
   "class hierarchy viewer" should "find all classes implementing a trait" in withSearchService { implicit service =>
@@ -319,7 +319,7 @@ object SearchServiceTestUtils {
     (queries.toList).foreach(searchClassesAndMethods(expect, _))
 
   def getClassHierarchy(fqn: String, hierarchyType: Hierarchy.Direction)(implicit service: SearchService): Hierarchy = {
-    val hierarchy = Await.result(service.getClassHierarchy(fqn, hierarchyType), Duration.Inf)
+    val hierarchy = Await.result(service.getTypeHierarchy(fqn, hierarchyType), Duration.Inf)
     withClue(s"No class hierarchy found for fqn = $fqn")(hierarchy shouldBe defined)
     hierarchy.get
   }
@@ -328,4 +328,6 @@ object SearchServiceTestUtils {
     case cdef: ClassDef => Set(cdef)
     case TypeHierarchy(cdef, typeRefs) => Set(cdef) ++ typeRefs.flatMap(hierarchyToSet)
   }
+
+  def findUsages(fqn: String)(implicit service: SearchService): Iterable[FqnSymbol] = Await.result(service.findUsages(fqn), Duration.Inf)
 }

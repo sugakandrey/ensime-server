@@ -12,11 +12,12 @@ import akka.event.slf4j.SLF4JLogging
 import com.orientechnologies.orient.core.metadata.schema.OClass
 import com.tinkerpop.blueprints._
 import com.tinkerpop.blueprints.impls.orient._
-import org.ensime.indexer.graph.GraphService.IsParent
+import org.ensime.indexer.graph.GraphService.{ IsParent, UsedIn }
 import org.ensime.indexer.graph._
 import org.ensime.indexer.orientdb.api.{ NotUnique, OrientProperty }
 import org.ensime.indexer.stringymap.api._
 import org.ensime.indexer.stringymap.syntax._
+import shapeless.Typeable
 
 // NOTE: this uses the v2 version of tinkerpop. v3 is on Java 8.
 //       https://github.com/mpollmeier/gremlin-scala/issues/102
@@ -79,10 +80,11 @@ package object syntax {
     def createIndexOn[E <: Element, T, F](idx: IndexT = NotUnique)(
       implicit
       tag: Indexable[E],
-      bdf: BigDataFormat[T],
+      tpe: Typeable[T],
       id: BigDataFormatId[T, F]
     ): RichOrientGraph = {
-      graph.createKeyIndex(id.key, tag.aClass, "type" -> idx.orientKey, "class" -> bdf.label)
+      val label = tpe.describe.replace(".type", "")
+      graph.createKeyIndex(id.key, tag.aClass, "type" -> idx.orientKey, "class" -> label)
       this
     }
 
@@ -133,12 +135,12 @@ package object syntax {
 
     def setProperty[P](key: String, p: P): Unit = v.underlying.setProperty(key, p)
 
-    def getChildVertices[S, E <: EdgeT[S, T]](
+    def getInVertices[S, E <: EdgeT[S, T]](
       implicit
       bdf: BigDataFormat[E]
     ): Iterable[VertexT[S]] = v.underlying.getVertices(Direction.IN, bdf.label).asScala.map(VertexT[S])
 
-    def getParentVertices[S, E <: EdgeT[T, S]](
+    def getOutVertices[S, E <: EdgeT[T, S]](
       implicit
       bdf: BigDataFormat[E]
     ): Iterable[VertexT[S]] = v.underlying.getVertices(Direction.OUT, bdf.label).asScala.map(VertexT[S])
@@ -170,7 +172,7 @@ package object syntax {
     /** Side-effecting vertex insertion. */
     def insertV[T](t: T)(implicit graph: Graph, s: BigDataFormat[T]): VertexT[T] = {
       val props = t.toProperties
-      val v = graph.addVertex("class:" + t.label)
+      val v = graph.addVertex("class:" + props.get("typehint"))
       props.asScala.foreach {
         case (key, value) => v.setProperty(key, value)
       }
@@ -311,17 +313,17 @@ package object syntax {
       implicit
       graph: OrientBaseGraph,
       s: BigDataFormat[ClassDef],
-      bdf: BigDataFormat[IsParent.type],
       u: BigDataFormatId[ClassDef, P],
       p: SPrimitive[P]
     ): Option[Hierarchy] = {
+      import GraphService.IsParentS
 
       def traverseClassHierarchy(
         v: VertexT[ClassDef]
       ): Hierarchy = {
         val vertices: Iterable[VertexT[ClassDef]] = hierarchyType match {
-          case Hierarchy.Subtypes => v.getChildVertices[ClassDef, IsParent.type]
-          case Hierarchy.Supertypes => v.getParentVertices[ClassDef, IsParent.type]
+          case Hierarchy.Subtypes => v.getInVertices[ClassDef, IsParent.type]
+          case Hierarchy.Supertypes => v.getOutVertices[ClassDef, IsParent.type]
         }
 
         vertices.toList match {
@@ -333,6 +335,23 @@ package object syntax {
       readUniqueV[ClassDef, P](value) match {
         case Some(vertexT) => Some(traverseClassHierarchy(vertexT))
         case None => None
+      }
+    }
+
+    def findUsages[P](
+      value: P
+    )(
+      implicit
+      graph: OrientBaseGraph,
+      bdf: BigDataFormat[FqnSymbol],
+      bdfId: BigDataFormatId[FqnSymbol, P],
+      p: SPrimitive[P]
+    ): Iterable[VertexT[FqnSymbol]] = {
+      import GraphService.UsedInS
+
+      readUniqueV[FqnSymbol, P](value) match {
+        case Some(vertexT) => vertexT.getOutVertices[FqnSymbol, UsedIn.type]
+        case None => Iterable.empty
       }
     }
   }

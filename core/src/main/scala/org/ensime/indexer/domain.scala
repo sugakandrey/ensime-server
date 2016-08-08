@@ -3,6 +3,7 @@
 package org.ensime.indexer
 
 import org.ensime.api.DeclaredAs
+import scala.collection.immutable.Queue
 
 import org.objectweb.asm.Opcodes._
 
@@ -196,6 +197,7 @@ final case class Descriptor(params: List[DescriptorType], ret: DescriptorType) {
 
 sealed trait RawSymbol {
   def fqn: String
+  def internalRefs: Set[FullyQualifiedName]
 }
 
 final case class RawClassfile(
@@ -206,9 +208,10 @@ final case class RawClassfile(
     access: Access,
     deprecated: Boolean,
     fields: List[RawField],
-    methods: List[RawMethod],
+    methods: Queue[RawMethod],
     source: RawSource,
-    isScala: Boolean
+    isScala: Boolean,
+    internalRefs: Set[FullyQualifiedName]
 ) extends RawSymbol {
   override def fqn: String = name.fqnString
 }
@@ -222,7 +225,8 @@ final case class RawField(
     name: FieldName,
     clazz: DescriptorType,
     generics: Option[String],
-    access: Access
+    access: Access,
+    internalRefs: Set[FullyQualifiedName]
 ) extends RawSymbol {
   override def fqn: String = name.fqnString
 }
@@ -232,7 +236,8 @@ final case class RawMethod(
     access: Access,
     generics: Option[String],
     line: Option[Int],
-    indexInParent: Int
+    indexInParent: Int,
+    internalRefs: Set[FullyQualifiedName]
 ) extends RawSymbol {
   override def fqn: String = name.fqnString
 }
@@ -273,7 +278,7 @@ final case class RawScalapMethod(
 }
 
 final case class RawType(
-    javaName: FieldName,
+    javaName: ClassName,
     scalaName: String,
     access: Access,
     typeSignature: String

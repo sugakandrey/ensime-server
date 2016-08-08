@@ -15,7 +15,7 @@ class ClassfileIndexerSpec extends EnsimeSpec with IsolatedEnsimeVFSFixture {
   import indexer._
 
   "ClassfileIndexer" should "support Java 6 class files" in withVFS { implicit vfs =>
-    val (clazz, refs) = indexClassfile(vfs.vres("jdk6/Test.class"))
+    val clazz = indexClassfile(vfs.vres("jdk6/Test.class"))
     clazz.name shouldBe ClassName(PackageName(Nil), "Test")
     clazz.generics shouldBe None
     clazz.superClass shouldBe Some(ClassName(PackageName(List("java", "lang")), "Object"))
@@ -33,10 +33,12 @@ class ClassfileIndexerSpec extends EnsimeSpec with IsolatedEnsimeVFSFixture {
         access = Public,
         generics = None,
         line = Some(4),
-        0
+        0,
+        Set.empty
       )
     )
     clazz.source shouldBe RawSource(Some("Test.java"), Some(1))
+    val refs = clazz.internalRefs ++ clazz.methods.flatMap(_.internalRefs) ++ clazz.fields.flatMap(_.internalRefs)
 
     refs shouldBe Set(
       ClassName(PackageName(Nil), "void"),
@@ -56,23 +58,23 @@ class ClassfileIndexerSpec extends EnsimeSpec with IsolatedEnsimeVFSFixture {
   }
 
   it should "support typical J2SE classes" in withVFS { implicit vfs =>
-    val (clazz, refs) = indexClassfile(vfs.vres("java/lang/String.class"))
+    val clazz = indexClassfile(vfs.vres("java/lang/String.class"))
     clazz.access shouldBe Public
     clazz.name shouldBe ClassName(PackageName(List("java", "lang")), "String")
   }
 
   it should "support typical Scala classes" in withVFS { implicit vfs =>
-    val (clazz, refs) = indexClassfile(vfs.vres("scala/collection/immutable/List.class"))
+    val clazz = indexClassfile(vfs.vres("scala/collection/immutable/List.class"))
     clazz.name shouldBe ClassName(PackageName(List("scala", "collection", "immutable")), "List")
   }
 
   it should "support typical Scala nested classes " in withVFS { implicit vfs =>
-    val (clazz, refs) = indexClassfile(vfs.vres("scala/collection/immutable/List$.class"))
+    val clazz = indexClassfile(vfs.vres("scala/collection/immutable/List$.class"))
     clazz.name shouldBe ClassName(PackageName(List("scala", "collection", "immutable")), "List$")
   }
 
   it should "support method overloading" in withVFS { implicit vfs =>
-    val (clazz, _) = indexClassfile(vfs.vres("java/nio/channels/FileChannel.class"))
+    val clazz = indexClassfile(vfs.vres("java/nio/channels/FileChannel.class"))
     val methods = clazz.methods.filter { ref => ref.name.fqnString.startsWith("java.nio.channels.FileChannel.write") }
 
     methods.map(_.name.fqnString) should contain theSameElementsAs List(

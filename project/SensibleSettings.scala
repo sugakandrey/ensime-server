@@ -47,7 +47,7 @@ object Sensible {
     ),
     javacOptions in doc ++= Seq("-source", "1.7"),
 
-    javaOptions := Seq("-Xss2m", "-XX:MaxPermSize=256m", "-Xms384m", "-Xmx384m"),
+    javaOptions := Seq("-Xss2m", "-XX:MaxPermSize=256m", "-Xms512m", "-Xmx1g"),
     javaOptions += "-Dfile.encoding=UTF8",
     //this is needed by OrientDB versions 2.2.0+, 512g is recommended on their github wiki
     //https://github.com/orientechnologies/orientdb-docs/blob/master/Release-2.2.0.md
