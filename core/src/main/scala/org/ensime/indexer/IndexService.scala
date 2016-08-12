@@ -83,7 +83,7 @@ class IndexService(path: Path) {
 
   private val analyzers = Map("fqn" -> new FqnAnalyzer)
 
-  private val lucene = new SimpleLucene(path, analyzers)
+  private[indexer] val lucene = new SimpleLucene(path, analyzers)
 
   private def calculatePenalty(fqn: String): Float = {
     val nonTrailing$s = fqn.count(_ == '$') - (if (fqn.endsWith("$")) 1 else 0)

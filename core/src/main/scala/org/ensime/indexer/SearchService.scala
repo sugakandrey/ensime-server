@@ -64,7 +64,7 @@ class SearchService(
    */
   private val version = "2.0"
 
-  private val index = new IndexService((config.cacheDir / ("index-" + version)).toPath)
+  private[indexer] val index = new IndexService((config.cacheDir / ("index-" + version)).toPath)
   private val db = new DatabaseService(config.cacheDir / ("sql-" + version))
 
   import ExecutionContext.Implicits.global

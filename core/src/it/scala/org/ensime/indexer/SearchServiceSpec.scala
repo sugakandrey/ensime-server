@@ -2,6 +2,8 @@
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 package org.ensime.indexer
 
+import org.apache.lucene.search.DisjunctionMaxQuery
+
 import scala.concurrent._
 import scala.concurrent.duration._
 import org.ensime.fixture._
@@ -204,6 +206,17 @@ class SearchServiceSpec extends EnsimeSpec
 
   "exact searches" should "find type aliases" in withSearchService { implicit service =>
     service.findUnique("org.scalatest.fixture.ConfigMapFixture$FixtureParam") shouldBe defined
+  }
+
+  "lucene index" should "not contain duplicates" in withSearchService { implicit service =>
+    import scala.collection.JavaConversions._
+    val lucene = service.index.lucene
+    val terms = List("org", "example", "bar")
+    val query = new DisjunctionMaxQuery(
+      terms.map(service.index.buildTermClassMethodQuery), 0f
+    )
+    val fqns = lucene.search(query, 10).map(_.get("fqn"))
+    fqns.distinct should ===(fqns)
   }
 }
 
