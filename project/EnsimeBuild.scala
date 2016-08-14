@@ -12,13 +12,18 @@ import org.ensime.EnsimePlugin.JdkDir
 import sbtbuildinfo.BuildInfoPlugin, BuildInfoPlugin.autoImport._
 import de.heikoseeberger.sbtheader.{ HeaderKey, HeaderPlugin }
 
-object EnsimeBuild extends Build {
-  lazy override val settings = super.settings ++ Seq(
+object ProjectPlugin extends AutoPlugin {
+  override def requires = plugins.JvmPlugin
+  override def trigger = allRequirements
+
+  override def projectSettings = Seq(
     scalaVersion := "2.11.8",
     organization := "org.ensime",
     version := "2.0.0-SNAPSHOT"
   )
+}
 
+object EnsimeBuild {
   lazy val commonSettings = Sensible.settings ++ Seq(
     libraryDependencies ++= Sensible.testLibs() ++ Sensible.logback,
 
