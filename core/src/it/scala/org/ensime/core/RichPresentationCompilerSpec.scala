@@ -449,6 +449,14 @@ class RichPresentationCompilerSpec extends EnsimeSpec
     ).
       foreach(test(_, cc))
   }
+
+  ignore should "not fail when completion is requested inside an empty object" in withPosInCompiledSource(
+    // An exception can occur in the compiler thread. Check that there is no exception in logs.
+    "package com.example",
+    "object A { @@ }"
+  ) { (p, cc) =>
+      cc.completionsAt(p, 10, caseSens = false)
+    }
 }
 
 trait RichPresentationCompilerTestUtils {
