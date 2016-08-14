@@ -2,13 +2,16 @@
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 package org.ensime.server
 
-import akka.actor.Props
-import java.net.{ InetSocketAddress, ServerSocket, Socket }
-import org.ensime.fixture.{ EnsimeConfigFixture, IsolatedEnsimeConfigFixture, IsolatedTestKitFixture }
-import org.ensime.util.EnsimeSpec
+import java.net._
+
 import scala.concurrent.duration._
-import org.ensime.util.file._
 import scala.util.{ Properties, Try }
+
+import akka.actor.Props
+import org.ensime.fixture._
+import org.ensime.util.EnsimeSpec
+import org.ensime.util.ensimefile.Implicits.DefaultCharset
+import org.ensime.util.file._
 
 class ServerStartupSpec extends EnsimeSpec
     with IsolatedEnsimeConfigFixture

@@ -5,6 +5,7 @@ package org.ensime.indexer
 import org.ensime.fixture._
 import org.ensime.util.EnsimeSpec
 import org.ensime.util.file._
+import org.ensime.util.fileobject._
 
 class SourceResolverSpec extends EnsimeSpec
     with SharedEnsimeVFSFixture
@@ -50,7 +51,6 @@ class SourceResolverSpec extends EnsimeSpec
 
 trait SourceResolverTestUtils {
   def find(pkg: String, file: String)(implicit resolver: SourceResolver) = {
-    import org.ensime.util.RichFileObject._
     resolver.resolve(
       PackageName(pkg.split('.').toList), RawSource(Some(file), None)
     ).map(fo => fo.pathWithinArchive match {

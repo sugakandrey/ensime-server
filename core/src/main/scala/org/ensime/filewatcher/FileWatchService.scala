@@ -10,9 +10,8 @@ import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
 import scala.annotation.tailrec
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 import scala.collection.concurrent.Map
-import scala.collection.convert.decorateAsScala._
 import scala.collection.immutable.Set
 import scala.language.implicitConversions
 import scala.util.{ Failure, Properties, Success, Try }
@@ -240,7 +239,7 @@ class FileWatchService { self =>
 
     def processEvents(key: WatchKey) = {
 
-      for (event <- key.pollEvents) {
+      for (event <- key.pollEvents.asScala) {
         val kind = event.kind
         val file = key.watchable.asInstanceOf[Path]
           .resolve(event.context.asInstanceOf[Path]).toFile

@@ -6,22 +6,22 @@ import java.io.{ File, FileInputStream, InputStream }
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 
 import akka.actor.ActorRef
 import akka.event.slf4j.SLF4JLogging
 import com.sun.source.tree.Scope
 import com.sun.source.util.{ JavacTask, TreePath }
 import com.sun.tools.javac.util.Abort
-import javax.lang.model.`type`.{ TypeMirror }
+import javax.lang.model.`type`.TypeMirror
 import javax.tools._
 import org.ensime.api._
 import org.ensime.core.DocSigPair
-import org.ensime.indexer.SearchService
+import org.ensime.indexer.{ FullyQualifiedName, SearchService }
 import org.ensime.util.ReportHandler
+import org.ensime.util.ensimefile.Implicits.DefaultCharset
 import org.ensime.util.file._
 import org.ensime.vfs._
-import org.ensime.indexer.FullyQualifiedName
 
 class JavaCompiler(
   val config: EnsimeConfig,
@@ -52,7 +52,7 @@ class JavaCompiler(
   ): JavacTask = {
     compiler.getTask(null, fileManager, listener, List(
       "-cp", cp, "-Xlint:" + lint, "-proc:none"
-    ), null, files).asInstanceOf[JavacTask]
+    ).asJava, null, files).asInstanceOf[JavacTask]
   }
 
   def internSource(sf: SourceFileInfo): JavaFileObject = {
@@ -125,13 +125,11 @@ class JavaCompiler(
     val t = System.currentTimeMillis()
 
     try {
-
-      val units = task.parse().filter(
+      val units = task.parse().asScala.filter(
         unit => inputJfos.contains(
           unit.getSourceFile.toUri
         )
-      )
-        .map(Compilation(task, _)).toVector
+      ).map(Compilation(task, _)).toVector
 
       task.analyze()
       log.info("Parsed and analyzed for trees: " + (System.currentTimeMillis() - t) + "ms")

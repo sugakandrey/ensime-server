@@ -2,18 +2,17 @@
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 package org.ensime.indexer
 
-import java.io.{ FileNotFoundException }
+import java.io.FileNotFoundException
 import java.nio.file.Path
-import org.apache.lucene.search.Query
 
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 
 import akka.event.slf4j.SLF4JLogging
 import org.apache.commons.vfs2.FileObject
 import org.apache.lucene.document.{ Document, TextField }
 import org.apache.lucene.document.Field.Store
 import org.apache.lucene.index.Term
-import org.apache.lucene.search.{ BooleanQuery, DisjunctionMaxQuery, PrefixQuery, TermQuery }
+import org.apache.lucene.search._
 import org.apache.lucene.search.BooleanClause.Occur
 import org.ensime.indexer.database.DatabaseService._
 import org.ensime.indexer.lucene._
@@ -138,12 +137,12 @@ class IndexService(path: Path) {
 
   def searchClassesMethods(terms: List[String], max: Int): List[FqnIndex] = {
     val query = new DisjunctionMaxQuery(
-      terms.map(buildTermClassMethodQuery), 0f
+      terms.map(buildTermClassMethodQuery).asJavaCollection, 0f
     )
     lucene.search(query, max).map(_.toEntity[ClassIndex]).distinct
   }
 
-  def buildTermClassMethodQuery(query: String): BooleanQuery = {
+  def buildTermClassMethodQuery(query: String): Query = {
     new BooleanQuery.Builder().
       add(boostedPrefixQuery(new Term("fqn", query)), Occur.MUST).
       add(

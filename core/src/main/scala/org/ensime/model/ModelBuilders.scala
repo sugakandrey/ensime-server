@@ -12,6 +12,8 @@ import org.ensime.core.{ RichPresentationCompiler, FqnToSymbol }
 import org.ensime.indexer.{ MethodName, PackageName }
 import org.ensime.indexer.database.DatabaseService._
 import org.ensime.util.file._
+import org.ensime.util.io._
+import org.ensime.util.fileobject._
 import org.ensime.vfs._
 
 trait ModelBuilders {
@@ -301,8 +303,6 @@ object LineSourcePositionHelper {
   // HACK: the emacs client currently can't open files in jars
   //       so we extract to the cache and report that as the source
   //       see the hack in the RichPresentationCompiler
-  import org.ensime.util.RichFileObject._
-  import org.ensime.util.io._
 
   private def possiblyExtractFile(fo: FileObject)(implicit config: EnsimeConfig): File =
     fo.pathWithinArchive match {

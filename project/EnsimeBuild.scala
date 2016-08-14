@@ -64,8 +64,19 @@ object EnsimeBuild extends Build {
     )
   )
 
-  lazy val util = Project("util", file("util")) settings (commonSettings) settings (
+  lazy val api = Project("api", file("api")) settings (commonSettings) settings (
+    libraryDependencies ++= Seq(
+      "org.scalariform" %% "scalariform" % "0.1.8"
+    ),
+    licenses := Seq(Apache2),
+    HeaderKey.headers := Copyright.ApacheMap
+  )
+
+  lazy val util = Project("util", file("util")) settings (commonSettings) dependsOn (
+    api
+  ) settings (
     libraryDependencies ++= List(
+      "org.scala-lang" % "scala-compiler" % scalaVersion.value,
       "org.apache.commons" % "commons-vfs2" % "2.1" exclude ("commons-logging", "commons-logging")
     ) ++ Sensible.guava
   )
@@ -85,14 +96,6 @@ object EnsimeBuild extends Build {
         "org.parboiled" %% "parboiled" % "2.1.2" // 2.1.3 doesn't have a _2.10
       ) ++ Sensible.shapeless(scalaVersion.value)
     )
-
-  lazy val api = Project("api", file("api")) settings (commonSettings) settings (
-    libraryDependencies ++= Seq(
-      "org.scalariform" %% "scalariform" % "0.1.8"
-    ),
-    licenses := Seq(Apache2),
-    HeaderKey.headers := Copyright.ApacheMap
-  )
 
   // the JSON protocol
   lazy val jerky = Project("jerky", file("protocol-jerky")) settings (commonSettings) dependsOn (
@@ -147,7 +150,6 @@ object EnsimeBuild extends Build {
         "org.apache.lucene" % "lucene-analyzers-common" % luceneVersion,
         "org.ow2.asm" % "asm-commons" % "5.1",
         "org.ow2.asm" % "asm-util" % "5.1",
-        "org.scala-lang" % "scala-compiler" % scalaVersion.value,
         "org.scala-lang" % "scalap" % scalaVersion.value,
         "com.typesafe.akka" %% "akka-actor" % Sensible.akkaVersion,
         "com.typesafe.akka" %% "akka-slf4j" % Sensible.akkaVersion,

@@ -3,11 +3,12 @@
 package org.ensime.util
 
 import java.io.{ File => JFile, _ }
-import com.google.common.io.Files
-
-import Predef.{ any2stringadd => _, _ }
 import java.nio.charset.Charset
 import java.util.regex.Pattern
+
+import scala.collection.JavaConverters._
+
+import com.google.common.io.Files
 
 /**
  * Decorate `java.io.File` with functionality from common utility
@@ -27,8 +28,6 @@ package object file {
    *   `java.io.{ File => JFile }`
    */
   def File(name: String): File = new File(name)
-
-  implicit val DefaultCharset: Charset = Charset.defaultCharset()
 
   /**
    * WARNING: do not create symbolic links in the temporary directory
@@ -71,8 +70,7 @@ package object file {
     }
 
     def readLines()(implicit cs: Charset): List[String] = {
-      import collection.JavaConversions._
-      Files.readLines(file, cs).toList
+      Files.readLines(file, cs).asScala.toList
     }
 
     def writeLines(lines: List[String])(implicit cs: Charset): Unit = {
@@ -91,8 +89,7 @@ package object file {
      * @return the file and its descendent family tree (if it is a directory).
      */
     def tree: Stream[File] = {
-      import collection.JavaConversions._
-      file #:: Files.fileTreeTraverser().breadthFirstTraversal(file).toStream
+      file #:: Files.fileTreeTraverser().breadthFirstTraversal(file).asScala.toStream
     }
 
     /**

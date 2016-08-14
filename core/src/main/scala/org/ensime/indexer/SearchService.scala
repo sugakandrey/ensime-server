@@ -15,6 +15,7 @@ import org.ensime.api._
 import org.ensime.indexer.database._
 import org.ensime.indexer.database.DatabaseService._
 import org.ensime.util.file._
+import org.ensime.util.fileobject._
 import org.ensime.vfs._
 
 /**
@@ -204,7 +205,6 @@ class SearchService(
 
   private val blacklist = Set("sun/", "sunw/", "com/sun/")
   private val ignore = Set("$$", "$worker$")
-  import org.ensime.util.RichFileObject._
   private def extractSymbols(container: FileObject, f: FileObject): List[FqnSymbol] = {
     f.pathWithinArchive match {
       case Some(relative) if blacklist.exists(relative.startsWith) => Nil

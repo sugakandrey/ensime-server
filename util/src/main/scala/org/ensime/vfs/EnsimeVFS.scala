@@ -8,7 +8,9 @@ import java.util.zip.ZipFile
 import org.apache.commons.vfs2._
 import org.apache.commons.vfs2.impl._
 import org.apache.commons.vfs2.provider.zip.ZipFileSystem
+import org.ensime.api.deprecating
 
+@deprecating("https://github.com/ensime/ensime-server/issues/1437")
 abstract class ExtSelector extends FileSelector {
   def includeFile(f: FileObject): Boolean = include(f.getName.getExtension)
   def includeFile(info: FileSelectInfo): Boolean = includeFile(info.getFile)
@@ -18,19 +20,23 @@ abstract class ExtSelector extends FileSelector {
 }
 
 // intended to be used when watching a single jar file
+@deprecating("https://github.com/ensime/ensime-server/issues/1437")
 object JarSelector extends ExtSelector {
   val include = Set("jar")
   override def traverseDescendents(info: FileSelectInfo) = false
 }
 
+@deprecating("https://github.com/ensime/ensime-server/issues/1437")
 object ClassfileSelector extends ExtSelector {
   val include = Set("class")
 }
 
+@deprecating("https://github.com/ensime/ensime-server/issues/1437")
 object SourceSelector extends ExtSelector {
   val include = Set("scala", "java")
 }
 
+@deprecating("https://github.com/ensime/ensime-server/issues/1437")
 object EnsimeVFS {
   def apply(): EnsimeVFS = {
     val vfsInst = new StandardFileSystemManager()
@@ -40,12 +46,14 @@ object EnsimeVFS {
 }
 
 object `package` {
+  @deprecating("https://github.com/ensime/ensime-server/issues/1437")
   type EnsimeVFS = DefaultFileSystemManager
 
   // the alternative is a monkey patch, count yourself lucky
   private val zipFileField = classOf[ZipFileSystem].getDeclaredField("zipFile")
   zipFileField.setAccessible(true)
 
+  @deprecating("https://github.com/ensime/ensime-server/issues/1437")
   object URLParamEncoder {
     def encode(input: String): String = {
       var ofs = 0
@@ -62,6 +70,7 @@ object `package` {
     }
   }
 
+  @deprecating("https://github.com/ensime/ensime-server/issues/1437")
   implicit class RichVFS(val vfs: DefaultFileSystemManager) extends AnyVal {
     implicit def toFileObject(f: File): FileObject = vfile(f)
 

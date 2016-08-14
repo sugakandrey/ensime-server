@@ -6,6 +6,7 @@ env:
     - AKKA_TEST_TIMEFACTOR=10
     - SBT_TASK_LIMIT=4
 script:
+  - export JAVA_HOME=$(/usr/libexec/java_home)
   - curl https://raw.githubusercontent.com/paulp/sbt-extras/master/sbt -o sbt ; chmod 755 sbt
   - ./sbt ";ensimeConfig ;test:compile ;it:compile"
   - ./sbt ";test ;it:test"
