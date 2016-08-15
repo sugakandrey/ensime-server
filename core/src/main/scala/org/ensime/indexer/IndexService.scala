@@ -93,7 +93,6 @@ class IndexService(path: Path) {
   }
 
   def persist(symbols: List[SourceSymbolInfo], commit: Boolean, boost: Boolean): Unit = {
-    log.debug(s"symbols size = ${symbols.size}")
     val fqns: List[Document] = symbols.collect {
       case SourceSymbolInfo(f, _, _, _, Some(bytecodeSymbol), scalapSymbol) =>
         bytecodeSymbol match {

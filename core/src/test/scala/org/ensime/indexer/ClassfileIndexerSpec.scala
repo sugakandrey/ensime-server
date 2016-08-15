@@ -2,8 +2,6 @@
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 package org.ensime.indexer
 
-import scala.collection.immutable.Queue
-
 import akka.event.slf4j.SLF4JLogging
 import org.ensime.fixture.IsolatedEnsimeVFSFixture
 import org.ensime.util.EnsimeSpec
@@ -22,8 +20,8 @@ class ClassfileIndexerSpec extends EnsimeSpec with IsolatedEnsimeVFSFixture {
     clazz.interfaces shouldBe Nil
     clazz.access shouldBe Default
     clazz.deprecated shouldBe false
-    clazz.fields shouldBe Queue()
-    clazz.methods shouldBe Queue(
+    clazz.fields shouldBe List()
+    clazz.methods shouldBe List(
       RawMethod(
         name = MethodName(
           ClassName(PackageName(Nil), "Test"),
@@ -33,8 +31,17 @@ class ClassfileIndexerSpec extends EnsimeSpec with IsolatedEnsimeVFSFixture {
         access = Public,
         generics = None,
         line = Some(4),
-        0,
-        Set.empty
+        Set(
+          ClassName(PackageName(Nil), "void"),
+          FieldName(ClassName(PackageName(List("java", "lang")), "System"), "out"),
+          ClassName(PackageName(List("java", "io")), "PrintStream"),
+          ClassName(PackageName(List("java", "lang")), "String"),
+          MethodName(
+            ClassName(PackageName(List("java", "io")), "PrintStream"),
+            "print",
+            Descriptor(List(ClassName(PackageName(List("java", "lang")), "String")), ClassName(PackageName(Nil), "void"))
+          )
+        )
       )
     )
     clazz.source shouldBe RawSource(Some("Test.java"), Some(1))
@@ -46,7 +53,11 @@ class ClassfileIndexerSpec extends EnsimeSpec with IsolatedEnsimeVFSFixture {
       FieldName(ClassName(PackageName(List("java", "lang")), "System"), "out"),
       ClassName(PackageName(List("java", "lang")), "Object"),
       ClassName(PackageName(List("java", "io")), "PrintStream"),
-      FieldName(ClassName(PackageName(List("java", "io")), "PrintStream"), "print"),
+      MethodName(
+        ClassName(PackageName(List("java", "io")), "PrintStream"),
+        "print",
+        Descriptor(List(ClassName(PackageName(List("java", "lang")), "String")), ClassName(PackageName(Nil), "void"))
+      ),
       ClassName(PackageName(List("java", "lang")), "String")
     )
   }

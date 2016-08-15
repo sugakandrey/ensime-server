@@ -236,7 +236,6 @@ final case class RawMethod(
     access: Access,
     generics: Option[String],
     line: Option[Int],
-    indexInParent: Int,
     internalRefs: Set[FullyQualifiedName]
 ) extends RawSymbol {
   override def fqn: String = name.fqnString
@@ -256,7 +255,7 @@ final case class RawScalapClass(
   access: Access,
   declaredAs: DeclaredAs,
   fields: Map[String, RawScalapField],
-  methods: Vector[RawScalapMethod],
+  methods: Map[String, IndexedSeq[RawScalapMethod]],
   typeAliases: Map[String, RawType]
 ) extends RawScalapSymbol
 
@@ -270,7 +269,8 @@ final case class RawScalapField(
 }
 
 final case class RawScalapMethod(
-    scalaName: String,
+    simpleName: String, //name of a method symbol, used to identify a group of overloaded methods (e.g. `foo`)
+    scalaName: String, //full scala name of a method (e.g. `org.example.Foo#foo`)
     typeSignature: String,
     access: Access
 ) extends RawScalapSymbol {
@@ -278,6 +278,7 @@ final case class RawScalapMethod(
 }
 
 final case class RawType(
+    owner: ClassName,
     javaName: ClassName,
     scalaName: String,
     access: Access,

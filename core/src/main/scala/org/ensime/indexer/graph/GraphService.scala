@@ -175,7 +175,7 @@ class GraphService(dir: File) extends SLF4JLogging {
 
     // is this just needed on schema creation or always?
     // https://github.com/orientechnologies/orientdb/issues/5322
-    //    g.setUseLightweightEdges(true)
+    g.setUseLightweightEdges(true)
     g.setUseLog(false)
 
     g.shutdown()
@@ -240,7 +240,7 @@ class GraphService(dir: File) extends SLF4JLogging {
               None
 
             case (None, Some(t: RawType)) => // only scalap symbol (type alias case)
-              val owningClass = RichGraph.readUniqueV[ClassDef, String](t.javaName.owner.fqnString)
+              val owningClass = RichGraph.readUniqueV[ClassDef, String](t.owner.fqnString)
               val field = Field(t.javaName.fqnString, None, None, source, t.access, Some(t.scalaName + t.typeSignature))
               val fieldV: VertexT[Member] = RichGraph.upsertV[Field, String](field)
               owningClass.foreach(classV =>

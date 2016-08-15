@@ -2,6 +2,8 @@
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 package org.ensime.indexer
 
+import org.ensime.api.DeclaredAs
+
 import scala.concurrent._
 import scala.concurrent.duration._
 import org.ensime.fixture._
@@ -266,6 +268,74 @@ class SearchServiceSpec extends EnsimeSpec
       "java.lang.Object"
     )
   }
+
+  "reverse usage lookup" should "find usages of an annotation class" in withSearchService { implicit service =>
+    val usages = findUsages("org.reverselookups.MyAnnotation")
+    usages.length should ===(18)
+    usages.map(_.toSearchResult) should contain theSameElementsAs List(
+      "Field org.reverselookups.ReverseLookups#fieldType",
+      "Method org.reverselookups.ReverseLookups#fieldType: org.reverselookups.MyAnnotation",
+      "Field org.reverselookups.ReverseLookups#annotatedField",
+      "Field org.reverselookups.ReverseLookups.staticField",
+      "Method org.reverselookups.ReverseLookups.staticField: org.reverselookups.MyAnnotation",
+      "Method org.reverselookups.ReverseLookups.staticField()Lorg/reverselookups/MyAnnotation;", // synthetic method for class ReverseLookups
+      "Method org.reverselookups.ReverseLookups#annotatedMethod(): scala.Unit",
+      "Method org.reverselookups.ReverseLookups.<init>(): org.reverselookups.ReverseLookups",
+      "Method org.reverselookups.ReverseLookups#<init>(i: scala.Int): org.reverselookups.ReverseLookups",
+      "Method org.reverselookups.ReverseLookups#usesInBody(): scala.Unit",
+      "Method org.reverselookups.ReverseLookups#takesAsParam(ann: org.reverselookups.MyAnnotation): scala.Unit",
+      "Method org.reverselookups.ReverseLookups#polyMethod[A <: org.reverselookups.MyAnnotation](a: A): scala.Unit",
+      "Method org.reverselookups.ReverseLookups#returns(i: scala.Int): org.reverselookups.MyAnnotation",
+      "Method org.reverselookups.Overloads#foo(ann: org.reverselookups.MyAnnotation): scala.Unit",
+      "Method org.reverselookups.Overloads.<init>(): org.reverselookups.Overloads",
+      "Class org.reverselookups.ReverseLookups",
+      "Object org.reverselookups.ReverseLookups",
+      "Method org.reverselookups.ReverseLookups#methodUsage: scala.Unit"
+    )
+  }
+
+  it should "find usages of a regular class" in withSearchService { implicit service =>
+    val usages = findUsages("org.reverselookups.MyException")
+    usages.length should ===(5)
+    usages.map(_.toSearchResult) should contain theSameElementsAs List(
+      "Method org.reverselookups.MyException#<init>(): org.reverselookups.MyException",
+      "Method org.reverselookups.ReverseLookups#throws(): scala.Unit",
+      "Method org.reverselookups.ReverseLookups#catches(): scala.Int",
+      "Method org.reverselookups.Overloads#foo[T <: org.reverselookups.MyException](t: T): scala.Unit",
+      "Class org.reverselookups.Extends"
+    )
+  }
+
+  it should "find usages of a field/method" in withSearchService { implicit service =>
+    val fieldUsages = findUsages("org.reverselookups.ReverseLookups.intField()I")
+    fieldUsages.length should ===(3)
+    fieldUsages.map(_.toSearchResult) should contain theSameElementsAs List(
+      "Method org.reverselookups.ReverseLookups#returns$default$1: scala.Int", // field used as default arg
+      "Method org.reverselookups.ReverseLookups#takesAsParam(ann: org.reverselookups.MyAnnotation): scala.Unit", // field used in method body
+      "Method org.reverselookups.SelfType#<init>(): org.reverselookups.SelfType"
+    )
+
+    val methodUsages = findUsages("org.reverselookups.ReverseLookups.catches()I")
+    methodUsages.length should ===(4)
+    methodUsages.map(_.toSearchResult) should contain theSameElementsAs List(
+      "Method org.reverselookups.Overloads#asDefaultArg$default$1: scala.Int",
+      "Method org.reverselookups.Overloads#<init>(l: scala.Long): org.reverselookups.Overloads",
+      "Method org.reverselookups.ReverseLookups#<init>(i: scala.Int): org.reverselookups.ReverseLookups",
+      "Method org.reverselookups.ReverseLookups#throws(): scala.Unit"
+    )
+  }
+
+  "scala names" should "be correctly resolved for overloaded methods" in withSearchService { implicit service =>
+    val hits = service.searchClassesMethods(List("Overloads", "foo"), 100).filter(hit => hit.declAs == DeclaredAs.Method && hit.fqn.contains("Overloads.foo"))
+    hits.length should ===(5)
+    hits.map(hit => hit.fqn -> hit.toSearchResult) should contain theSameElementsAs List(
+      ("org.reverselookups.Overloads.foo()V", "Method org.reverselookups.Overloads#foo(): scala.Unit"),
+      ("org.reverselookups.Overloads.foo(I)V", "Method org.reverselookups.Overloads#foo(i: scala.Int): scala.Unit"),
+      ("org.reverselookups.Overloads.foo(Ljava/lang/String;I)V", "Method org.reverselookups.Overloads#foo(s: scala.Predef.String, i: scala.Int): scala.Unit"),
+      ("org.reverselookups.Overloads.foo(Lorg/reverselookups/MyException;)V", "Method org.reverselookups.Overloads#foo[T <: org.reverselookups.MyException](t: T): scala.Unit"),
+      ("org.reverselookups.Overloads.foo(Lorg/reverselookups/MyAnnotation;)V", "Method org.reverselookups.Overloads#foo(ann: org.reverselookups.MyAnnotation): scala.Unit")
+    )
+  }
 }
 
 object SearchServiceTestUtils {
@@ -329,5 +399,5 @@ object SearchServiceTestUtils {
     case TypeHierarchy(cdef, typeRefs) => Set(cdef) ++ typeRefs.flatMap(hierarchyToSet)
   }
 
-  def findUsages(fqn: String)(implicit service: SearchService): Iterable[FqnSymbol] = Await.result(service.findUsages(fqn), Duration.Inf)
+  def findUsages(fqn: String)(implicit service: SearchService): List[FqnSymbol] = Await.result(service.findUsages(fqn), Duration.Inf).toList
 }

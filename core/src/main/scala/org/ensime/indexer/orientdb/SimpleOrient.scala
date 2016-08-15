@@ -144,7 +144,6 @@ package object syntax {
       implicit
       bdf: BigDataFormat[E]
     ): Iterable[VertexT[S]] = v.underlying.getVertices(Direction.OUT, bdf.label).asScala.map(VertexT[S])
-
   }
 
   /**
@@ -172,7 +171,7 @@ package object syntax {
     /** Side-effecting vertex insertion. */
     def insertV[T](t: T)(implicit graph: Graph, s: BigDataFormat[T]): VertexT[T] = {
       val props = t.toProperties
-      val v = graph.addVertex("class:" + props.get("typehint"))
+      val v = graph.addVertex("class:" + t.label)
       props.asScala.foreach {
         case (key, value) => v.setProperty(key, value)
       }
@@ -266,14 +265,17 @@ package object syntax {
       u: BigDataFormatId[T, P],
       p: SPrimitive[P]
     ): Boolean = {
+      import GraphService.{ DefinedInS, OwningClassS }
+      val followEdges = Seq(DefinedInS.label, OwningClassS.label)
+
       def removeRecursive(
         v: Vertex
       ): Unit = {
-        v.getVertices(Direction.IN).asScala.foreach(removeRecursive)
+        v.getVertices(Direction.IN, followEdges: _*).asScala.foreach(removeRecursive)
         graph.removeVertex(v)
       }
 
-      readUniqueV(u.value(t)) match {
+      readUniqueV[T, P](u.value(t)) match {
         case Some(vertexT) =>
           removeRecursive(vertexT.underlying)
           true

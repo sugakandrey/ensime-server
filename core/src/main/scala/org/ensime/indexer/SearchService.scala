@@ -38,8 +38,7 @@ class SearchService(
 
   private[indexer] val allTargets = config.allTargets.map(vfs.vfile)
 
-  private[indexer] def isUserFile(file: FileName): Boolean
-  = allTargets.exists(file isAncestor _.getName)
+  private[indexer] def isUserFile(file: FileName): Boolean = allTargets.exists(file isAncestor _.getName)
 
   private val QUERY_TIMEOUT = 30 seconds
 
@@ -261,8 +260,7 @@ class SearchService(
     files: collection.Set[FileObject],
     rootClassFile: FileObject
   ): List[SourceSymbolInfo] = {
-    def getInternalRefs(isUserFile: Boolean, s: RawSymbol): Set[FullyQualifiedName]
-    = if (isUserFile && !noReverseLookups) s.internalRefs else Set.empty
+    def getInternalRefs(isUserFile: Boolean, s: RawSymbol): Set[FullyQualifiedName] = if (isUserFile && !noReverseLookups) s.internalRefs else Set.empty
 
     val depickler = new ClassfileDepickler(rootClassFile)
     val name = container.getName.getURI
@@ -288,18 +286,22 @@ class SearchService(
             case Some(scalapSymbol) =>
               val classInfo = SourceSymbolInfo(file, path, sourceUri, getInternalRefs(userFile, clazz), Some(clazz), Some(scalapSymbol))
               val fields = clazz.fields.map(f =>
-                SourceSymbolInfo(file, path, sourceUri, getInternalRefs(userFile, f), Some(f), scalapSymbol.fields.get(f.fqn))).toList
-              val methods = clazz.methods.map { m =>
-                val scalapMethod =
-                  if (m.indexInParent < scalapSymbol.methods.size) Some(scalapSymbol.methods(m.indexInParent))
-                  else None
-                SourceSymbolInfo(file, path, sourceUri, getInternalRefs(userFile, m), Some(m), scalapMethod)
+                SourceSymbolInfo(file, path, sourceUri, getInternalRefs(userFile, f), Some(f), scalapSymbol.fields.get(f.fqn)))
+              val methods = clazz.methods.groupBy(_.name.name).flatMap {
+                case (methodName, overloads) =>
+                  val scalapMethods = scalapSymbol.methods.get(methodName)
+                  overloads.iterator.zipWithIndex.map {
+                    case (m, i) =>
+                      val scalap = scalapMethods.fold(Option.empty[RawScalapMethod])(seq =>
+                        if (seq.length <= i) None else Some(seq(i)))
+                      SourceSymbolInfo(file, path, sourceUri, getInternalRefs(userFile, m), Some(m), scalap)
+                  }
               }
               val aliases = scalapSymbol.typeAliases.valuesIterator.map(alias =>
                 SourceSymbolInfo(file, path, sourceUri, Set.empty, None, Some(alias))).toList
-              classInfo :: fields ::: methods ::: aliases
+              classInfo :: fields ::: methods.toList ::: aliases
             case None =>
-              (clazz :: clazz.methods ::: clazz.fields)
+              (clazz :: clazz.methods.toList ::: clazz.fields)
                 .map(s => SourceSymbolInfo(file, path, sourceUri, getInternalRefs(userFile, s), Some(s)))
           }
       }

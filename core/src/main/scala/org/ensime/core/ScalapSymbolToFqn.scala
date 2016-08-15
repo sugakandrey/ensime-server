@@ -34,13 +34,14 @@ trait ScalapSymbolToFqn {
 
   def rawType(s: AliasSymbol, parentPrefix: String): RawType = {
     val parentName = className(s.symbolInfo.owner)
-    val javaName = ClassName(parentName.pack, parentName.name + "$" + s.name)
-    val scalaName = parentPrefix + s.name
+    val isParentModule = parentName.fqnString.endsWith("$")
+    val javaName = ClassName(parentName.pack, parentName.name + (if (isParentModule) "" else "$") + s.name)
+    val scalaName = parentPrefix + (if (isParentModule) "." else "#") + s.name
     val access = getAccess(s)
     val typeSignature = withScalaSigPrinter { printer =>
       printer.printType(s.infoType, " = ")(printer.TypeFlags(true))
     }
-    RawType(javaName, scalaName, access, typeSignature)
+    RawType(parentName, javaName, scalaName, access, typeSignature)
   }
 
   def rawScalaClass(sym: ClassSymbol): RawScalapClass = {
@@ -69,10 +70,10 @@ trait ScalapSymbolToFqn {
         field.javaName.fqnString -> field
     }(breakOut)
 
-    val methods: Vector[RawScalapMethod] = sym.children.collect {
-      case ms: MethodSymbol if ms.isMethod && !ms.name.contains("default") && !ms.name.contains("<init>") =>
+    val methods: Map[String, IndexedSeq[RawScalapMethod]] = sym.children.collect {
+      case ms: MethodSymbol if ms.isMethod =>
         rawScalaMethod(ms, parentPrefix)
-    }(breakOut)
+    }(collection.breakOut).groupBy(_.simpleName)
 
     val aliases: Map[String, RawType] = sym.children.collect {
       case as: AliasSymbol =>
@@ -103,7 +104,7 @@ trait ScalapSymbolToFqn {
 
   private def rawScalaField(ms: MethodSymbol, parentPrefix: String): RawScalapField = {
     val aClass = className(ms.symbolInfo.owner)
-    val name = ms.name
+    val name = ms.name.trim
     val javaName = FieldName(aClass, name)
     val scalaName = parentPrefix + name
     val access = getAccess(ms)
@@ -122,7 +123,7 @@ trait ScalapSymbolToFqn {
       printer.printMethodType(ms.infoType, printResult = true)(printer.TypeFlags(true))
     }
 
-    RawScalapMethod(scalaName, signature, access)
+    RawScalapMethod(ms.name, scalaName, signature, access)
   }
 
 }

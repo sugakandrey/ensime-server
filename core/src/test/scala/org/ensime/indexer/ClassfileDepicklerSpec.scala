@@ -28,7 +28,8 @@ class ClassfileDepicklerSpec extends EnsimeSpec with SharedEnsimeVFSFixture {
     new ClassfileDepickler(vfs.vres("scala/Predef.class")).getClasses("scala.Predef$").typeAliases should contain(
       "scala.Predef$.String" ->
         RawType(
-          FieldName(ClassName(PackageName(List("scala")), "Predef$"), "String"),
+          ClassName(PackageName(List("scala")), "Predef$"),
+          ClassName(PackageName(List("scala")), "Predef$$String"),
           "scala.Predef.String",
           Public,
           " = java.lang.String"
