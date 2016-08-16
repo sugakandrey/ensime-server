@@ -40,11 +40,11 @@ sealed trait FqnSymbol {
 }
 
 object FqnSymbol {
-  private[graph] def fromFullyQualifiedName(name: FullyQualifiedName): FqnSymbol = name match {
-    case cn: ClassName => ClassDef(name.fqnString, null, null, None, None, null, None, None)
-    case fn: FieldName => Field(name.fqnString, None, None, None, null, None)
-    case mn: MethodName => Method(name.fqnString, None, None, null, None)
-    case pn: PackageName => throw new AssertionError("")
+  private[graph] def fromFullyQualifiedName(name: FullyQualifiedName): Option[FqnSymbol] = name match {
+    case cn: ClassName if !cn.isPrimitive => Some(ClassDef(name.fqnString, null, null, None, None, null, None, None))
+    case fn: FieldName => Some(Field(name.fqnString, None, None, None, null, None))
+    case mn: MethodName => Some(Method(name.fqnString, None, None, null, None))
+    case _ => None
   }
 }
 
@@ -292,12 +292,12 @@ class GraphService(dir: File) extends SLF4JLogging {
           inserted.foreach { v =>
             internalRefs.foreach { ref =>
               val sym = FqnSymbol.fromFullyQualifiedName(ref)
-              val usage: VertexT[FqnSymbol] = sym match {
+              val usage: Option[VertexT[FqnSymbol]] = sym.map {
                 case cd: ClassDef => RichGraph.upsertV[ClassDef, String](cd)
                 case m: Method => RichGraph.upsertV[Method, String](m)
                 case f: Field => RichGraph.upsertV[Field, String](f)
               }
-              RichGraph.insertE(usage, v, UsedIn)
+              usage.foreach(RichGraph.insertE(_, v, UsedIn))
             }
           }
       }

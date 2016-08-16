@@ -53,6 +53,8 @@ final case class ClassName(pack: PackageName, name: String)
     if (pack.path.isEmpty) name
     else pack.fqnString + "." + name
 
+  def isPrimitive: Boolean = pack == ClassName.Root
+
   private def nonPrimitiveInternalString: String =
     "L" + (if (pack.path.isEmpty) name else pack.path.mkString("/") + "/" + name) + ";"
 

@@ -217,7 +217,9 @@ trait ClassfileIndexer {
     override def visitMethodInsn(
       opcode: Int, owner: String, name: String, desc: String, itf: Boolean
     ): Unit = {
-      addRef(MethodName(ClassName.fromInternal(owner), name, DescriptorParser.parse(desc)))
+      val ownerName = ClassName.fromInternal(owner)
+      addRef(ownerName)
+      addRef(MethodName(ownerName, name, DescriptorParser.parse(desc)))
       addRefs(classesInDescriptor(desc))
     }
 

@@ -6,6 +6,7 @@ import akka.event.slf4j.SLF4JLogging
 import org.ensime.fixture.IsolatedEnsimeVFSFixture
 import org.ensime.util.EnsimeSpec
 import org.ensime.vfs._
+import scala.collection.immutable.Queue
 
 class ClassfileIndexerSpec extends EnsimeSpec with IsolatedEnsimeVFSFixture {
 
@@ -21,7 +22,26 @@ class ClassfileIndexerSpec extends EnsimeSpec with IsolatedEnsimeVFSFixture {
     clazz.access shouldBe Default
     clazz.deprecated shouldBe false
     clazz.fields shouldBe List()
-    clazz.methods shouldBe List(
+    clazz.methods shouldBe Queue(
+      RawMethod(
+        MethodName(
+          ClassName(PackageName(Nil), "Test"),
+          "<init>",
+          Descriptor(Nil, ClassName(PackageName(Nil), "void"))
+        ),
+        Default,
+        None,
+        Some(1),
+        Set(
+          ClassName(PackageName(List("java", "lang")), "Object"),
+          MethodName(
+            ClassName(PackageName(List("java", "lang")), "Object"),
+            "<init>",
+            Descriptor(Nil, ClassName(PackageName(Nil), "void"))
+          ),
+          ClassName(PackageName(Nil), "void")
+        )
+      ),
       RawMethod(
         name = MethodName(
           ClassName(PackageName(Nil), "Test"),
@@ -51,8 +71,12 @@ class ClassfileIndexerSpec extends EnsimeSpec with IsolatedEnsimeVFSFixture {
       ClassName(PackageName(Nil), "void"),
       ClassName(PackageName(List("java", "lang")), "Object"),
       FieldName(ClassName(PackageName(List("java", "lang")), "System"), "out"),
-      ClassName(PackageName(List("java", "lang")), "Object"),
       ClassName(PackageName(List("java", "io")), "PrintStream"),
+      MethodName(
+        ClassName(PackageName(List("java", "lang")), "Object"),
+        "<init>",
+        Descriptor(Nil, ClassName(PackageName(Nil), "void"))
+      ),
       MethodName(
         ClassName(PackageName(List("java", "io")), "PrintStream"),
         "print",
