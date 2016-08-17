@@ -93,24 +93,20 @@ class IndexService(path: Path) {
   }
 
   def persist(symbols: List[SourceSymbolInfo], commit: Boolean, boost: Boolean): Unit = {
-    val checks = symbols.groupBy(s => Some(s.file))
-    val fqns: List[Document] = checks.flatMap {
-      case (f, syms) =>
-        syms.collect {
-          case SourceSymbolInfo(_, _, _, Some(bytecodeSymbol), scalapSymbol) =>
-            bytecodeSymbol match {
-              case method: RawMethod => MethodIndex(method.name.fqnString, f).toDocument
-              case field: RawField => FieldIndex(field.name.fqnString, f).toDocument
-              case aClass: RawClassfile =>
-                val fqn = aClass.name.fqnString
-                val penalty = calculatePenalty(fqn)
-                val document = ClassIndex(fqn, f).toDocument
-                document.boostText("fqn", penalty)
-                document
-            }
-          case SourceSymbolInfo(_, _, _, None, Some(t: RawType)) =>
-            FieldIndex(t.javaName.fqnString, f).toDocument
+    val fqns: List[Document] = symbols.collect {
+      case SourceSymbolInfo(f, _, _, _, Some(bytecodeSymbol), scalapSymbol) =>
+        bytecodeSymbol match {
+          case method: RawMethod => MethodIndex(method.name.fqnString, Some(f)).toDocument
+          case field: RawField => FieldIndex(field.name.fqnString, Some(f)).toDocument
+          case aClass: RawClassfile =>
+            val fqn = aClass.name.fqnString
+            val penalty = calculatePenalty(fqn)
+            val document = ClassIndex(fqn, Some(f)).toDocument
+            document.boostText("fqn", penalty)
+            document
         }
+      case SourceSymbolInfo(f, _, _, _, None, Some(t: RawType)) =>
+        FieldIndex(t.javaName.fqnString, Some(f)).toDocument
     }(collection.breakOut)
 
     if (boost) {

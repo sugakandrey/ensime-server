@@ -88,7 +88,6 @@ trait SymbolToFqn { self: Global with PresentationCompilerBackCompat =>
 
   def toFqn(sym: Symbol): FullyQualifiedName = sym match {
     case p if sym.hasPackageFlag => packageName(sym)
-    case ts: AliasTypeSymbol => fieldName(ts)
     case ts: TypeSymbol => normaliseClass(className(ts))
     case ms: ModuleSymbol => className(ms)
     case ms: MethodSymbol => methodName(ms)

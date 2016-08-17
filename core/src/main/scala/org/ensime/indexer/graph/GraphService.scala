@@ -39,6 +39,15 @@ sealed trait FqnSymbol {
   def toSearchResult: String = s"$declAs ${scalaName.getOrElse(fqn)}"
 }
 
+object FqnSymbol {
+  private[graph] def fromFullyQualifiedName(name: FullyQualifiedName): Option[FqnSymbol] = name match {
+    case cn: ClassName if !cn.isPrimitive => Some(ClassDef(name.fqnString, null, null, None, None, null, None, None))
+    case fn: FieldName => Some(Field(name.fqnString, None, None, None, null, None))
+    case mn: MethodName => Some(Method(name.fqnString, None, None, null, None))
+    case _ => None
+  }
+}
+
 sealed trait Hierarchy
 object Hierarchy {
   sealed trait Direction
@@ -79,8 +88,7 @@ final case class Method(
     line: Option[Int],
     source: Option[String],
     access: Access,
-    scalaName: Option[String],
-    indexInParent: Int
+    scalaName: Option[String]
 ) extends Member {
 
   override def declAs: DeclaredAs = DeclaredAs.Method
@@ -112,8 +120,6 @@ class GraphService(dir: File) extends SLF4JLogging {
   implicit val ClassDefS: BigDataFormat[ClassDef] = cachedImplicit
   implicit val MethodS: BigDataFormat[Method] = cachedImplicit
   implicit val FieldS: BigDataFormat[Field] = cachedImplicit
-  implicit val DefinedInS: BigDataFormat[DefinedIn.type] = cachedImplicit
-  implicit val OwningClassS: BigDataFormat[OwningClass.type] = cachedImplicit
 
   import shapeless._
   implicit val UniqueFileCheckV = LensId("filename", lens[FileCheck] >> 'filename)
@@ -227,16 +233,20 @@ class GraphService(dir: File) extends SLF4JLogging {
     if (symbols.isEmpty) 0
     else {
       symbols.foreach {
-        case info @ SourceSymbolInfo(file, path, source, bytecodeSymbol, scalapSymbol) =>
+        case info @ SourceSymbolInfo(file, path, source, internalRefs, bytecodeSymbol, scalapSymbol) =>
           val fileV = checks.getOrElseUpdate(file.filename, RichGraph.upsertV[FileCheck, String](file))
-          (bytecodeSymbol, scalapSymbol) match {
+          val inserted = (bytecodeSymbol, scalapSymbol) match {
             case (None, None) => // no symbols were extracted from the file, only persist FileCheck
+              None
+
             case (None, Some(t: RawType)) => // only scalap symbol (type alias case)
-              val owningClass = RichGraph.readUniqueV[ClassDef, String](t.javaName.owner.fqnString)
+              val owningClass = RichGraph.readUniqueV[ClassDef, String](t.owner.fqnString)
               val field = Field(t.javaName.fqnString, None, None, source, t.access, Some(t.scalaName + t.typeSignature))
               val fieldV: VertexT[Member] = RichGraph.upsertV[Field, String](field)
               owningClass.foreach(classV =>
                 RichGraph.insertE(fieldV, classV, OwningClass))
+              Some(fieldV)
+
             case (Some(bytecode), scalap) => // bytecode and possibly scalap symbols present (regular java/scala symbol)
               val scalaName = scalap.map(_.scalaName)
               val typeSignature = scalap.map(_.typeSignature)
@@ -259,6 +269,7 @@ class GraphService(dir: File) extends SLF4JLogging {
                     val parentV = RichGraph.upsertV[ClassDef, String](cdef)
                     RichGraph.insertE(classV, parentV, IsParent)
                   }
+                  Some(classV)
 
                 case s: RawField =>
                   val owningClass = RichGraph.readUniqueV[ClassDef, String](s.name.owner.fqnString)
@@ -266,15 +277,28 @@ class GraphService(dir: File) extends SLF4JLogging {
                   val fieldV: VertexT[Member] = RichGraph.upsertV[Field, String](field)
                   owningClass.foreach(classV =>
                     RichGraph.insertE(fieldV, classV, OwningClass))
+                  Some(fieldV)
 
                 case s: RawMethod =>
                   val owningClass = RichGraph.readUniqueV[ClassDef, String](s.name.owner.fqnString)
-                  val method = Method(s.fqn, s.line, source, s.access, (scalaName ++ typeSignature).reduceOption(_ + _), s.indexInParent)
+                  val method = Method(s.fqn, s.line, source, s.access, (scalaName ++ typeSignature).reduceOption(_ + _))
                   val methodV: VertexT[Member] = RichGraph.upsertV[Method, String](method)
                   owningClass.foreach(classV =>
                     RichGraph.insertE(methodV, classV, OwningClass))
+                  Some(methodV)
               }
             case (_, _) => throw new AssertionError(s"Illegal combination of bytecode and scalap information in $info")
+          }
+          inserted.foreach { v =>
+            internalRefs.foreach { ref =>
+              val sym = FqnSymbol.fromFullyQualifiedName(ref)
+              val usage: Option[VertexT[FqnSymbol]] = sym.map {
+                case cd: ClassDef => RichGraph.upsertV[ClassDef, String](cd)
+                case m: Method => RichGraph.upsertV[Method, String](m)
+                case f: Field => RichGraph.upsertV[Field, String](f)
+              }
+              usage.foreach(RichGraph.insertE(_, v, UsedIn))
+            }
           }
       }
       symbols.size
@@ -312,11 +336,20 @@ class GraphService(dir: File) extends SLF4JLogging {
   def getClassHierarchy(fqn: String, hierarchyType: Hierarchy.Direction): Future[Option[Hierarchy]] = withGraphAsync { implicit g =>
     RichGraph.classHierarchy[String](fqn, hierarchyType)
   }
+
+  def findUsages(fqn: String): Future[Iterable[FqnSymbol]] = withGraphAsync { implicit g =>
+    RichGraph.findUsages[String](fqn).map(_.toDomain)
+  }
 }
 
 object GraphService {
   private[indexer] case object DefinedIn extends EdgeT[ClassDef, FileCheck]
   private[indexer] case object OwningClass extends EdgeT[Member, ClassDef]
-  private[indexer] case object UsedIn extends EdgeT[Member, FqnSymbol]
+  private[indexer] case object UsedIn extends EdgeT[FqnSymbol, FqnSymbol]
   private[indexer] case object IsParent extends EdgeT[ClassDef, ClassDef]
+
+  implicit val DefinedInS: BigDataFormat[DefinedIn.type] = cachedImplicit
+  implicit val OwningClassS: BigDataFormat[OwningClass.type] = cachedImplicit
+  implicit val UsedInS: BigDataFormat[UsedIn.type] = cachedImplicit
+  implicit val IsParentS: BigDataFormat[IsParent.type] = cachedImplicit
 }

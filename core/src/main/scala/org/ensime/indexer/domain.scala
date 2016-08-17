@@ -3,6 +3,7 @@
 package org.ensime.indexer
 
 import org.ensime.api.DeclaredAs
+import scala.collection.immutable.Queue
 
 import org.objectweb.asm.Opcodes._
 
@@ -51,6 +52,8 @@ final case class ClassName(pack: PackageName, name: String)
   def fqnString =
     if (pack.path.isEmpty) name
     else pack.fqnString + "." + name
+
+  def isPrimitive: Boolean = pack == ClassName.Root
 
   private def nonPrimitiveInternalString: String =
     "L" + (if (pack.path.isEmpty) name else pack.path.mkString("/") + "/" + name) + ";"
@@ -196,6 +199,7 @@ final case class Descriptor(params: List[DescriptorType], ret: DescriptorType) {
 
 sealed trait RawSymbol {
   def fqn: String
+  def internalRefs: Set[FullyQualifiedName]
 }
 
 final case class RawClassfile(
@@ -206,9 +210,10 @@ final case class RawClassfile(
     access: Access,
     deprecated: Boolean,
     fields: List[RawField],
-    methods: List[RawMethod],
+    methods: Queue[RawMethod],
     source: RawSource,
-    isScala: Boolean
+    isScala: Boolean,
+    internalRefs: Set[FullyQualifiedName]
 ) extends RawSymbol {
   override def fqn: String = name.fqnString
 }
@@ -222,7 +227,8 @@ final case class RawField(
     name: FieldName,
     clazz: DescriptorType,
     generics: Option[String],
-    access: Access
+    access: Access,
+    internalRefs: Set[FullyQualifiedName]
 ) extends RawSymbol {
   override def fqn: String = name.fqnString
 }
@@ -232,7 +238,7 @@ final case class RawMethod(
     access: Access,
     generics: Option[String],
     line: Option[Int],
-    indexInParent: Int
+    internalRefs: Set[FullyQualifiedName]
 ) extends RawSymbol {
   override def fqn: String = name.fqnString
 }
@@ -251,7 +257,7 @@ final case class RawScalapClass(
   access: Access,
   declaredAs: DeclaredAs,
   fields: Map[String, RawScalapField],
-  methods: Vector[RawScalapMethod],
+  methods: Map[String, IndexedSeq[RawScalapMethod]],
   typeAliases: Map[String, RawType]
 ) extends RawScalapSymbol
 
@@ -265,7 +271,8 @@ final case class RawScalapField(
 }
 
 final case class RawScalapMethod(
-    scalaName: String,
+    simpleName: String, //name of a method symbol, used to identify a group of overloaded methods (e.g. `foo`)
+    scalaName: String, //full scala name of a method (e.g. `org.example.Foo#foo`)
     typeSignature: String,
     access: Access
 ) extends RawScalapSymbol {
@@ -273,7 +280,8 @@ final case class RawScalapMethod(
 }
 
 final case class RawType(
-    javaName: FieldName,
+    owner: ClassName,
+    javaName: ClassName,
     scalaName: String,
     access: Access,
     typeSignature: String

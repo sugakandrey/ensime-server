@@ -2,12 +2,12 @@
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 package org.ensime.indexer
 
-import scala.collection.immutable.Queue
-
 import akka.event.slf4j.SLF4JLogging
 import org.apache.commons.vfs2.FileObject
 import org.objectweb.asm._
 import org.objectweb.asm.Opcodes._
+
+import scala.collection.immutable.Queue
 
 trait ClassfileIndexer {
   this: SLF4JLogging =>
@@ -16,7 +16,7 @@ trait ClassfileIndexer {
    * @param file to index
    * @return the parsed version of the classfile and FQNs referenced within
    */
-  def indexClassfile(file: FileObject): (RawClassfile, Set[FullyQualifiedName]) = {
+  def indexClassfile(file: FileObject): RawClassfile = {
     val name = file.getName
     require(file.exists(), s"$name does not exist")
     require(name.getBaseName.endsWith(".class"), s"$name is not a class file")
@@ -29,7 +29,7 @@ trait ClassfileIndexer {
       receiver
     } finally in.close()
 
-    (raw.clazz, raw.refs)
+    raw.clazz
   }
 
   // extracts all the classnames from a descriptor
@@ -56,37 +56,44 @@ trait ClassfileIndexer {
         None
       }
 
+      val interfaceNames: List[ClassName] = interfaces.map(ClassName.fromInternal)(collection.breakOut)
+      val superClass = Option(superName).map(ClassName.fromInternal)
+
+      internalRefs = internalRefs ++ interfaceNames
+      internalRefs = internalRefs ++ superClass.toList
+
       clazz = RawClassfile(
         ClassName.fromInternal(name),
         signatureClass,
-        Option(superName).map(ClassName.fromInternal),
-        interfaces.toList.map(ClassName.fromInternal),
+        superClass,
+        interfaceNames,
         Access(access),
         (ACC_DEPRECATED & access) > 0,
-        Nil, Nil, RawSource(None, None),
-        isScala = false
+        Nil, Queue.empty, RawSource(None, None),
+        isScala = false,
+        internalRefs
       )
-    }
-
-    override def visitAttribute(attr: Attribute): Unit = {
-      val attrType = attr.`type`
-      if (attrType == "Scala" || attrType == "ScalaSig") {
-        clazz = clazz.copy(isScala = true)
-      }
     }
 
     override def visitSource(filename: String, debug: String): Unit = {
-      clazz = clazz.copy(source = RawSource(Option(filename), None))
+      val isScala = filename != null && filename.endsWith(".scala")
+      clazz = clazz.copy(source = RawSource(Option(filename), None), isScala = isScala)
     }
 
     override def visitField(access: Int, name: String, desc: String, signature: String, value: AnyRef): FieldVisitor = {
-      val field = RawField(
-        FieldName(clazz.name, name),
-        DescriptorParser.parseType(desc),
-        Option(signature), Access(access)
-      )
-      clazz = clazz.copy(fields = field :: clazz.fields)
       super.visitField(access, name, desc, signature, value)
+      new FieldVisitor(ASM5) with ReferenceInFieldHunter {
+        override def visitEnd(): Unit = {
+          internalRefs = internalRefs + ClassName.fromDescriptor(desc)
+          val field = RawField(
+            FieldName(clazz.name, name),
+            DescriptorParser.parseType(desc),
+            Option(signature), Access(access),
+            internalRefs
+          )
+          clazz = clazz.copy(fields = field :: clazz.fields)
+        }
+      }
     }
 
     override def visitMethod(access: Int, region: String, desc: String, signature: String, exceptions: Array[String]): MethodVisitor = {
@@ -95,27 +102,33 @@ trait ClassfileIndexer {
         var firstLine: Option[Int] = None
 
         override def visitLineNumber(line: Int, start: Label): Unit = {
-          val isEarliestLineSeen = firstLine.map(_ < line).getOrElse(true)
+          val isEarliestLineSeen = firstLine.forall(_ < line)
           if (isEarliestLineSeen)
             firstLine = Some(line)
         }
 
         override def visitEnd(): Unit = {
-          addRefs(internalRefs)
-          region match {
-            case "<init>" | "<clinit>" =>
-              (clazz.source.line, firstLine) match {
-                case (_, None) =>
-                case (Some(existing), Some(latest)) if existing <= latest =>
-                case _ =>
-                  clazz = clazz.copy(source = clazz.source.copy(line = firstLine))
-              }
-            case name if name.contains("default") =>
-            case name =>
-              val descriptor = DescriptorParser.parse(desc)
-              val method = RawMethod(MethodName(clazz.name, name, descriptor), Access(access), Option(signature), firstLine, clazz.methods.size)
-              clazz = clazz.copy(methods = method :: clazz.methods)
+          if (region == "<init>" || region == "<clinit>") {
+            (clazz.source.line, firstLine) match {
+              case (_, None) =>
+              case (Some(existing), Some(latest)) if existing <= latest =>
+              case _ =>
+                clazz = clazz.copy(source = clazz.source.copy(line = firstLine))
+            }
           }
+          if (exceptions != null) {
+            addRefs(exceptions.map(ClassName.fromInternal))
+          }
+          addRefs(classesInDescriptor(desc))
+          val descriptor = DescriptorParser.parse(desc)
+          val method = RawMethod(
+            MethodName(clazz.name, region, descriptor),
+            Access(access),
+            Option(signature),
+            firstLine,
+            internalRefs
+          )
+          clazz = clazz.copy(methods = clazz.methods enqueue method)
         }
       }
     }
@@ -125,42 +138,9 @@ trait ClassfileIndexer {
   private trait ReferenceInClassHunter {
     this: ClassVisitor =>
 
-    def clazz: RawClassfile
+    var clazz: RawClassfile
 
-    // NOTE: only mutate via addRefs
-    var refs = Set.empty[FullyQualifiedName]
-
-    protected def addRefs(seen: Seq[FullyQualifiedName]): Unit = {
-      refs ++= seen.filterNot(_.contains(clazz.name))
-    }
-    protected def addRef(seen: FullyQualifiedName): Unit = addRefs(seen :: Nil)
-
-    private val fieldVisitor = new FieldVisitor(ASM5) {
-      override def visitAnnotation(desc: String, visible: Boolean) = handleAnn(desc)
-      override def visitTypeAnnotation(
-        typeRef: Int, typePath: TypePath, desc: String, visible: Boolean
-      ) = handleAnn(desc)
-    }
-
-    override def visitField(access: Int, name: String, desc: String, signature: String, value: AnyRef): FieldVisitor = {
-      addRef(ClassName.fromDescriptor(desc))
-      fieldVisitor
-    }
-
-    override def visitMethod(access: Int, region: String, desc: String, signature: String, exceptions: Array[String]): MethodVisitor = {
-      addRefs(classesInDescriptor(desc))
-      if (exceptions != null)
-        addRefs(exceptions.map(ClassName.fromInternal))
-      null
-    }
-
-    override def visitInnerClass(name: String, outerName: String, innerName: String, access: Int): Unit = {
-      addRef(ClassName.fromInternal(name))
-    }
-
-    override def visitOuterClass(owner: String, name: String, desc: String): Unit = {
-      addRef(ClassName.fromInternal(owner))
-    }
+    var internalRefs = Set.empty[FullyQualifiedName]
 
     private val annVisitor: AnnotationVisitor = new AnnotationVisitor(ASM5) {
       override def visitAnnotation(name: String, desc: String) = handleAnn(desc)
@@ -168,8 +148,9 @@ trait ClassfileIndexer {
         name: String, desc: String, value: String
       ): Unit = handleAnn(desc)
     }
+
     private def handleAnn(desc: String): AnnotationVisitor = {
-      addRef(ClassName.fromDescriptor(desc))
+      clazz = clazz.copy(internalRefs = clazz.internalRefs + ClassName.fromDescriptor(desc))
       annVisitor
     }
     override def visitAnnotation(desc: String, visible: Boolean) = handleAnn(desc)
@@ -178,11 +159,26 @@ trait ClassfileIndexer {
     ) = handleAnn(desc)
   }
 
+  private trait ReferenceInFieldHunter {
+    this: FieldVisitor =>
+
+    protected var internalRefs = Set.empty[FullyQualifiedName]
+
+    private val annVisitor = new AnnotationVisitor(ASM5) {
+      override def visitAnnotation(name: String, desc: String): AnnotationVisitor = handleAnn(desc)
+    }
+    private def handleAnn(desc: String): AnnotationVisitor = {
+      internalRefs = internalRefs + ClassName.fromDescriptor(desc)
+      annVisitor
+    }
+    override def visitTypeAnnotation(typeRef: Int, typePath: TypePath, desc: String, visible: Boolean): AnnotationVisitor = handleAnn(desc)
+    override def visitAnnotation(desc: String, visible: Boolean): AnnotationVisitor = handleAnn(desc)
+  }
+
   private trait ReferenceInMethodHunter {
     this: MethodVisitor =>
 
-    // NOTE: :+ and :+= are really slow (scala 2.10), prefer "enqueue"
-    protected var internalRefs = Queue.empty[FullyQualifiedName]
+    protected var internalRefs = Set.empty[FullyQualifiedName]
 
     // doesn't disambiguate FQNs of methods, so storing as FieldName references
     private def memberOrInit(owner: String, name: String): FullyQualifiedName =
@@ -191,38 +187,45 @@ trait ClassfileIndexer {
         case member => FieldName(ClassName.fromInternal(owner), member)
       }
 
+    protected def addRefs(refs: Seq[FullyQualifiedName]): Unit = internalRefs = internalRefs ++ refs
+
+    protected def addRef(ref: FullyQualifiedName): Unit = addRefs(Seq(ref))
+
     override def visitLocalVariable(
       name: String, desc: String, signature: String,
       start: Label, end: Label, index: Int
     ): Unit = {
-      internalRefs = internalRefs enqueue ClassName.fromDescriptor(desc)
+      addRef(ClassName.fromDescriptor(desc))
     }
 
-    override def visitMultiANewArrayInsn(desc: String, dims: Int): Unit = {
-      internalRefs = internalRefs enqueue ClassName.fromDescriptor(desc)
-    }
+    override def visitMultiANewArrayInsn(desc: String, dims: Int): Unit =
+      addRef(ClassName.fromDescriptor(desc))
 
-    override def visitTypeInsn(opcode: Int, desc: String): Unit = {
-      internalRefs = internalRefs enqueue ClassName.fromInternal(desc)
-    }
+    override def visitTypeInsn(opcode: Int, desc: String): Unit =
+      addRef(ClassName.fromInternal(desc))
 
     override def visitFieldInsn(
       opcode: Int, owner: String, name: String, desc: String
     ): Unit = {
-      internalRefs = internalRefs enqueue memberOrInit(owner, name)
-      internalRefs = internalRefs enqueue ClassName.fromDescriptor(desc)
+      addRef(memberOrInit(owner, name))
+    }
+
+    override def visitTryCatchBlock(start: Label, end: Label, handler: Label, `type`: String): Unit = {
+      Option(`type`).foreach(desc => addRef(ClassName.fromInternal(desc)))
     }
 
     override def visitMethodInsn(
       opcode: Int, owner: String, name: String, desc: String, itf: Boolean
     ): Unit = {
-      internalRefs :+= memberOrInit(owner, name)
-      internalRefs = internalRefs.enqueue(classesInDescriptor(desc))
+      val ownerName = ClassName.fromInternal(owner)
+      addRef(ownerName)
+      addRef(MethodName(ownerName, name, DescriptorParser.parse(desc)))
+      addRefs(classesInDescriptor(desc))
     }
 
     override def visitInvokeDynamicInsn(name: String, desc: String, bsm: Handle, bsmArgs: AnyRef*): Unit = {
-      internalRefs :+= memberOrInit(bsm.getOwner, bsm.getName)
-      internalRefs = internalRefs.enqueue(classesInDescriptor(bsm.getDesc))
+      addRef(memberOrInit(bsm.getOwner, bsm.getName))
+      addRefs(classesInDescriptor(bsm.getDesc))
     }
 
     private val annVisitor: AnnotationVisitor = new AnnotationVisitor(ASM5) {
@@ -230,7 +233,7 @@ trait ClassfileIndexer {
       override def visitEnum(name: String, desc: String, value: String): Unit = handleAnn(desc)
     }
     private def handleAnn(desc: String): AnnotationVisitor = {
-      internalRefs = internalRefs enqueue ClassName.fromDescriptor(desc)
+      addRef(ClassName.fromDescriptor(desc))
       annVisitor
     }
     override def visitAnnotation(desc: String, visible: Boolean) = handleAnn(desc)

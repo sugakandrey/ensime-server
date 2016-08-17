@@ -36,9 +36,9 @@ class SearchService(
     with SLF4JLogging {
   import SearchService._
 
-  private[indexer] def isUserFile(file: FileName): Boolean = {
-    (config.allTargets map (vfs.vfile)) exists (file isAncestor _.getName)
-  }
+  private[indexer] val allTargets = config.allTargets.map(vfs.vfile)
+
+  private[indexer] def isUserFile(file: FileName): Boolean = allTargets.exists(file isAncestor _.getName)
 
   private val QUERY_TIMEOUT = 30 seconds
 
@@ -46,6 +46,8 @@ class SearchService(
 
   /**
    * Changelog:
+   *
+   * 2.3g - persist reverse lookups info
    *
    * 2.2g - persist scalap information (scala names, type sigs, etc)
    *
@@ -69,7 +71,7 @@ class SearchService(
    *
    * 1.0 - initial schema
    */
-  private val version = "2.2"
+  private val version = "2.3"
 
   private val index = new IndexService((config.cacheDir / ("index-" + version)).toPath)
   private val db = new GraphService(config.cacheDir / ("graph-" + version))
@@ -80,6 +82,8 @@ class SearchService(
   // data is persisted. This is to keep the heap usage down and is a
   // poor man's backpressure.
   val semaphore = new Semaphore(Properties.propOrElse("ensime.index.parallel", "10").toInt, true)
+
+  private val noReverseLookups = Properties.propOrFalse("ensime.index.no.reverse.lookups")
 
   private[indexer] def getTopLevelClassFile(f: FileObject): FileObject = {
     import scala.reflect.NameTransformer
@@ -152,15 +156,17 @@ class SearchService(
       fileCheck: Option[FileCheck],
       grouped: Map[FileName, Set[FileObject]]
     ): Future[Int] = {
-      val outOfDate = fileCheck.forall(_.changed)
       val base = vfs.vfile(baseName.getURI)
+      val outOfDate = fileCheck.forall(_.changed)
       if (!outOfDate || !base.exists()) Future.successful(0)
       else {
         val boost = isUserFile(baseName)
         val indexed = extractSymbolsFromClassOrJar(base, grouped).flatMap(persist(_, commitIndex = false, boost = boost))
-        indexed.onComplete { _ => semaphore.release() }
-        if (baseName.getExtension == "jar") {
-          log.debug(s"finished indexing $base")
+        indexed.onComplete { _ =>
+          if (base.getName.getExtension == "jar") {
+            log.debug(s"finished indexing $base")
+          }
+          semaphore.release()
         }
         indexed
       }
@@ -254,6 +260,8 @@ class SearchService(
     files: collection.Set[FileObject],
     rootClassFile: FileObject
   ): List[SourceSymbolInfo] = {
+    def getInternalRefs(isUserFile: Boolean, s: RawSymbol): Set[FullyQualifiedName] = if (isUserFile && !noReverseLookups) s.internalRefs else Set.empty
+
     val depickler = new ClassfileDepickler(rootClassFile)
     val name = container.getName.getURI
     val scalapClasses = depickler.getClasses
@@ -266,31 +274,35 @@ class SearchService(
           val file = if (path.startsWith("jar") || path.startsWith("zip")) {
             FileCheck(container)
           } else FileCheck(f)
-          val (clazz, refs) = indexClassfile(f)
-
+          val clazz = indexClassfile(f)
+          val userFile = isUserFile(f.getName)
           val source = resolver.resolve(clazz.name.pack, clazz.source)
           val sourceUri = source.map(_.getName.getURI)
           val scalapClassInfo = scalapClasses.get(clazz.name.fqnString)
 
           scalapClassInfo match {
             case _ if clazz.access != Public => Nil
-            case None if clazz.isScala => List(SourceSymbolInfo(file, path, None, None, None))
+            case None if clazz.isScala => List(SourceSymbolInfo(file, path, None, Set.empty, None, None))
             case Some(scalapSymbol) =>
-              val classInfo = SourceSymbolInfo(file, path, sourceUri, Some(clazz), Some(scalapSymbol))
+              val classInfo = SourceSymbolInfo(file, path, sourceUri, getInternalRefs(userFile, clazz), Some(clazz), Some(scalapSymbol))
               val fields = clazz.fields.map(f =>
-                SourceSymbolInfo(file, path, sourceUri, Some(f), scalapSymbol.fields.get(f.fqn)))
-              val methods = clazz.methods.map(m => {
-                val scalapMethod =
-                  if (m.indexInParent < scalapSymbol.methods.size) Some(scalapSymbol.methods(m.indexInParent))
-                  else None
-                SourceSymbolInfo(file, path, sourceUri, Some(m), scalapMethod)
-              })
+                SourceSymbolInfo(file, path, sourceUri, getInternalRefs(userFile, f), Some(f), scalapSymbol.fields.get(f.fqn)))
+              val methods = clazz.methods.groupBy(_.name.name).flatMap {
+                case (methodName, overloads) =>
+                  val scalapMethods = scalapSymbol.methods.get(methodName)
+                  overloads.iterator.zipWithIndex.map {
+                    case (m, i) =>
+                      val scalap = scalapMethods.fold(Option.empty[RawScalapMethod])(seq =>
+                        if (seq.length <= i) None else Some(seq(i)))
+                      SourceSymbolInfo(file, path, sourceUri, getInternalRefs(userFile, m), Some(m), scalap)
+                  }
+              }
               val aliases = scalapSymbol.typeAliases.valuesIterator.map(alias =>
-                SourceSymbolInfo(file, path, sourceUri, None, Some(alias))).toList
-              classInfo :: fields ::: methods ::: aliases
+                SourceSymbolInfo(file, path, sourceUri, Set.empty, None, Some(alias))).toList
+              classInfo :: fields ::: methods.toList ::: aliases
             case None =>
-              (clazz :: clazz.methods ::: clazz.fields)
-                .map(s => SourceSymbolInfo(file, path, sourceUri, Some(s)))
+              (clazz :: clazz.methods.toList ::: clazz.fields)
+                .map(s => SourceSymbolInfo(file, path, sourceUri, getInternalRefs(userFile, s), Some(s)))
           }
       }
     }.filterNot(sym => ignore.exists(sym.fqn.contains))
@@ -311,7 +323,11 @@ class SearchService(
   /** only for exact fqns */
   def findUnique(fqn: String): Option[FqnSymbol] = Await.result(db.find(fqn), QUERY_TIMEOUT)
 
-  def getClassHierarchy(fqn: String, hierarchyType: Hierarchy.Direction): Future[Option[Hierarchy]] = db.getClassHierarchy(fqn, hierarchyType)
+  /** returns hierarchy of a type identified by fqn */
+  def getTypeHierarchy(fqn: String, hierarchyType: Hierarchy.Direction): Future[Option[Hierarchy]] = db.getClassHierarchy(fqn, hierarchyType)
+
+  /** returns FqnSymbol which reference given fqn */
+  def findUsages(fqn: String): Future[Iterable[FqnSymbol]] = db.findUsages(fqn)
 
   /* DELETE then INSERT in H2 is ridiculously slow, so we put all modifications
    * into a blocking queue and dedicate a thread to block on draining the queue.
@@ -356,6 +372,7 @@ object SearchService {
       file: FileCheck,
       path: String,
       source: Option[String],
+      usageInfo: Set[FullyQualifiedName],
       bytecodeSymbol: Option[RawSymbol],
       scalapSymbol: Option[RawScalapSymbol] = None
   ) {

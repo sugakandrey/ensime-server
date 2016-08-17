@@ -41,9 +41,11 @@ class TypelevelLibrariesSymbolToFqnSpec extends EnsimeSpec
         scalaClass.fields.valuesIterator.foreach { field =>
           verify(field.javaName, field.scalaName, DeclaredAs.Field, cc)
         }
-        scalaClass.methods.foreach { method =>
-          val methodSym = cc.askSymbolByScalaName(method.scalaName, Some(DeclaredAs.Method)).get
-          methodSym shouldBe a[cc.TermSymbol]
+        scalaClass.methods.valuesIterator.foreach { methods =>
+          methods.foreach { method =>
+            val methodSym = cc.askSymbolByScalaName(method.scalaName, Some(DeclaredAs.Method)).get
+            methodSym shouldBe a[cc.TermSymbol]
+          }
         }
       }
     }
