@@ -270,9 +270,10 @@ class SearchServiceSpec extends EnsimeSpec
   }
 
   "reverse usage lookup" should "find usages of an annotation class" in withSearchService { implicit service =>
+
     val usages = findUsages("org.reverselookups.MyAnnotation")
     usages.length should ===(18)
-    usages.map(_.toSearchResult) should contain theSameElementsAs List(
+    usages.map(u => unifyMethodName(u.toSearchResult)) should contain theSameElementsAs List(
       "Field org.reverselookups.ReverseLookups#fieldType",
       "Method org.reverselookups.ReverseLookups#fieldType: org.reverselookups.MyAnnotation",
       "Field org.reverselookups.ReverseLookups#annotatedField",
@@ -297,7 +298,7 @@ class SearchServiceSpec extends EnsimeSpec
   it should "find usages of a regular class" in withSearchService { implicit service =>
     val usages = findUsages("org.reverselookups.MyException")
     usages.length should ===(6)
-    usages.map(_.toSearchResult) should contain theSameElementsAs List(
+    usages.map(u => unifyMethodName(u.toSearchResult)) should contain theSameElementsAs List(
       "Method org.reverselookups.MyException#<init>(): org.reverselookups.MyException",
       "Method org.reverselookups.ReverseLookups#throws(): scala.Unit",
       "Method org.reverselookups.ReverseLookups#catches(): scala.Int",
@@ -310,7 +311,7 @@ class SearchServiceSpec extends EnsimeSpec
   it should "find usages of a field/method" in withSearchService { implicit service =>
     val fieldUsages = findUsages("org.reverselookups.ReverseLookups.intField()I")
     fieldUsages.length should ===(3)
-    fieldUsages.map(_.toSearchResult) should contain theSameElementsAs List(
+    fieldUsages.map(u => unifyMethodName(u.toSearchResult)) should contain theSameElementsAs List(
       "Method org.reverselookups.ReverseLookups#returns$default$1: scala.Int", // field used as default arg
       "Method org.reverselookups.ReverseLookups#takesAsParam(ann: org.reverselookups.MyAnnotation): scala.Unit", // field used in method body
       "Method org.reverselookups.SelfType#<init>(): org.reverselookups.SelfType"
@@ -318,7 +319,7 @@ class SearchServiceSpec extends EnsimeSpec
 
     val methodUsages = findUsages("org.reverselookups.ReverseLookups.catches()I")
     methodUsages.length should ===(4)
-    methodUsages.map(_.toSearchResult) should contain theSameElementsAs List(
+    methodUsages.map(u => unifyMethodName(u.toSearchResult)) should contain theSameElementsAs List(
       "Method org.reverselookups.Overloads#asDefaultArg$default$1: scala.Int",
       "Method org.reverselookups.Overloads#<init>(l: scala.Long): org.reverselookups.Overloads",
       "Method org.reverselookups.ReverseLookups#<init>(i: scala.Int): org.reverselookups.ReverseLookups",
@@ -329,7 +330,7 @@ class SearchServiceSpec extends EnsimeSpec
   "scala names" should "be correctly resolved for overloaded methods" in withSearchService { implicit service =>
     val hits = service.searchClassesMethods(List("Overloads", "foo"), 100).filter(hit => hit.declAs == DeclaredAs.Method && hit.fqn.contains("Overloads.foo"))
     hits.length should ===(5)
-    hits.map(hit => hit.fqn -> hit.toSearchResult) should contain theSameElementsAs List(
+    hits.map(hit => hit.fqn -> unifyMethodName(hit.toSearchResult)) should contain theSameElementsAs List(
       ("org.reverselookups.Overloads.foo()V", "Method org.reverselookups.Overloads#foo(): scala.Unit"),
       ("org.reverselookups.Overloads.foo(I)V", "Method org.reverselookups.Overloads#foo(i: scala.Int): scala.Unit"),
       ("org.reverselookups.Overloads.foo(Ljava/lang/String;I)V", "Method org.reverselookups.Overloads#foo(s: scala.Predef.String, i: scala.Int): scala.Unit"),
@@ -401,4 +402,7 @@ object SearchServiceTestUtils {
   }
 
   def findUsages(fqn: String)(implicit service: SearchService): List[FqnSymbol] = Await.result(service.findUsages(fqn), Duration.Inf).toList
+
+  // 2.10 scalap has slightly different formatting for method names
+  def unifyMethodName(s: String): String = s.replaceAll(" : ", ": ")
 }
