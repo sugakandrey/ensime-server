@@ -15,6 +15,7 @@ import org.apache.lucene.index.Term
 import org.apache.lucene.search._
 import org.apache.lucene.search.BooleanClause.Occur
 import org.ensime.indexer.database.DatabaseService._
+import org.apache.lucene.analysis.core.KeywordAnalyzer
 import org.ensime.indexer.lucene._
 import org.ensime.util.list._
 import shapeless.Typeable
@@ -81,7 +82,10 @@ object IndexService extends SLF4JLogging {
 class IndexService(path: Path) {
   import org.ensime.indexer.IndexService._
 
-  private val analyzers = Map("fqn" -> new FqnAnalyzer)
+  private val analyzers = Map(
+    "fqn" -> new FqnAnalyzer,
+    "file" -> new KeywordAnalyzer
+  )
 
   private[indexer] val lucene = new SimpleLucene(path, analyzers)
 
