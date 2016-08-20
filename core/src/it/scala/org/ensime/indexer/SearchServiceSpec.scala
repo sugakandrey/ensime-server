@@ -10,6 +10,7 @@ import org.ensime.fixture._
 import org.ensime.indexer.graph._
 import org.ensime.util.EnsimeSpec
 import org.ensime.util.file._
+import org.scalactic.source.Position
 import org.scalatest.Matchers._
 import org.scalatest.matchers.{ BeMatcher, MatchResult }
 
@@ -345,7 +346,7 @@ object SearchServiceTestUtils {
   def refresh()(implicit service: SearchService): (Int, Int) =
     Await.result(service.refresh(), Duration.Inf)
 
-  def searchClasses(expect: String, query: String)(implicit service: SearchService) = {
+  def searchClasses(expect: String, query: String)(implicit service: SearchService, p: Position) = {
     val max = 10
     val info = s"'$query' expected '$expect'"
     val results = service.searchClasses(query, max)
@@ -359,10 +360,10 @@ object SearchServiceTestUtils {
     results
   }
 
-  def searchesClasses(expect: String, queries: String*)(implicit service: SearchService) =
+  def searchesClasses(expect: String, queries: String*)(implicit service: SearchService, p: Position) =
     (expect :: queries.toList).foreach(searchClasses(expect, _))
 
-  def searchClassesAndMethods(expect: String, query: String)(implicit service: SearchService) = {
+  def searchClassesAndMethods(expect: String, query: String)(implicit service: SearchService, p: Position) = {
     val max = 10
     val info = s"'$query' expected '$expect')"
     val results = service.searchClassesMethods(List(query), max)
@@ -375,22 +376,22 @@ object SearchServiceTestUtils {
     results
   }
 
-  def searchExpectEmpty(query: String)(implicit service: SearchService) = {
+  def searchExpectEmpty(query: String)(implicit service: SearchService, p: Position) = {
     val max = 1
     val results = service.searchClassesMethods(List(query), max)
     withClue("expected empty results from %s".format(query))(results shouldBe empty)
     results
   }
 
-  def searchesEmpty(queries: String*)(implicit service: SearchService) =
+  def searchesEmpty(queries: String*)(implicit service: SearchService, p: Position) =
     queries.toList.foreach(searchExpectEmpty)
 
   // doesn't assert that expect finds itself because the lucene query
   // syntax conflicts with the characters in method FQNs
-  def searchesMethods(expect: String, queries: String*)(implicit service: SearchService) =
+  def searchesMethods(expect: String, queries: String*)(implicit service: SearchService, p: Position) =
     (queries.toList).foreach(searchClassesAndMethods(expect, _))
 
-  def getClassHierarchy(fqn: String, hierarchyType: Hierarchy.Direction)(implicit service: SearchService): Hierarchy = {
+  def getClassHierarchy(fqn: String, hierarchyType: Hierarchy.Direction)(implicit service: SearchService, p: Position): Hierarchy = {
     val hierarchy = Await.result(service.getTypeHierarchy(fqn, hierarchyType), Duration.Inf)
     withClue(s"No class hierarchy found for fqn = $fqn")(hierarchy shouldBe defined)
     hierarchy.get

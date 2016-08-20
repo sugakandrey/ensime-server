@@ -12,6 +12,7 @@ import org.ensime.vfs._
 import org.ensime.util.file._
 import org.ensime.util.list._
 import org.ensime.util.map._
+import scala.annotation.tailrec
 
 // mutable: lookup of user's source files are atomically updated
 class SourceResolver(
@@ -30,16 +31,35 @@ class SourceResolver(
     (file.isScala || file.isJava) && !file.getPath.contains(".ensime_cache")
   }
 
+  def resolve(clazz: PackageName, source: RawSource): Option[FileObject] = {
+    @tailrec
+    def loop(clazzes: List[PackageName]): Option[FileObject] = {
+      clazzes match {
+        case Nil => None
+        case h :: t => resolveClazz(h, source) match {
+          case None => loop(t)
+          case s @ Some(_) => s
+        }
+      }
+    }
+
+    val size = clazz.path.size
+    val combinations = clazz.path.tails.flatMap(_.inits).filterNot(_.isEmpty).toList
+    // Quite offen people put stuff into the root package,
+    // so we add empty package after parent packages, just
+    // before we try other possible packages
+    val combinationsWithEmpty =
+      (combinations.take(size) ::: List.empty[String] :: combinations.drop(size))
+        .map(PackageName.apply)
+    loop(combinationsWithEmpty)
+  }
+
   // we only support the case where RawSource has a Some(filename)
-  def resolve(clazz: PackageName, source: RawSource): Option[FileObject] =
+  private def resolveClazz(clazz: PackageName, source: RawSource): Option[FileObject] =
     source.filename match {
       case None => None
-      case Some(filename) => all.get(clazz) flatMap {
+      case Some(filename) => all.get(clazz).flatMap {
         _.find(_.getName.getBaseName == filename)
-      } match {
-        case s @ Some(_) => s
-        case None if clazz.path == Nil => None
-        case _ => resolve(clazz.parent, source)
       }
     }
 

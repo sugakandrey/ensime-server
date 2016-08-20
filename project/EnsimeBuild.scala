@@ -12,13 +12,18 @@ import org.ensime.EnsimePlugin.JdkDir
 import sbtbuildinfo.BuildInfoPlugin, BuildInfoPlugin.autoImport._
 import de.heikoseeberger.sbtheader.{ HeaderKey, HeaderPlugin }
 
-object EnsimeBuild extends Build {
-  lazy override val settings = super.settings ++ Seq(
+object ProjectPlugin extends AutoPlugin {
+  override def requires = plugins.JvmPlugin
+  override def trigger = allRequirements
+
+  override def projectSettings = Seq(
     scalaVersion := "2.11.8",
     organization := "org.ensime",
     version := "2.0.0-graph-SNAPSHOT"
   )
+}
 
+object EnsimeBuild {
   lazy val commonSettings = Sensible.settings ++ Seq(
     libraryDependencies ++= Sensible.testLibs() ++ Sensible.logback,
 
@@ -39,10 +44,9 @@ object EnsimeBuild extends Build {
       "org.apache.lucene" % "lucene-core" % luceneVersion
     ),
 
-    HeaderKey.headers := Copyright.GplMap
+    HeaderKey.headers := Copyright.GplMap,
 
-  // https://github.com/sbt/sbt/issues/2459 --- misses shapeless in core/it:test
-  // updateOptions := updateOptions.value.withCachedResolution(true)
+    updateOptions := updateOptions.value.withCachedResolution(true)
   ) ++ sonatype("ensime", "ensime-server", GPL3)
 
   lazy val commonItSettings = inConfig(It)(
@@ -64,8 +68,19 @@ object EnsimeBuild extends Build {
     )
   )
 
-  lazy val util = Project("util", file("util")) settings (commonSettings) settings (
+  lazy val api = Project("api", file("api")) settings (commonSettings) settings (
+    libraryDependencies ++= Seq(
+      "org.scalariform" %% "scalariform" % "0.1.8"
+    ),
+    licenses := Seq(Apache2),
+    HeaderKey.headers := Copyright.ApacheMap
+  )
+
+  lazy val util = Project("util", file("util")) settings (commonSettings) dependsOn (
+    api
+  ) settings (
     libraryDependencies ++= List(
+      "org.scala-lang" % "scala-compiler" % scalaVersion.value,
       "org.apache.commons" % "commons-vfs2" % "2.1" exclude ("commons-logging", "commons-logging")
     ) ++ Sensible.guava
   )
@@ -77,22 +92,12 @@ object EnsimeBuild extends Build {
       libraryDependencies ++= Sensible.testLibs("compile")
     )
 
-  lazy val s_express = Project("s-express", file("s-express")) settings (commonSettings) dependsOn (
-    util,
-    testutil % "test"
-  ) settings (
+  lazy val s_express = Project("s-express", file("s-express")) settings (commonSettings) settings (
+      HeaderKey.headers := Copyright.LgplMap,
       libraryDependencies ++= Seq(
         "org.parboiled" %% "parboiled" % "2.1.2" // 2.1.3 doesn't have a _2.10
       ) ++ Sensible.shapeless(scalaVersion.value)
     )
-
-  lazy val api = Project("api", file("api")) settings (commonSettings) settings (
-    libraryDependencies ++= Seq(
-      "org.scalariform" %% "scalariform" % "0.1.8"
-    ),
-    licenses := Seq(Apache2),
-    HeaderKey.headers := Copyright.ApacheMap
-  )
 
   // the JSON protocol
   lazy val jerky = Project("jerky", file("protocol-jerky")) settings (commonSettings) dependsOn (
@@ -102,17 +107,16 @@ object EnsimeBuild extends Build {
     api % "test->test" // for the test data
   ) settings (
       libraryDependencies ++= Seq(
-        "com.github.fommil" %% "spray-json-shapeless" % "1.2.0",
+        "com.github.fommil" %% "spray-json-shapeless" % "1.3.0",
         "com.typesafe.akka" %% "akka-slf4j" % Sensible.akkaVersion
       ) ++ Sensible.shapeless(scalaVersion.value)
     )
 
   // the S-Exp protocol
   lazy val swanky = Project("swanky", file("protocol-swanky")) settings (commonSettings) dependsOn (
-    api,
+    api, s_express, util,
     testutil % "test",
-    api % "test->test", // for the test data
-    s_express
+    api % "test->test" // for the test data
   ) settings (
       libraryDependencies ++= Seq(
         "com.typesafe.akka" %% "akka-slf4j" % Sensible.akkaVersion
@@ -120,7 +124,7 @@ object EnsimeBuild extends Build {
     )
 
   lazy val core = Project("core", file("core")).dependsOn(
-    api, s_express, monkeys,
+    api, s_express, monkeys, util,
     api % "test->test", // for the interpolator
     testutil % "test,it",
     // depend on "it" dependencies in "test" or sbt adds them to the release deps!
@@ -144,12 +148,10 @@ object EnsimeBuild extends Build {
           exclude ("commons-collections", "commons-collections")
           exclude ("commons-beanutils", "commons-beanutils")
           exclude ("commons-logging", "commons-logging"),
-        "com.zaxxer" % "HikariCP" % "2.4.6",
         "org.apache.lucene" % "lucene-core" % luceneVersion,
         "org.apache.lucene" % "lucene-analyzers-common" % luceneVersion,
         "org.ow2.asm" % "asm-commons" % "5.1",
         "org.ow2.asm" % "asm-util" % "5.1",
-        "org.scala-lang" % "scala-compiler" % scalaVersion.value,
         "org.scala-lang" % "scalap" % scalaVersion.value,
         "com.typesafe.akka" %% "akka-actor" % Sensible.akkaVersion,
         "com.typesafe.akka" %% "akka-slf4j" % Sensible.akkaVersion,
@@ -174,7 +176,7 @@ object EnsimeBuild extends Build {
     dtf.format(new java.util.Date())
   }
 
-  val luceneVersion = "5.5.1"
+  val luceneVersion = "5.5.2"
   val streamsVersion = "2.0.4"
   lazy val server = Project("server", file("server")).dependsOn(
     core, swanky, jerky,

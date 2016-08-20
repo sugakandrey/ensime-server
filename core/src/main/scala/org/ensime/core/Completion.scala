@@ -250,7 +250,15 @@ trait CompletionControl {
           case m @ ScopeMember(sym, tpe, accessible, viaView) =>
             val p = sym.pos
             val inSymbol = p.isRange && (context.offset >= p.startOrCursor && context.offset <= p.endOrCursor)
-            if (!sym.isConstructor && !inSymbol) {
+
+            val isBrokenType = tpe match {
+              // ByNameParamClass without args is the invalid object. PC generates it when there is no
+              // completion context. See the ignored test in RichPresentationCompilerSpec.
+              case TypeRef(_, definitions.ByNameParamClass, Nil) => true
+              case _ => false
+            }
+
+            if (!sym.isConstructor && !inSymbol & !isBrokenType) {
               buff ++= toCompletionInfo(context, sym, tpe, inherited = false, NoSymbol)
             }
           case m @ TypeMember(sym, tpe, accessible, inherited, viaView) =>

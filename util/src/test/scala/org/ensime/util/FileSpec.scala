@@ -2,11 +2,11 @@
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 package org.ensime.util
 
-import Predef.{ any2stringadd => _ }
-import com.google.common.base.Charsets
-import com.google.common.io.Files
 import java.io.{ File => JFile }
 
+import com.google.common.base.Charsets
+import com.google.common.io.Files
+import org.ensime.util.ensimefile.Implicits.DefaultCharset
 import org.scalatest._
 
 class FileSpec extends FlatSpec with Matchers {

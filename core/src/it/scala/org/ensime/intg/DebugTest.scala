@@ -2,21 +2,22 @@
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 package org.ensime.intg
 
-import akka.event.slf4j.SLF4JLogging
-import java.io.File
-
-import akka.testkit._
-import java.io.InputStream
+import java.io.{ InputStream, File }
 import java.util.Scanner
+
+import scala.collection.JavaConverters._
+import scala.concurrent.{ Await, Future, Promise }
+import scala.concurrent.duration._
+import scala.util.{ Properties, Try }
+
+import akka.event.slf4j.SLF4JLogging
+import akka.testkit._
 import org.ensime.api._
 import org.ensime.core._
 import org.ensime.fixture._
 import org.ensime.util._
 import org.ensime.util.file._
 import org.scalatest.Matchers
-import scala.concurrent.{ Await, Future, Promise }
-import scala.util.{ Properties, Try }
-import scala.concurrent.duration._
 
 // must be refreshing as the tests don't clean up after themselves properly
 class DebugTest extends EnsimeSpec
@@ -618,8 +619,6 @@ object VMStarter extends SLF4JLogging {
     else Properties.javaHome + "/bin/java"
 
   def apply(config: EnsimeConfig, clazz: String): (Process, String, Int, Future[Unit]) = {
-    import collection.JavaConverters._
-
     // would be nice to have ephemeral debug ports
     val port = 5000 + scala.util.Random.nextInt(1000)
 

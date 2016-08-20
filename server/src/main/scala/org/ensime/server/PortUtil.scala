@@ -2,9 +2,9 @@
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 package org.ensime.server
 
-import org.ensime.util.file._
-
 import akka.event.slf4j.SLF4JLogging
+import org.ensime.util.ensimefile.Implicits.DefaultCharset
+import org.ensime.util.file._
 
 object PortUtil extends SLF4JLogging {
 

@@ -2,14 +2,15 @@
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 package org.ensime.core.javac
 
+import scala.collection.JavaConverters._
+import scala.collection.breakOut
+
 import akka.event.slf4j.SLF4JLogging
 import com.sun.source.tree._
 import com.sun.source.util.TreePath
 import javax.lang.model.`type`._
 import javax.lang.model.element._
 import javax.lang.model.element.ElementKind._
-import scala.collection.JavaConversions._
-
 import org.ensime.core.{ DocFqn, DocSig }
 import org.ensime.indexer._
 
@@ -87,10 +88,8 @@ trait Helpers extends UnsafeHelpers with SLF4JLogging {
   }
 
   private def descriptor(c: Compilation, e: ExecutableElement): Option[Descriptor] = {
-    import scala.collection.breakOut
     fqn(c, e.getReturnType).map { returnType =>
-      val params: List[DescriptorType] = e.getParameters
-        .flatMap(p => fqn(c, p.asType()))(breakOut)
+      val params: List[DescriptorType] = e.getParameters.asScala.flatMap(p => fqn(c, p.asType()))(breakOut)
       Descriptor(params, returnType)
     }
   }

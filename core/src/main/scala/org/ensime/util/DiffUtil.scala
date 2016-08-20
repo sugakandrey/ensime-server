@@ -6,10 +6,11 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 
+import scala.collection.JavaConverters._
+
 object DiffUtil {
 
   def compareContents(original: Seq[String], revised: Seq[String], originalFile: File = new File("a"), revisedFile: File = new File("b")): String = {
-    import collection.JavaConverters._
     val diff = difflib.DiffUtils.diff(original.asJava, revised.asJava)
     val originalInfo = originalFile.getAbsolutePath() + "\t" + fileModificationTimeOrEpoch(originalFile)
     val revisedInfo = revisedFile.getAbsolutePath() + "\t" + fileModificationTimeOrEpoch(revisedFile)
