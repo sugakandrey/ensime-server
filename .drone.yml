@@ -32,7 +32,7 @@ build:
         cask install ;
         cask build ;
         export JVM_OPTS="-XX:MaxPermSize=256m -Xss2m -Xms500m -Xmx500m";
-        test/run_emacs_tests.sh ;
+        test/run_emacs_tests.sh || test/run_emacs_tests.sh;
         cd $CI_BUILD_DIR ;
         unset JVM_OPTS ;
       fi

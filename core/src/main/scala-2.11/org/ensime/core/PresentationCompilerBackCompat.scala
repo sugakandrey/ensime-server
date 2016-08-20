@@ -2,7 +2,7 @@
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 package org.ensime.core
 
-import Predef.{any2stringadd => _}
+import Predef.{ any2stringadd => _ }
 
 import scala.reflect.internal.util.Position
 

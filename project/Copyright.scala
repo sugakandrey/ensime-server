@@ -11,6 +11,7 @@ object Copyright extends AutoPlugin {
   val CopyrightHeader = "// Copyright: 2010 - 2016 https://github.com/ensime/ensime-server/graphs"
   val ApacheHeader = "// License: http://www.apache.org/licenses/LICENSE-2.0"
   val GplHeader = "// License: http://www.gnu.org/licenses/gpl-3.0.en.html"
+  val LgplHeader = "// License: http://www.gnu.org/licenses/lgpl-3.0.en.html"
 
   def LicenseWithCopyright(license: String) = HeaderRegex -> s"$CopyrightHeader\n$license\n"
 
@@ -22,6 +23,11 @@ object Copyright extends AutoPlugin {
   val GplMap = Map(
     "scala" -> LicenseWithCopyright(GplHeader),
     "java" -> LicenseWithCopyright(GplHeader)
+  )
+
+  val LgplMap = Map(
+    "scala" -> LicenseWithCopyright(LgplHeader),
+    "java" -> LicenseWithCopyright(LgplHeader)
   )
 
 }

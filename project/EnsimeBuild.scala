@@ -44,10 +44,9 @@ object EnsimeBuild {
       "org.apache.lucene" % "lucene-core" % luceneVersion
     ),
 
-    HeaderKey.headers := Copyright.GplMap
+    HeaderKey.headers := Copyright.GplMap,
 
-  // https://github.com/sbt/sbt/issues/2459 --- misses shapeless in core/it:test
-  // updateOptions := updateOptions.value.withCachedResolution(true)
+    updateOptions := updateOptions.value.withCachedResolution(true)
   ) ++ sonatype("ensime", "ensime-server", GPL3)
 
   lazy val commonItSettings = inConfig(It)(
@@ -93,10 +92,8 @@ object EnsimeBuild {
       libraryDependencies ++= Sensible.testLibs("compile")
     )
 
-  lazy val s_express = Project("s-express", file("s-express")) settings (commonSettings) dependsOn (
-    util,
-    testutil % "test"
-  ) settings (
+  lazy val s_express = Project("s-express", file("s-express")) settings (commonSettings) settings (
+      HeaderKey.headers := Copyright.LgplMap,
       libraryDependencies ++= Seq(
         "org.parboiled" %% "parboiled" % "2.1.2" // 2.1.3 doesn't have a _2.10
       ) ++ Sensible.shapeless(scalaVersion.value)
@@ -117,10 +114,9 @@ object EnsimeBuild {
 
   // the S-Exp protocol
   lazy val swanky = Project("swanky", file("protocol-swanky")) settings (commonSettings) dependsOn (
-    api,
+    api, s_express, util,
     testutil % "test",
-    api % "test->test", // for the test data
-    s_express
+    api % "test->test" // for the test data
   ) settings (
       libraryDependencies ++= Seq(
         "com.typesafe.akka" %% "akka-slf4j" % Sensible.akkaVersion
@@ -128,7 +124,7 @@ object EnsimeBuild {
     )
 
   lazy val core = Project("core", file("core")).dependsOn(
-    api, s_express, monkeys,
+    api, s_express, monkeys, util,
     api % "test->test", // for the interpolator
     testutil % "test,it",
     // depend on "it" dependencies in "test" or sbt adds them to the release deps!

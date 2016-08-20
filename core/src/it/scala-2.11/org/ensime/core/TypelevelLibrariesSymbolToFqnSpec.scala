@@ -2,17 +2,17 @@
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 package org.ensime.core
 
-import org.ensime.api.{DeclaredAs, EnsimeConfig}
-import org.ensime.fixture.{EnsimeConfigFixture, IsolatedRichPresentationCompilerFixture}
-import org.ensime.indexer.{ClassfileDepickler, FieldName, FullyQualifiedName}
+import org.ensime.api.{ DeclaredAs, EnsimeConfig }
+import org.ensime.fixture.{ EnsimeConfigFixture, IsolatedRichPresentationCompilerFixture }
+import org.ensime.indexer.{ ClassfileDepickler, FieldName, FullyQualifiedName }
 import org.ensime.util.EnsimeSpec
 import org.ensime.vfs.ClassfileSelector
 import org.ensime.vfs._
 
 class TypelevelLibrariesSymbolToFqnSpec extends EnsimeSpec
-  with IsolatedRichPresentationCompilerFixture
-  with RichPresentationCompilerTestUtils
-  with ReallyRichPresentationCompilerFixture {
+    with IsolatedRichPresentationCompilerFixture
+    with RichPresentationCompilerTestUtils
+    with ReallyRichPresentationCompilerFixture {
 
   override def original: EnsimeConfig = EnsimeConfigFixture.FqnsTestProject
 
