@@ -1,10 +1,8 @@
 // Copyright: 2010 - 2016 https://github.com/ensime/ensime-server/graphs
-// License: http://www.gnu.org/licenses/gpl-3.0.en.html
+// License: http://www.gnu.org/licenses/lgpl-3.0.en.html
 package org.ensime.sexp
 
-import org.ensime.util.EnsimeSpec
-
-class SexpPrettyPrinterSpec extends EnsimeSpec {
+class SexpPrettyPrinterSpec extends SexpSpec {
 
   private val foo = SexpString("foo")
   private val foosym = SexpSymbol("foo")
@@ -12,8 +10,6 @@ class SexpPrettyPrinterSpec extends EnsimeSpec {
   private val fookey = SexpSymbol(":foo")
   private val barkey = SexpSymbol(":bar")
   private def assertPrinter(sexp: Sexp, expect: String): Unit = {
-    //    println("GOT\n" + SexpPrettyPrinter(sexp))
-    //    println("EXPECT\n" + expect)
     SexpPrettyPrinter(sexp) should ===(expect.replace("\r", ""))
   }
 
