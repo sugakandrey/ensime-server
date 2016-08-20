@@ -379,7 +379,7 @@ object SearchServiceTestUtils {
   def searchExpectEmpty(query: String)(implicit service: SearchService, p: Position) = {
     val max = 1
     val results = service.searchClassesMethods(List(query), max)
-    withClue("expected empty results from %s".format(query))(results shouldBe empty)
+    withClue(s"expected empty results from $query")(results shouldBe empty)
     results
   }
 
