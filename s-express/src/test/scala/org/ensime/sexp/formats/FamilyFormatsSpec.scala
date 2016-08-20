@@ -1,11 +1,11 @@
 // Copyright: 2010 - 2016 https://github.com/ensime/ensime-server/graphs
-// License: http://www.gnu.org/licenses/gpl-3.0.en.html
+// License: http://www.gnu.org/licenses/lgpl-3.0.en.html
 package org.ensime.sexp.formats
 
-//import org.scalatest._
+import java.util.UUID
+
 import org.ensime.sexp._
 import shapeless._
-import java.util.UUID
 
 // Example domain models used in the tests. Note that the domain model
 // and formatters are defined in sibling packages.
