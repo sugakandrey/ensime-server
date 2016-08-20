@@ -44,10 +44,9 @@ object EnsimeBuild {
       "org.apache.lucene" % "lucene-core" % luceneVersion
     ),
 
-    HeaderKey.headers := Copyright.GplMap
+    HeaderKey.headers := Copyright.GplMap,
 
-  // https://github.com/sbt/sbt/issues/2459 --- misses shapeless in core/it:test
-  // updateOptions := updateOptions.value.withCachedResolution(true)
+    updateOptions := updateOptions.value.withCachedResolution(true)
   ) ++ sonatype("ensime", "ensime-server", GPL3)
 
   lazy val commonItSettings = inConfig(It)(
