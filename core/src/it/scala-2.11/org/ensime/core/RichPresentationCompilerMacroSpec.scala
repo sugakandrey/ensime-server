@@ -31,16 +31,16 @@ class RichPresentationCompilerMacroSpec extends EnsimeSpec
       ) { (p, label, cc) =>
           val handler = cc.reporter.asInstanceOf[TestReporter].handler
 
-        val notes = eventually {
-          val notes = handler.notes
-          notes should not be 'empty
-          notes
-        }
-        notes.head should matchPattern {
-          case Note(_, msg, NoteError, 0, 0, 1, 1) if msg.contains("compiler crashed") =>
-        }
+          val notes = eventually {
+            val notes = handler.notes
+            notes should not be 'empty
+            notes
+          }
+          notes.head should matchPattern {
+            case Note(_, msg, NoteError, 0, 0, 1, 1) if msg.contains("compiler crashed") =>
+          }
 
-      }
+        }
     }
   }
 
