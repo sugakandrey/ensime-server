@@ -61,10 +61,11 @@ class SearchServiceSpec extends EnsimeSpec
       val classfile = config.subprojects.head.targets.head / "org/example/Foo$.class"
 
       classfile shouldBe 'exists
+      service.findUnique("org.example.Foo$") shouldBe defined
 
       classfile.delete()
       refresh() shouldBe ((1, 0))
-      searchExpectEmpty("org.example.Foo$")
+      service.findUnique("org.example.Foo$") shouldBe empty
     }
   }
 
@@ -203,7 +204,7 @@ class SearchServiceSpec extends EnsimeSpec
   }
 
   it should "return user methods first" in withSearchService { implicit service =>
-    val hits = service.searchClassesMethods("toString" :: Nil, 10).map(_.fqn)
+    val hits = service.searchClassesMethods("toString" :: Nil, 8).map(_.fqn)
     all(hits) should startWith regex ("org.example|org.boost")
   }
 
