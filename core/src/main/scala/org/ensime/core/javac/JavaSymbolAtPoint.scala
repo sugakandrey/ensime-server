@@ -2,16 +2,13 @@
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 package org.ensime.core.javac
 
-import com.sun.source.util.TreePath
-import org.ensime.api.{ TypeInfo, ArrowTypeInfo, ParamSectionInfo }
-import org.ensime.api.{ SourceFileInfo, DeclaredAs }
-import org.ensime.api.SymbolInfo
-import org.ensime.model.BasicTypeInfo
+import scala.collection.JavaConverters._
 
-import javax.lang.model.`type`.{ TypeMirror, ExecutableType }
 import com.sun.source.tree.{ IdentifierTree, MemberSelectTree }
-
-import scala.collection.JavaConversions._
+import com.sun.source.util.TreePath
+import javax.lang.model.`type`.{ ExecutableType, TypeMirror }
+import org.ensime.api._
+import org.ensime.model.BasicTypeInfo
 
 trait JavaSymbolAtPoint { requires: JavaCompiler =>
 
@@ -50,7 +47,7 @@ trait JavaSymbolAtPoint { requires: JavaCompiler =>
 
   private def name(identifierName: String, t: ExecutableType)(formatType: TypeMirror => String): String = {
 
-    val params = t.getParameterTypes.zipWithIndex.map {
+    val params = t.getParameterTypes.asScala.zipWithIndex.map {
       case (p, i) =>
         val paramType = formatType(p)
         s"$paramType arg$i"
@@ -72,7 +69,7 @@ trait JavaSymbolAtPoint { requires: JavaCompiler =>
       shortName(identifierName, t), fullName(identifierName, t),
       typeMirrorToTypeInfo(t.getReturnType),
       ParamSectionInfo(
-        t.getParameterTypes.zipWithIndex.map {
+        t.getParameterTypes.asScala.zipWithIndex.map {
           case (param, index) =>
             s"arg$index" -> typeMirrorToTypeInfo(param)
         },

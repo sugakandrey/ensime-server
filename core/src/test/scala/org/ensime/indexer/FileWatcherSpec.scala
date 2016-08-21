@@ -2,16 +2,19 @@
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 package org.ensime.indexer
 
+import scala.concurrent.duration._
+
 import akka.testkit._
 import com.google.common.io.Files
 import org.apache.commons.vfs2._
 import org.ensime.fixture._
-import org.ensime.vfs._
 import org.ensime.util._
+import org.ensime.util.ensimefile.Implicits.DefaultCharset
 import org.ensime.util.file._
+import org.ensime.util.fileobject._
+import org.ensime.vfs._
 import org.scalatest._
 import org.scalatest.tagobjects.Retryable
-import scala.concurrent.duration._
 
 sealed trait FileWatcherMessage
 final case class Added(f: FileObject) extends FileWatcherMessage
@@ -55,7 +58,6 @@ abstract class FileWatcherSpec extends EnsimeSpec
       withTestKit { implicit tk =>
         withTempDir { dir =>
           withClassWatcher(dir) { watcher =>
-            import org.ensime.util.RichFileObject._
             waitForBaseRegistered(tk)
 
             val foo = (dir / "foo.class")
@@ -231,7 +233,6 @@ abstract class FileWatcherSpec extends EnsimeSpec
   it should "be able to start up from a non-existent directory" taggedAs (Retryable) in
     withVFS { implicit vfs =>
       withTestKit { implicit tk =>
-        import org.ensime.util.RichFileObject._
         val dir = Files.createTempDir().canon / "root"
         try {
           withClassWatcher(dir) { watcher =>

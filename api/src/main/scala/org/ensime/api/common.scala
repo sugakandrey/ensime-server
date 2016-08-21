@@ -3,6 +3,8 @@
 package org.ensime.api
 
 import java.io.File
+import java.nio.file.Path
+
 import scala.annotation.StaticAnnotation
 
 /**
@@ -105,3 +107,11 @@ final case class OffsetRange(from: Int, to: Int)
 object OffsetRange extends ((Int, Int) => OffsetRange) {
   def apply(fromTo: Int): OffsetRange = new OffsetRange(fromTo, fromTo)
 }
+
+sealed trait EnsimeFile
+final case class RawFile(file: Path) extends EnsimeFile
+/**
+ * @param jar the container of entry (in nio terms, the FileSystem)
+ * @param entry is relative to the container (this needs to be loaded by a FileSystem to be usable)
+ */
+final case class ArchiveFile(jar: Path, entry: String) extends EnsimeFile

@@ -2,14 +2,12 @@
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 package org.ensime.core.javac
 
+import scala.collection.JavaConverters._
+
 import com.sun.source.util.TreePath
-import org.ensime.api.{ TypeInfo, ArrowTypeInfo, ParamSectionInfo }
-import org.ensime.api.{ SourceFileInfo, DeclaredAs }
+import javax.lang.model.`type`.{ ExecutableType, TypeMirror }
+import org.ensime.api._
 import org.ensime.model.BasicTypeInfo
-
-import javax.lang.model.`type`.{ TypeMirror, ExecutableType }
-
-import scala.collection.JavaConversions._
 
 trait JavaTypeAtPoint { requires: JavaCompiler =>
 
@@ -28,7 +26,7 @@ trait JavaTypeAtPoint { requires: JavaCompiler =>
 
   private def name(t: ExecutableType)(formatType: TypeMirror => String): String = {
 
-    val params = t.getParameterTypes
+    val params = t.getParameterTypes.asScala
       .map(formatType)
       .mkString("(", ", ", ")")
 
@@ -45,7 +43,7 @@ trait JavaTypeAtPoint { requires: JavaCompiler =>
       shortName(t), fullName(t),
       typeMirrorToTypeInfo(t.getReturnType),
       ParamSectionInfo(
-        t.getParameterTypes.zipWithIndex.map {
+        t.getParameterTypes.asScala.zipWithIndex.map {
           case (param, index) =>
             s"arg$index" -> typeMirrorToTypeInfo(param)
         },

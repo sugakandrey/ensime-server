@@ -3,45 +3,17 @@
 package org.ensime.util
 
 import java.io._
-import java.net.URI
 import java.nio.charset.Charset
-
-import org.apache.commons.vfs2.FileObject
 
 import org.ensime.api._
 import org.ensime.util.file._
-
-object RichFileObject {
-  implicit class RichFileObject(val fo: FileObject) extends AnyVal {
-    // None if the fo is not an entry in an archive
-    def pathWithinArchive: Option[String] = {
-      val uri = fo.getName.getURI
-      if (uri.startsWith("jar") || uri.startsWith("zip"))
-        Some(fo.getName.getRoot.getRelativeName(fo.getName))
-      else None
-    }
-
-    // assumes it is a local file
-    def asLocalFile: File = {
-      require(fo.getName.getURI.startsWith("file"))
-      new File(new URI(fo.getName.getURI))
-    }
-  }
-}
 
 object FileUtils {
 
   implicit def toSourceFileInfo(f: Either[File, SourceFileInfo]): SourceFileInfo =
     f.fold(l => SourceFileInfo(l, None, None), r => r)
 
-  def exists(f: SourceFileInfo) = f match {
-    case SourceFileInfo(f, _, _) if f.exists() => true
-    case SourceFileInfo(_, Some(c), _) => true
-    case SourceFileInfo(_, _, Some(f)) if f.exists() => true
-    case _ => false
-  }
-
-  // prefer file.readString()
+  @deprecating("prefer file.readString()")
   def readFile(f: File)(implicit cs: Charset): Either[IOException, String] =
     try Right(f.readString()(cs))
     catch {

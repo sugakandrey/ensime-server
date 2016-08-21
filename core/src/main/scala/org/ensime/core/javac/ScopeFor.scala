@@ -2,11 +2,11 @@
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 package org.ensime.core.javac
 
+import scala.collection.JavaConverters._
+
 import com.sun.source.tree._
 import com.sun.source.tree.Tree.Kind
-
 import com.sun.source.util.TreePath
-import scala.collection.JavaConversions._
 
 object ScopeFor {
 
@@ -19,11 +19,11 @@ object ScopeFor {
       val root = path.getCompilationUnit
 
       val statements: List[_ <: StatementTree] = path.getLeaf.getKind match {
-        case Kind.BLOCK => path.getLeaf.asInstanceOf[BlockTree].getStatements.toList
-        case Kind.FOR_LOOP => path.getLeaf.asInstanceOf[ForLoopTree].getInitializer.toList
+        case Kind.BLOCK => path.getLeaf.asInstanceOf[BlockTree].getStatements.asScala.toList
+        case Kind.FOR_LOOP => path.getLeaf.asInstanceOf[ForLoopTree].getInitializer.asScala.toList
         case Kind.ENHANCED_FOR_LOOP => List(path.getLeaf.asInstanceOf[EnhancedForLoopTree].getStatement)
-        case Kind.CASE => path.getLeaf.asInstanceOf[CaseTree].getStatements.toList
-        case Kind.METHOD => path.getLeaf.asInstanceOf[MethodTree].getParameters.toList
+        case Kind.CASE => path.getLeaf.asInstanceOf[CaseTree].getStatements.asScala.toList
+        case Kind.METHOD => path.getLeaf.asInstanceOf[MethodTree].getParameters.asScala.toList
         case otherwise => Nil
       }
 

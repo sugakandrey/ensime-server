@@ -1,13 +1,11 @@
 // Copyright: 2010 - 2016 https://github.com/ensime/ensime-server/graphs
-// License: http://www.gnu.org/licenses/gpl-3.0.en.html
+// License: http://www.gnu.org/licenses/lgpl-3.0.en.html
 package org.ensime.sexp
 
-import org.scalacheck.Arbitrary
-import org.scalacheck.Gen
+import org.scalacheck._
 import org.scalatest.prop.GeneratorDrivenPropertyChecks
-import org.ensime.util.EnsimeSpec
 
-class SexpParserCheck extends EnsimeSpec
+class SexpParserCheck extends SexpSpec
     with GeneratorDrivenPropertyChecks
     with ArbitrarySexp {
 

@@ -5,16 +5,17 @@ package org.ensime.indexer
 import java.io.FileNotFoundException
 import java.nio.file.Path
 
-import org.apache.lucene.search.Query
+import scala.collection.JavaConverters._
 
-import scala.collection.JavaConversions._
 import akka.event.slf4j.SLF4JLogging
 import org.apache.commons.vfs2.FileObject
+import org.apache.lucene.analysis.core.KeywordAnalyzer
 import org.apache.lucene.document.{ Document, TextField }
 import org.apache.lucene.document.Field.Store
 import org.apache.lucene.index.Term
-import org.apache.lucene.search.{ BooleanQuery, DisjunctionMaxQuery, PrefixQuery, TermQuery }
+import org.apache.lucene.search._
 import org.apache.lucene.search.BooleanClause.Occur
+import org.apache.lucene.search.Query
 import org.ensime.indexer.SearchService.SourceSymbolInfo
 import org.ensime.indexer.graph._
 import org.ensime.indexer.lucene._
@@ -83,9 +84,12 @@ object IndexService extends SLF4JLogging {
 class IndexService(path: Path) {
   import org.ensime.indexer.IndexService._
 
-  private val analyzers = Map("fqn" -> new FqnAnalyzer)
+  private val analyzers = Map(
+    "fqn" -> new FqnAnalyzer,
+    "file" -> new KeywordAnalyzer
+  )
 
-  private val lucene = new SimpleLucene(path, analyzers)
+  private[indexer] val lucene = new SimpleLucene(path, analyzers)
 
   private def calculatePenalty(fqn: String): Float = {
     val nonTrailing$s = fqn.count(_ == '$') - (if (fqn.endsWith("$")) 1 else 0)
@@ -145,12 +149,12 @@ class IndexService(path: Path) {
 
   def searchClassesMethods(terms: List[String], max: Int): List[FqnIndex] = {
     val query = new DisjunctionMaxQuery(
-      terms.map(buildTermClassMethodQuery), 0.3f
+      terms.map(buildTermClassMethodQuery).asJava, 0.3f
     )
     lucene.search(query, max).map(_.toEntity[ClassIndex]).distinct
   }
 
-  def buildTermClassMethodQuery(query: String): BooleanQuery = {
+  def buildTermClassMethodQuery(query: String): Query = {
     new BooleanQuery.Builder().
       add(boostedPrefixQuery(new Term("fqn", query)), Occur.MUST).
       add(

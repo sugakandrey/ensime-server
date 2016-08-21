@@ -13,6 +13,7 @@ import org.ensime.vfs._
 import org.ensime.indexer.SearchService
 import org.ensime.model._
 import org.ensime.util.{ PresentationReporter, ReportHandler, FileUtils }
+import org.ensime.util.sourcefile._
 import org.slf4j.LoggerFactory
 import org.ensime.util.file._
 
@@ -288,7 +289,7 @@ class Analyzer(
   }
 
   def handleReloadFiles(files: List[SourceFileInfo]): RpcResponse = {
-    val (existing, missingFiles) = files.partition(FileUtils.exists)
+    val (existing, missingFiles) = files.partition(_.exists())
     if (missingFiles.nonEmpty) {
       val missingFilePaths = missingFiles.map { f => "\"" + f.file + "\"" }.mkString(",")
       EnsimeServerError(s"file(s): $missingFilePaths do not exist")
@@ -304,7 +305,7 @@ class Analyzer(
   }
 
   def withExisting(x: SourceFileInfo)(f: => RpcResponse): RpcResponse =
-    if (FileUtils.exists(x)) f else EnsimeServerError(s"File does not exist: ${x.file}")
+    if (x.exists()) f else EnsimeServerError(s"File does not exist: ${x.file}")
 
   def pos(file: File, range: OffsetRange): OffsetPosition =
     pos(createSourceFile(file), range)

@@ -4,22 +4,22 @@ package org.ensime.core.javac
 
 import java.nio.charset.Charset
 
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 import scala.collection.breakOut
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 
-import com.sun.source.tree.{ Scope, IdentifierTree, MemberSelectTree, Tree }
+import com.sun.source.tree.{ IdentifierTree, MemberSelectTree, Scope, Tree }
 import com.sun.source.util.TreePath
 import javax.lang.model.`type`.TypeMirror
-import javax.lang.model.element.{ Element, ExecutableElement, PackageElement, TypeElement, VariableElement }
+import javax.lang.model.element._
 import javax.lang.model.util.ElementFilter
-import org.ensime.api, api.{ BasicTypeInfo => _, _ }
+import org.ensime.api.{ BasicTypeInfo => _, _ }
 import org.ensime.core.CompletionUtil
 import org.ensime.model.BasicTypeInfo
+import org.ensime.util.ensimefile.Implicits.DefaultCharset
 import org.ensime.util.file._
-import scala.collection.JavaConversions._
 
 trait JavaCompletionsAtPoint { requires: JavaCompiler =>
 
@@ -123,7 +123,9 @@ trait JavaCompletionsAtPoint { requires: JavaCompiler =>
   ): List[CompletionInfo] = {
     val pkg = selectedPackageName(select)
     val candidates = (Option(compilation.elements.getPackageElement(pkg)) map { p: PackageElement =>
-      p.getEnclosedElements().flatMap { e => filterElement(compilation, e, prefix, caseSense, true, false) }
+      p.getEnclosedElements().asScala.flatMap {
+        e => filterElement(compilation, e, prefix, caseSense, true, false)
+      }
     }).getOrElse(Nil)
     candidates.toList
   }
@@ -158,7 +160,7 @@ trait JavaCompletionsAtPoint { requires: JavaCompiler =>
     // enclosing classes. Need to add those manually.
     //
     def addTypeMembers(tel: TypeElement, relevance: Int): Unit = {
-      for (el <- compilation.elements.getAllMembers(tel)) {
+      for (el <- compilation.elements.getAllMembers(tel).asScala) {
         for (info <- filterElement(compilation, el, prefix, caseSense, false, constructing, relevance)) {
           candidates += info
         }
@@ -182,7 +184,7 @@ trait JavaCompletionsAtPoint { requires: JavaCompiler =>
     relevance = 0
     var s = scope
     while (s != null) {
-      for (el <- s.getLocalElements()) {
+      for (el <- s.getLocalElements().asScala) {
         for (info <- filterElement(compilation, el, prefix, caseSense, false, constructing, relevance)) {
           candidates += info
         }
@@ -211,7 +213,7 @@ trait JavaCompletionsAtPoint { requires: JavaCompiler =>
         val isAccessible: Element => Boolean = c.trees
           .isAccessible(scope, _, c.types.getDeclaredType(tel))
 
-        c.elements.getAllMembers(tel).filter(isAccessible).flatMap { el =>
+        c.elements.getAllMembers(tel).asScala.filter(isAccessible).flatMap { el =>
           filterElement(c, el, prefix, caseSense, importing, false)
         }(breakOut)
 
@@ -223,7 +225,7 @@ trait JavaCompletionsAtPoint { requires: JavaCompiler =>
 
   private def methodName(e: ExecutableElement)(formatType: TypeMirror => String): String = {
 
-    val params = e.getParameters.map { param =>
+    val params = e.getParameters.asScala.map { param =>
       val paramType = formatType(param.asType())
       val paramName = param.getSimpleName
       s"$paramType $paramName"
@@ -243,7 +245,7 @@ trait JavaCompletionsAtPoint { requires: JavaCompiler =>
 
   private def methodInfo(e: ExecutableElement, relevance: Int): CompletionInfo = {
 
-    val params = e.getParameters.map { param =>
+    val params = e.getParameters.asScala.map { param =>
       param.getSimpleName.toString ->
         typeMirrorToTypeInfo(param.asType())
     }
@@ -280,7 +282,7 @@ trait JavaCompletionsAtPoint { requires: JavaCompiler =>
 
   private def constructorInfos(compilation: Compilation, e: TypeElement, relevance: Int): List[CompletionInfo] = {
     val s = e.getSimpleName.toString
-    ElementFilter.constructorsIn(compilation.elements.getAllMembers(e)).map(methodInfo(_, relevance)).map { m =>
+    ElementFilter.constructorsIn(compilation.elements.getAllMembers(e)).asScala.map(methodInfo(_, relevance)).map { m =>
       m.copy(name = s)
     }.toList
   }

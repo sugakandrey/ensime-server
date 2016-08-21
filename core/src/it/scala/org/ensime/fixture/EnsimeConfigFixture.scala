@@ -10,6 +10,7 @@ import org.ensime.api._
 import org.ensime.config._
 import org.scalatest._
 import org.ensime.util.file._
+import org.ensime.util.ensimefile.Implicits.DefaultCharset
 
 /**
  * Provides a fixture for tests to have access to a cloned project,

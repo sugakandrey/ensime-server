@@ -14,6 +14,7 @@ import org.apache.commons.vfs2._
 import org.ensime.api._
 import org.ensime.indexer.graph._
 import org.ensime.util.file._
+import org.ensime.util.fileobject._
 import org.ensime.vfs._
 
 /**
@@ -47,6 +48,8 @@ class SearchService(
   /**
    * Changelog:
    *
+   * 2.3.1g - bump schema for Lucene analyser
+   *
    * 2.3g - persist reverse lookups info
    *
    * 2.2g - persist scalap information (scala names, type sigs, etc)
@@ -71,7 +74,7 @@ class SearchService(
    *
    * 1.0 - initial schema
    */
-  private val version = "2.3"
+  private val version = "2.3.1"
 
   private val index = new IndexService((config.cacheDir / ("index-" + version)).toPath)
   private val db = new GraphService(config.cacheDir / ("graph-" + version))
@@ -254,7 +257,6 @@ class SearchService(
 
   private val blacklist = Set("sun/", "sunw/", "com/sun/")
   private val ignore = Set("$$", "$worker$")
-  import org.ensime.util.RichFileObject._
   private def extractSymbols(
     container: FileObject,
     files: collection.Set[FileObject],
