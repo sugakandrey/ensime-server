@@ -3,32 +3,32 @@
 package org.ensime.server
 
 import java.io._
-
+import java.net.InetSocketAddress
 import scala.concurrent.duration._
 import scala.util._
 import scala.util.Properties._
 
 import akka.actor._
 import akka.actor.SupervisorStrategy.Stop
-import akka.http.scaladsl.Http
-import akka.http.scaladsl.Http.ServerBinding
-import akka.http.scaladsl.server.RouteResult.route2HandlerFlow
-import akka.stream.ActorMaterializer
 import akka.util.Timeout
 import com.google.common.base.Charsets
 import com.google.common.io.Files
+import io.netty.channel.Channel
+import org.slf4j._
+
 import org.ensime.api._
 import org.ensime.config._
 import org.ensime.core._
 import org.ensime.server.tcp.TCPServer
 import org.ensime.util.Slf4jSetup
-import org.slf4j._
 
 class ServerActor(
     config: EnsimeConfig,
     protocol: Protocol,
     interface: String = "127.0.0.1"
 ) extends Actor with ActorLogging {
+
+  var channel: Channel = _
 
   override val supervisorStrategy = OneForOneStrategy() {
     case ex: Exception =>
@@ -40,7 +40,6 @@ class ServerActor(
   def initialiseChildren(): Unit = {
 
     implicit val config: EnsimeConfig = this.config
-    implicit val mat: ActorMaterializer = ActorMaterializer()
     implicit val timeout: Timeout = Timeout(10 seconds)
 
     val broadcaster = context.actorOf(Broadcaster(), "broadcaster")
@@ -55,23 +54,34 @@ class ServerActor(
       )
     ), "tcp-server")
 
-    // this is a bit ugly in a couple of ways
-    // 1) web server creates handlers in the top domain
-    // 2) We have to manually capture the failure to write the port file and lift the error to a failure.
-    val webserver = new WebServerImpl(project, broadcaster)(config, context.system, mat, timeout)
-
     // async start the HTTP Server
     val selfRef = self
     val preferredHttpPort = PortUtil.port(config.cacheDir, "http")
-    Http()(context.system).bindAndHandle(webserver.route, interface, preferredHttpPort.getOrElse(0)).onComplete {
+
+    val hookHandlers: WebServer.HookHandlers = {
+      outHandler =>
+        val delegate = context.actorOf(Props(new Actor {
+          def receive: Receive = {
+            case res: RpcResponseEnvelope => outHandler(res)
+          }
+        }))
+        val inHandler = context.actorOf(ConnectionHandler(project, broadcaster, delegate))
+
+        { req => inHandler ! req }
+    }
+
+    val docs = DocJarReading.forConfig(config)
+    WebServer.start(docs, preferredHttpPort.getOrElse(0), hookHandlers).onComplete {
       case Failure(ex) =>
         log.error(ex, s"Error binding http endpoint ${ex.getMessage}")
         selfRef ! ShutdownRequest(s"http endpoint failed to bind ($preferredHttpPort)", isError = true)
 
-      case Success(ServerBinding(addr)) =>
-        log.info(s"ENSIME HTTP on ${addr.getAddress}")
+      case Success(ch) =>
+        this.channel = ch
+        log.info(s"ENSIME HTTP on ${ch.localAddress()}")
         try {
-          PortUtil.writePort(config.cacheDir, addr.getPort, "http")
+          val port = ch.localAddress().asInstanceOf[InetSocketAddress].getPort()
+          PortUtil.writePort(config.cacheDir, port, "http")
         } catch {
           case ex: Throwable =>
             log.error(ex, s"Error initializing http endpoint ${ex.getMessage}")
@@ -97,7 +107,7 @@ class ServerActor(
   }
 
   def triggerShutdown(request: ShutdownRequest): Unit = {
-    Server.shutdown(context.system, request)
+    Server.shutdown(context.system, channel, request)
   }
 
 }
@@ -134,7 +144,7 @@ object Server {
     system.actorOf(Props(new ServerActor(config, protocol)), "ensime-main")
   }
 
-  def shutdown(system: ActorSystem, request: ShutdownRequest): Unit = {
+  def shutdown(system: ActorSystem, channel: Channel, request: ShutdownRequest): Unit = {
     val t = new Thread(new Runnable {
       def run(): Unit = {
         if (request.isError)
@@ -147,6 +157,9 @@ object Server {
 
         log.info("Awaiting actor system termination")
         Try(system.awaitTermination())
+
+        log.info("Shutting down the Netty channel")
+        Try(channel.close().sync())
 
         log.info("Shutdown complete")
         if (!propIsSet("ensime.server.test")) {
