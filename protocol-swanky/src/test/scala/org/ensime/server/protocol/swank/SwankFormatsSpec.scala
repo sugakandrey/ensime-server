@@ -2,9 +2,11 @@
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 package org.ensime.server.protocol.swank
 
+import java.io.File
 import org.ensime.sexp._
 import org.ensime.api._
 import org.ensime.util.{ EnsimeSpec, EscapingStringInterpolation }
+import org.scalactic.source.Position
 
 class SwankFormatsSpec extends EnsimeSpec with EnsimeTestData {
   import SwankFormats._
@@ -12,7 +14,7 @@ class SwankFormatsSpec extends EnsimeSpec with EnsimeTestData {
 
   import EscapingStringInterpolation._
 
-  def marshal(value: EnsimeServerMessage, via: Option[String]): Unit = {
+  def marshal(value: EnsimeServerMessage, via: Option[String])(implicit p: Position): Unit = {
     val envelope = value match {
       case r: RpcResponse => RpcResponseEnvelope(Some(666), value)
       case e: EnsimeEvent => RpcResponseEnvelope(None, value)
@@ -31,13 +33,15 @@ class SwankFormatsSpec extends EnsimeSpec with EnsimeTestData {
       case Some(expected) => sexp.compactPrint shouldBe expected
     }
   }
-  def marshal(value: EnsimeServerMessage, via: String): Unit = marshal(value, Some(via))
+  def marshal(value: EnsimeServerMessage, via: String)(implicit p: Position): Unit = marshal(value, Some(via))
 
-  def unmarshal(from: String, to: RpcRequest): Unit = {
+  def unmarshal(from: String, to: RpcRequest)(implicit p: Position): Unit = {
     val sexp = s"(:swank-rpc ${from} 666)"
     //println(sexp + " => " + sexp.parseSexp)
     sexp.parseSexp.convertTo[RpcRequestEnvelope].req shouldBe to
   }
+
+  implicit def toFile(raw: RawFile): File = raw.file.toFile
 
   "SWANK Formats" should "unmarshal startup messages" in {
     unmarshal(

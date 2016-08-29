@@ -73,7 +73,7 @@ class TCPConnectionActor(
 
   def sendMessage(envelope: RpcResponseEnvelope): Unit = {
     val msg = try {
-      protocol.encode(envelope)
+      protocol.encode(Canonised(envelope))
     } catch {
       case NonFatal(t) =>
         log.error(t, s"Problem serialising $envelope")

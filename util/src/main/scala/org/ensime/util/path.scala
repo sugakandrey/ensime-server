@@ -2,6 +2,7 @@
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 package org.ensime.util
 
+import java.io.IOException
 import java.nio.charset.Charset
 import java.nio.file.{ Files, Path }
 import java.nio.file.attribute.BasicFileAttributes
@@ -14,43 +15,19 @@ import java.nio.file.attribute.BasicFileAttributes
  */
 package object path {
 
+  import java.nio.file.StandardOpenOption
+
   implicit class RichPath(val path: Path) extends AnyVal {
     def exists(): Boolean = Files.exists(path)
     def attrs(): BasicFileAttributes = Files.readAttributes(path, classOf[BasicFileAttributes])
     def readBytes(): Array[Byte] = Files.readAllBytes(path)
     def readString()(implicit cs: Charset): String = new String(readBytes(), cs)
 
+    def write(bytes: Array[Byte]): Unit = Files.write(path, bytes, StandardOpenOption.CREATE)
+
     def /(child: String): Path = path.resolve(child)
-    def canon: Path = ???
+    def canon: Path = try path.normalize.toRealPath() catch { case e: IOException => path.normalize() }
     def isFile: Boolean = path.toFile.isFile
-
-    /*
-       def getAbsolutePath(path: Path): Path = if (!path.isJarUrl) path.toAbsolutePath
-  else {
-    val split = path.toString.split("!").take(2)
-    val slashOrNot = if (path.toString.startsWith("/")) "/" else ""
-    Paths.get(Paths.get(split.head.split("jar:file:")(1)).getParent.toString + slashOrNot + split(1))
-  }
-  def baseName(path: String) = splitPath(path, front = false)
-
-  private def splitPath(path0: String, front: Boolean): String = {
-    val isDir = path0.charAt(path0.length - 1) == '/'
-    val path = if (isDir) path0.substring(0, path0.length - 1) else path0
-    val idx = path.lastIndexOf('/')
-
-    if (idx < 0)
-      if (front) "/"
-      else path
-    else if (front) path.substring(0, idx + 1)
-    else path.substring(idx + 1)
-  }
-  def getInputStream(path: Path) = if (!path.isJarUrl) new FileInputStream(path.toFile) else {
-    val inputFile = path.toString
-    val inputURL = new URL(inputFile)
-    val conn = inputURL.openConnection().asInstanceOf[JarURLConnection]
-    conn.getInputStream
-  }
-     */
 
   }
 }

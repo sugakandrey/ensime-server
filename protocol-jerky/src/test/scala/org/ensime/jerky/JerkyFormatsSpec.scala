@@ -2,6 +2,8 @@
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 package org.ensime.jerky
 
+import java.io.File
+
 import org.ensime.api._
 import org.ensime.util.{ EnsimeSpec, EscapingStringInterpolation }
 
@@ -41,6 +43,8 @@ class JerkyFormatsSpec extends EnsimeSpec with SprayJsonTestSupport with EnsimeT
     val enveloped = RpcResponseEnvelope(None, value)
     roundtrip(enveloped, s"""{"payload":$via}""")
   }
+
+  implicit def toFile(raw: RawFile): File = raw.file.toFile
 
   it should "roundtrip startup messages" in {
     roundtrip(

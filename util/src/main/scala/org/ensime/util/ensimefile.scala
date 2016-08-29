@@ -22,6 +22,7 @@ package ensimefile {
     def isScala: Boolean
     def exists(): Boolean
     def lastModified(): Long
+    def canon: EnsimeFile
 
     /** Direct access contents: not efficient for streaming. */
     def readStringDirect()(implicit cs: Charset): String
@@ -61,6 +62,7 @@ package object ensimefile {
     override def lastModified(): Long = raw.file.attrs.lastModifiedTime().toMillis
     override def readStringDirect()(implicit cs: Charset): String = raw.file.readString()
     override def uri: URI = raw.file.toUri()
+    override def canon: RawFile = RawFile(raw.file.canon)
   }
 
   // most methods require obtaining the Path of the entry, within the
@@ -73,6 +75,9 @@ package object ensimefile {
     override def lastModified(): Long = archive.jar.attrs.lastModifiedTime().toMillis
     override def readStringDirect()(implicit cs: Charset): String = withEntry(_.readString())
     override def uri: URI = URI.create(s"jar:${archive.jar.toUri}!${archive.entry}") // path is null (opaque)
+    override def canon: ArchiveFile = ArchiveFile(archive.jar.canon, archive.entry)
+
+    def readBytes(): Array[Byte] = withEntry(_.readBytes())
 
     private def fileSystem(): FileSystem = FileSystems.newFileSystem(
       URI.create(s"jar:${archive.jar.toUri}"),
@@ -107,4 +112,36 @@ package object ensimefile {
     case raw: RawFile => new RichRawFile(raw)
     case archive: ArchiveFile => new RichArchiveFile(archive)
   }
+}
+
+/*
+ * In the ENSIME 1.0 API, source files in jars/zips were extracted
+ * into .ensime_cache/dep-src/source-jars/
+ *
+ * This is to support the legacy formats.
+ *
+ * Will be removed in ENSIME 3.0
+ */
+@deprecating
+class LegacyArchiveExtraction(ensime_cache: Path) {
+  import ensimefile._
+  import path._
+
+  private val extract = ensime_cache / "dep-src/source-jars"
+
+  def write(file: EnsimeFile): EnsimeFile = file match {
+    case archive @ ArchiveFile(jar, path) =>
+      val target = extract / path.replaceAll("^[/]+", "")
+      val bytes = archive.readBytes()
+
+      val parent = target.getParent
+      Files.createDirectories(parent)
+
+      target.write(bytes)
+      RawFile(target)
+
+    case ok => ok
+  }
+
+  // no read equivalent, it would involve source resolution (not worth it)
 }

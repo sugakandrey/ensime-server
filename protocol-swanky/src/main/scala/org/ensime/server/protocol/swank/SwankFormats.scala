@@ -2,13 +2,13 @@
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 package org.ensime.server.protocol.swank
 
-import shapeless.cachedImplicit
+import scala.util._
 
+import org.ensime.api._
 import org.ensime.sexp._
 import org.ensime.sexp.formats._
-import org.ensime.api._
-
-import scala.util.{ Failure, Success, Try }
+import org.ensime.util.ensimefile._
+import shapeless.cachedImplicit
 
 /*
  * WARNING: THERE BE DRAGONS
@@ -66,6 +66,17 @@ object SwankProtocolCommon {
       case x => deserializationError(x)
     }
     protected def read(hint: SexpSymbol, value: Sexp): T
+  }
+
+  implicit object EnsimeFileFormat extends SexpFormat[EnsimeFile] {
+    def write(ef: EnsimeFile): Sexp = ef match {
+      case RawFile(path) => SexpString(path.toString)
+      case a: ArchiveFile => SexpString(a.uri.toASCIIString)
+    }
+    def read(sexp: Sexp): EnsimeFile = sexp match {
+      case SexpString(uri) => EnsimeFile(uri)
+      case got => deserializationError(got)
+    }
   }
 
   implicit val SourceFileInfoFormat: SexpFormat[SourceFileInfo] = cachedImplicit
