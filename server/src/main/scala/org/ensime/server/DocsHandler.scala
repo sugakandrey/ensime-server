@@ -2,7 +2,8 @@
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 package org.ensime.server
 
-import java.nio.file.{ Files, Paths }
+import javax.activation.MimetypesFileTypeMap
+import scala.util.control.NonFatal
 
 import io.netty.buffer.{ ByteBuf, Unpooled }
 import io.netty.channel.{ ChannelFuture, ChannelFutureListener, ChannelHandlerContext, SimpleChannelInboundHandler }
@@ -13,6 +14,7 @@ import io.netty.handler.codec.http.HttpResponseStatus.{ BAD_REQUEST, FORBIDDEN, 
 import io.netty.handler.codec.http.HttpVersion.HTTP_1_1
 import io.netty.handler.codec.http.{ DefaultFullHttpResponse, FullHttpRequest, HttpUtil }
 import io.netty.util.CharsetUtil
+import org.slf4j.LoggerFactory
 import scalatags.Text.all._
 
 import org.ensime.core.DocJarReading
@@ -21,6 +23,9 @@ class DocsHandler(docs: DocJarReading) extends SimpleChannelInboundHandler[FullH
 
   val DocList = """/docs/?""".r
   val DocEntry = """/docs/([^/]+\.jar)/(.+?)(?:#.*)?"""r
+
+  val contentTypeMap = new MimetypesFileTypeMap()
+  val log = LoggerFactory.getLogger(this.getClass)
 
   override def channelRead0(ctx: ChannelHandlerContext, req: FullHttpRequest): Unit = {
 
@@ -41,10 +46,11 @@ class DocsHandler(docs: DocJarReading) extends SimpleChannelInboundHandler[FullH
 
       // Send the content for the requested filename and entry pair
       case DocEntry(filename, entry) =>
+        log.debug(s"Doc entry requested: $filename!$entry")
         docs.docJarContent(filename, entry)
           .fold(sendHttpResponse(ctx, req, Left(NOT_FOUND))) {
             jarContent =>
-              val mediaOpt = Option(Files.probeContentType(Paths.get(entry)))
+              val mediaOpt = probeContentType(entry)
               val content = Unpooled.copiedBuffer(jarContent)
               sendHttpResponse(ctx, req, Right((mediaOpt, content)))
           }
@@ -54,10 +60,28 @@ class DocsHandler(docs: DocJarReading) extends SimpleChannelInboundHandler[FullH
     }
   }
 
+  private def probeContentType(file: String): Option[String] =
+    try {
+      val ct = contentTypeMap.getContentType(file)
+      if (ct == "application/octet-stream") {
+        log.warn(s"ContentType not found for file: $file")
+        None
+      } else {
+        log.debug(s"ContentType for $file: $ct")
+        Some(ct)
+      }
+    } catch {
+      case NonFatal(e) =>
+        log.error(s"Error while probing ContentType for file: $file", e)
+        None
+    }
+
   private def sendHttpResponse(
     ctx: ChannelHandlerContext, req: FullHttpRequest,
     statusOrContent: Either[HttpResponseStatus, (Option[String], ByteBuf)]
   ): Unit = {
+
+    log.debug(s"Sending response: $statusOrContent, for request: $req")
 
     val res = statusOrContent match {
       case Left(status) =>

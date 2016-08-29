@@ -18,7 +18,7 @@ class WebSocketFrameHandler(
     hookHandlers: HookHandlers
 ) extends SimpleChannelInboundHandler[WebSocketFrame] {
 
-  val log = LoggerFactory.getLogger("WebSocketHandler")
+  val log = LoggerFactory.getLogger(this.getClass)
 
   val handshakerKey: AttributeKey[WebSocketServerHandshaker] =
     AttributeKey.valueOf(classOf[WebSocketServerHandshaker], "HANDSHAKER");

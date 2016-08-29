@@ -32,9 +32,7 @@ class WebServerSpec extends FlatSpec with Matchers with MockFactory {
 
     resp should not be null
     resp.status shouldBe OK
-    // Disabled check since `Files.probeContentType` doesn't work in headless mode
-    // Uncomment if the build docker image gets gnome installed
-    // resp.headers.get("Content-Type") shouldEqual "text/html; charset=UTF-8"
+    resp.headers.get("Content-Type") shouldEqual "text/html; charset=UTF-8"
     resp.content.toString(Charset.forName("UTF-8")) shouldEqual "hello"
 
     ch.finish()
