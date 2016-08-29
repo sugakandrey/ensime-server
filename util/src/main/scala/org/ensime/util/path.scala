@@ -4,6 +4,7 @@ package org.ensime.util
 
 import java.nio.charset.Charset
 import java.nio.file.{ Files, Path }
+import java.nio.file.attribute.BasicFileAttributes
 
 /**
  * Idiomatic scala methods for Path. One must not assume that Path is
@@ -15,6 +16,7 @@ package object path {
 
   implicit class RichPath(val path: Path) extends AnyVal {
     def exists(): Boolean = Files.exists(path)
+    def attrs(): BasicFileAttributes = Files.readAttributes(path, classOf[BasicFileAttributes])
     def readBytes(): Array[Byte] = Files.readAllBytes(path)
     def readString()(implicit cs: Charset): String = new String(readBytes(), cs)
 

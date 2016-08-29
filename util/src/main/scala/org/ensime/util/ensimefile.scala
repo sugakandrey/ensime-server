@@ -21,6 +21,7 @@ package ensimefile {
     def isJava: Boolean
     def isScala: Boolean
     def exists(): Boolean
+    def lastModified(): Long
 
     /** Direct access contents: not efficient for streaming. */
     def readStringDirect()(implicit cs: Charset): String
@@ -57,6 +58,7 @@ package object ensimefile {
     override def isJava: Boolean = raw.file.toString.toLowerCase.endsWith(".java")
     override def isScala: Boolean = raw.file.toString.toLowerCase.endsWith(".scala")
     override def exists(): Boolean = raw.file.exists()
+    override def lastModified(): Long = raw.file.attrs.lastModifiedTime().toMillis
     override def readStringDirect()(implicit cs: Charset): String = raw.file.readString()
     override def uri: URI = raw.file.toUri()
   }
@@ -68,6 +70,7 @@ package object ensimefile {
     override def isJava: Boolean = archive.entry.toLowerCase.endsWith(".java")
     override def isScala: Boolean = archive.entry.toLowerCase.endsWith(".scala")
     override def exists(): Boolean = archive.jar.exists() && withEntry(_.exists())
+    override def lastModified(): Long = archive.jar.attrs.lastModifiedTime().toMillis
     override def readStringDirect()(implicit cs: Charset): String = withEntry(_.readString())
     override def uri: URI = URI.create(s"jar:${archive.jar.toUri}!${archive.entry}") // path is null (opaque)
 

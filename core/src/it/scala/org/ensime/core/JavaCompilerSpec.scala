@@ -111,7 +111,7 @@ class JavaCompilerSpec extends EnsimeSpec
             info.`type`.name shouldBe "int"
             info.`type` shouldBe a[api.BasicTypeInfo]
             info.declPos should matchPattern {
-              case Some(OffsetSourcePosition(RawFile(f), 174)) if f.getFileName.toString == "Test1.java" =>
+              case Some(OffsetSourcePosition(RawFile(f), 174)) if f.endsWith("Test1.java") =>
             }
           case "1" =>
             info.name shouldBe "args"
@@ -119,7 +119,7 @@ class JavaCompilerSpec extends EnsimeSpec
             info.`type`.name shouldBe "java.lang.String[]"
             info.`type` shouldBe a[api.BasicTypeInfo]
             info.declPos should matchPattern {
-              case Some(OffsetSourcePosition(RawFile(f), 153)) if f.getFileName.toString == "Test1.java" =>
+              case Some(OffsetSourcePosition(RawFile(f), 153)) if f.endsWith("Test1.java") =>
             }
           case "2" =>
             info.name shouldBe "org.example.Test1.Foo"
@@ -127,7 +127,7 @@ class JavaCompilerSpec extends EnsimeSpec
             info.`type`.name shouldBe "org.example.Test1.Foo"
             info.`type` shouldBe a[api.BasicTypeInfo]
             info.declPos should matchPattern {
-              case Some(OffsetSourcePosition(RawFile(f), 58)) if f.getFileName.toString == "Test1.java" =>
+              case Some(OffsetSourcePosition(RawFile(f), 58)) if f.endsWith("Test1.java") =>
             }
           case "3" =>
             info.name shouldBe "java.io.PrintStream.println(java.lang.Object)"
@@ -155,7 +155,7 @@ class JavaCompilerSpec extends EnsimeSpec
             info.`type`.name shouldBe "org.example.Test2"
             info.`type` shouldBe a[api.BasicTypeInfo]
             info.declPos should matchPattern {
-              case Some(OffsetSourcePosition(RawFile(f), 22)) if f.toString == "Test2.java" =>
+              case Some(OffsetSourcePosition(RawFile(f), 22)) if f.endsWith("Test2.java") =>
             }
           case "6" =>
             info.name shouldBe "org.example.Test2.compute()"
@@ -169,8 +169,8 @@ class JavaCompilerSpec extends EnsimeSpec
               ) :: Nil, Nil
             )
             info.declPos should matchPattern {
-              case Some(LineSourcePosition(RawFile(f), 8)) if f.toString == "Test2.java" =>
-              case Some(OffsetSourcePosition(RawFile(f), 48)) if f.toString == "Test2.java" =>
+              case Some(LineSourcePosition(RawFile(f), 8)) if f.endsWith("Test2.java") =>
+              case Some(OffsetSourcePosition(RawFile(f), 48)) if f.endsWith("Test2.java") =>
             }
           case "7" =>
             {}
@@ -195,7 +195,7 @@ class JavaCompilerSpec extends EnsimeSpec
             )
             // "private static int compute(int a, int b)"
             info.declPos should matchPattern {
-              case Some(OffsetSourcePosition(RawFile(f), 481)) if f.toString == "Test1.java" =>
+              case Some(OffsetSourcePosition(RawFile(f), 481)) if f.endsWith("Test1.java") =>
             }
           case "8" =>
             info.name shouldBe "org.example.Test1.CONST"
@@ -203,7 +203,7 @@ class JavaCompilerSpec extends EnsimeSpec
             info.`type`.name shouldBe "int"
             info.`type` shouldBe a[api.BasicTypeInfo]
             info.declPos should matchPattern {
-              case Some(OffsetSourcePosition(RawFile(f), 98)) if f.toString == "Test1.java" =>
+              case Some(OffsetSourcePosition(RawFile(f), 98)) if f.endsWith("Test1.java") =>
             }
           case "9" =>
             info.name shouldBe "org.example.Test1.Day"
@@ -211,7 +211,7 @@ class JavaCompilerSpec extends EnsimeSpec
             info.`type`.name shouldBe "org.example.Test1.Day"
             info.`type` shouldBe a[api.BasicTypeInfo]
             info.declPos should matchPattern {
-              case Some(OffsetSourcePosition(RawFile(f), 653)) if f.toString == "Test1.java" =>
+              case Some(OffsetSourcePosition(RawFile(f), 653)) if f.endsWith("Test1.java") =>
             }
           case "10" =>
             info.name shouldBe "org.example.Test1.Day.MON"
@@ -220,7 +220,7 @@ class JavaCompilerSpec extends EnsimeSpec
             info.`type` shouldBe a[api.BasicTypeInfo]
             // Don't specify offset pos here as Java 6 seems to have a problem locating enums
             info.declPos should matchPattern {
-              case Some(OffsetSourcePosition(RawFile(f), i: Int)) if f.toString == "Test1.java" =>
+              case Some(OffsetSourcePosition(RawFile(f), i: Int)) if f.endsWith("Test1.java") =>
             }
           case "13" | "14" =>
             info.name shouldBe "k"

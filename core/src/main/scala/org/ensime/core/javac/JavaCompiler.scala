@@ -2,10 +2,12 @@
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 package org.ensime.core.javac
 
-import java.io.{ File => JFile }
+import java.io.{ File => JFile, InputStream, OutputStream, Reader, StringReader, Writer }
+import java.net.URI
 import java.nio.charset.Charset
 import java.util.concurrent.ConcurrentHashMap
 import java.util.Locale
+import javax.lang.model.element.{ Modifier, NestingKind }
 
 import scala.collection.JavaConverters._
 
@@ -43,7 +45,7 @@ class JavaCompiler(
   private val cp = (config.allJars ++ config.targetClasspath).mkString(JFile.pathSeparator)
   private val workingSet = new ConcurrentHashMap[String, JavaFileObject]()
 
-  private implicit def charset = Charset.defaultCharset() // how can we infer this?
+  private implicit def charset: Charset = Charset.defaultCharset() // how can we infer this?
 
   lazy val compiler = ToolProvider.getSystemJavaCompiler()
   lazy val fileManager: JavaFileManager = compiler.getStandardFileManager(listener, null, charset)
@@ -60,11 +62,11 @@ class JavaCompiler(
 
   def createJavaFileObject(sf: SourceFileInfo): JavaFileObject = sf match {
     case SourceFileInfo(f, None, None) =>
-      new JavaObjectEnsimeFile(f, None)
+      new NotSoSimpleJavaFileObject(f, None)
     case SourceFileInfo(f, None, Some(contentsIn)) =>
-      new JavaObjectEnsimeFile(f, Some(contentsIn.readString))
+      new NotSoSimpleJavaFileObject(f, Some(contentsIn.readString))
     case SourceFileInfo(f, contents, _) =>
-      new JavaObjectEnsimeFile(f, contents)
+      new NotSoSimpleJavaFileObject(f, contents)
   }
 
   def internSource(sf: SourceFileInfo): JavaFileObject = {
@@ -153,14 +155,6 @@ class JavaCompiler(
     }
   }
 
-  private class JavaObjectEnsimeFile(
-      val f: EnsimeFile,
-      val contents: Option[String]
-  ) extends SimpleJavaFileObject(f.uri, JavaFileObject.Kind.SOURCE) {
-    override def getCharContent(ignoreEncodingErrors: Boolean): CharSequence =
-      contents.getOrElse(f.readStringDirect)
-  }
-
   private class JavaDiagnosticListener extends DiagnosticListener[JavaFileObject] with ReportHandler {
     def report(diag: Diagnostic[_ <: JavaFileObject]): Unit = {
       reportHandler.reportJavaNotes(List(
@@ -188,4 +182,34 @@ class JavaCompiler(
   private class SilencedDiagnosticListener extends DiagnosticListener[JavaFileObject] with ReportHandler {
     def report(diag: Diagnostic[_ <: JavaFileObject]): Unit = {}
   }
+}
+
+// as opposed to javax.tools.SimpleFileObject which doesn't handle archive entries
+private class NotSoSimpleJavaFileObject(
+    val f: EnsimeFile,
+    val contents: Option[String]
+)(
+    implicit
+    charset: Charset
+) extends JavaFileObject {
+  @inline private def unsupported = throw new UnsupportedOperationException
+
+  override def delete(): Boolean = unsupported
+  override def getCharContent(ignoreEncodingErrors: Boolean): CharSequence = contents.getOrElse(f.readStringDirect)
+  override def getLastModified(): Long = f.lastModified
+  override def getName(): String = f.uri.toString
+  override def openInputStream(): InputStream = unsupported
+  override def openOutputStream(): OutputStream = unsupported
+  override def openReader(ignoreEncodingErrors: Boolean): Reader = new StringReader(getCharContent(ignoreEncodingErrors).toString)
+  override def openWriter(): Writer = unsupported
+  override def toUri(): URI = f.uri
+
+  override def getAccessLevel(): Modifier = null
+  override def getKind(): JavaFileObject.Kind = JavaFileObject.Kind.SOURCE
+  override def getNestingKind(): NestingKind = null
+  override def isNameCompatible(
+    simpleName: String,
+    kind: JavaFileObject.Kind
+  ): Boolean = false // this can probably be optimised, but the intended javac use is not clear
+
 }
