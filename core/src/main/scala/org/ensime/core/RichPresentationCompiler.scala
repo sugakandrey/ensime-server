@@ -38,7 +38,6 @@
  */
 package org.ensime.core
 
-import java.io.File
 import java.nio.charset.Charset
 
 import scala.collection.mutable
@@ -56,7 +55,7 @@ import org.ensime.api._
 import org.ensime.config._
 import org.ensime.indexer._
 import org.ensime.model._
-import org.ensime.util.file._
+import org.ensime.util.file.{ File, _ }
 import org.ensime.vfs._
 import org.slf4j.LoggerFactory
 
@@ -100,6 +99,7 @@ trait RichCompilerControl extends CompilerControl with RefactoringControl with C
   // exposed for testing
   def askSymbolFqn(p: Position): Option[FullyQualifiedName] =
     askOption(symbolAt(p).map(toFqn)).flatten
+  def askSymbolFqn(s: Symbol): FullyQualifiedName = toFqn(s)
   def askTypeFqn(p: Position): Option[FullyQualifiedName] =
     askOption(typeAt(p).map { tpe => toFqn(tpe.typeSymbol) }).flatten
   def askSymbolByScalaName(name: String, declaredAs: Option[DeclaredAs] = None): Option[Symbol] =
@@ -110,7 +110,6 @@ trait RichCompilerControl extends CompilerControl with RefactoringControl with C
     askOption(symbolAt(p)).flatten
   def askTypeSymbolAt(p: Position): Option[Symbol] =
     askOption(typeAt(p).map { tpe => tpe.typeSymbol }).flatten
-
   ////////////////////////////////////////////////////////////////////////////////
 
   def askSymbolInfoAt(p: Position): Option[SymbolInfo] =
@@ -200,8 +199,63 @@ trait RichCompilerControl extends CompilerControl with RefactoringControl with C
   def askReloadAndTypeFiles(files: Iterable[SourceFile]) =
     askOption(reloadAndTypeFiles(files))
 
-  def askUsesOfSymAtPoint(p: Position): List[RangePosition] =
-    askOption(usesOfSymbolAtPoint(p).toList).getOrElse(List.empty)
+  def askUsesOfSymAtPos(pos: Position): List[RangePosition] = {
+    val symbol = askSymbolAt(pos)
+    symbol match {
+      case None => Nil
+      case Some(sym) =>
+        val source = pos.source
+        val loadedFiles = loadUsesOfSym(sym)
+        askLoadedTyped(source)
+        val files = loadedFiles.map(_.getPath) + source.file.path
+        askUsesOfSym(sym, files)
+    }
+  }
+
+  def askUsesOfSym(sym: Symbol, files: collection.Set[String]): List[RangePosition] =
+    askOption(usesOfSymbol(sym.pos, files).toList).getOrElse(List.empty)
+
+  def handleReloadFiles(files: List[SourceFileInfo]): RpcResponse = {
+    import org.ensime.util.FileUtils
+    val (existing, missingFiles) = files.partition(FileUtils.exists)
+    if (missingFiles.nonEmpty) {
+      val missingFilePaths = missingFiles.map { f => "\"" + f.file + "\"" }.mkString(",")
+      EnsimeServerError(s"file(s): $missingFilePaths do not exist")
+    } else {
+      val (javas, scalas) = existing.partition(_.file.getName.endsWith(".java"))
+      if (scalas.nonEmpty) {
+        val sourceFiles = scalas.map(createSourceFile)
+        askReloadFiles(sourceFiles)
+        askNotifyWhenReady()
+      }
+      VoidResponse
+    }
+  }
+
+  import org.ensime.util.file.File
+  def loadUsesOfSym(sym: Symbol): collection.immutable.Set[File] = {
+    val files = usesOfSym(sym)
+    handleReloadFiles(files)
+    files.map(_.file)(collection.breakOut)
+  }
+
+  def usesOfSym(sym: Symbol): List[SourceFileInfo] = {
+    import scala.concurrent.Await
+    import scala.concurrent.duration.Duration
+
+    val noReverseLookups = search.noReverseLookups
+    if (noReverseLookups) {
+      Nil
+    } else {
+      val fqn = askSymbolFqn(sym)
+      val usages = Await.result(search.findUsages(fqn.fqnString), Duration.Inf)
+      val files: List[SourceFileInfo] = usages.flatMap { usage =>
+        val source = usage.source
+        source.map(s => SourceFileInfo(File(s.replaceFirst("file:", "")), None, None))
+      }(collection.breakOut)
+      files
+    }
+  }
 
   // force the full path of Set because nsc appears to have a conflicting Set....
   def askSymbolDesignationsInRegion(p: RangePosition, tpes: List[SourceSymbol]): SymbolDesignations =
@@ -510,18 +564,19 @@ class RichPresentationCompiler(
     wrapLinkPos(sym, source)
   }
 
-  protected def usesOfSymbolAtPoint(point: Position): Iterable[RangePosition] = {
-    symbolAt(point) match {
+  protected def usesOfSymbol(pos: Position, files: collection.Set[String]): Iterable[RangePosition] = {
+    symbolAt(pos) match {
       case Some(s) =>
         class CompilerGlobalIndexes extends GlobalIndexes {
           val global = RichPresentationCompiler.this
           val sym = s.asInstanceOf[global.Symbol]
-          val cuIndexes = this.global.unitOfFile.values.map { u =>
-            CompilationUnitIndex(u.body)
+          val cuIndexes = this.global.unitOfFile.collect {
+            case (file, unit) if search.noReverseLookups || files.contains(file.file.getPath) =>
+              CompilationUnitIndex(unit.body)
           }
           val index = GlobalIndex(cuIndexes.toList)
-          val result = index.occurences(sym).map {
-            _.pos match {
+          val result = index.occurences(sym).map { r =>
+            r.pos match {
               case p: RangePosition => p
               case p =>
                 new RangePosition(
@@ -532,7 +587,7 @@ class RichPresentationCompiler(
         }
         val gi = new CompilerGlobalIndexes
         gi.result
-      case None => List.empty
+      case None => Nil
     }
   }
 

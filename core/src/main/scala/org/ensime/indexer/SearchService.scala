@@ -86,7 +86,7 @@ class SearchService(
   // poor man's backpressure.
   val semaphore = new Semaphore(Properties.propOrElse("ensime.index.parallel", "10").toInt, true)
 
-  private val noReverseLookups = Properties.propOrFalse("ensime.index.no.reverse.lookups")
+  def noReverseLookups: Boolean = Properties.propOrFalse("ensime.index.no.reverse.lookups")
 
   private[indexer] def getTopLevelClassFile(f: FileObject): FileObject = {
     import scala.reflect.NameTransformer

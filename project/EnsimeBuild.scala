@@ -204,7 +204,7 @@ object EnsimeBuild {
 
   lazy val testingSimple = Project("testingSimple", file("testing/simple")) settings (
     scalacOptions in Compile := Seq(),
-    libraryDependencies += "org.scalatest" %% "scalatest" % Sensible.scalatestVersion % "test" intransitive ()
+    libraryDependencies += "org.scalatest" %% "scalatest" % Sensible.scalatestVersion % Test intransitive ()
   )
 
   lazy val testingSimpleJar = Project("testingSimpleJar", file("testing/simpleJar")).settings(
@@ -230,8 +230,8 @@ object EnsimeBuild {
 
   lazy val testingFqns = Project("testingFqns", file("testing/fqns")).settings (
     libraryDependencies ++= Sensible.shapeless(scalaVersion.value) ++ Seq(
-      "org.typelevel" %% "cats-core" % "0.6.1" % Test intransitive(),
-      "org.spire-math" %% "spire" % "0.11.0" % Test intransitive()
+      "org.typelevel" %% "cats-core" % "0.6.1" intransitive(),
+      "org.spire-math" %% "spire" % "0.11.0" intransitive()
     )
   )
 

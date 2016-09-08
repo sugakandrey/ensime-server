@@ -182,7 +182,7 @@ class Analyzer(
       config.modules get (moduleName) foreach {
         case module =>
           val files: List[SourceFileInfo] = module.scalaSourceFiles.map(SourceFileInfo(_, None, None))(breakOut)
-          sender ! handleReloadFiles(files)
+          sender ! scalaCompiler.handleReloadFiles(files)
       }
     case UnloadModuleReq(moduleName) =>
       config.modules get (moduleName) foreach {
@@ -192,9 +192,9 @@ class Analyzer(
           sender ! VoidResponse
       }
     case TypecheckFileReq(fileInfo) =>
-      sender ! handleReloadFiles(List(fileInfo))
+      sender ! scalaCompiler.handleReloadFiles(List(fileInfo))
     case TypecheckFilesReq(files) =>
-      sender ! handleReloadFiles(files.map(toSourceFileInfo))
+      sender ! scalaCompiler.handleReloadFiles(files.map(toSourceFileInfo))
     case req: RefactorReq =>
       sender ! handleRefactorRequest(req)
     case CompletionsReq(fileInfo, point, maxResults, caseSens, _reload) =>
@@ -205,8 +205,7 @@ class Analyzer(
     case UsesOfSymbolAtPointReq(file, point) =>
       sender ! withExisting(file) {
         val p = pos(file, point)
-        scalaCompiler.askLoadedTyped(p.source)
-        val uses = scalaCompiler.askUsesOfSymAtPoint(p)
+        val uses = scalaCompiler.askUsesOfSymAtPos(p)
         ERangePositions(uses.map(ERangePositionHelper.fromRangePosition))
       }
     case PackageMemberCompletionReq(path: String, prefix: String) =>

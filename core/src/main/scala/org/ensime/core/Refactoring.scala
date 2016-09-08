@@ -3,10 +3,12 @@
 package org.ensime.core
 
 import java.nio.charset.Charset
+
 import org.ensime.api._
 import org.ensime.util.FileUtils._
 import org.ensime.util._
 import org.ensime.util.file.File
+
 import scala.tools.nsc.io.AbstractFile
 import scala.tools.refactoring._
 import scala.tools.refactoring.analysis.GlobalIndexes
@@ -125,12 +127,15 @@ trait RefactoringImpl { self: RichPresentationCompiler =>
 
   implicit def cs: Charset = charset
 
-  protected def doRename(procId: Int, tpe: RefactorType, name: String, file: File, start: Int, end: Int) =
+  protected def doRename(procId: Int, tpe: RefactorType, name: String, file: File, start: Int, end: Int, files: Set[String]) =
     new RefactoringEnvironment(file.getPath, start, end) {
       val refactoring = new Rename with GlobalIndexes {
         val global = RefactoringImpl.this
         val invalidSet = toBeRemoved.synchronized { toBeRemoved.toSet }
-        val cuIndexes = this.global.activeUnits().map { u => CompilationUnitIndex(u.body) }
+        val cuIndexes = this.global.unitOfFile.collect {
+          case (f, unit) if search.noReverseLookups || files.contains(f.file.getPath) =>
+            CompilationUnitIndex(unit.body)
+        }
         val index = GlobalIndex(cuIndexes.toList)
       }
       val result = performRefactoring(procId, tpe, name)
@@ -142,7 +147,7 @@ trait RefactoringImpl { self: RichPresentationCompiler =>
       val refactoring = new ExtractMethod with GlobalIndexes {
         val global = RefactoringImpl.this
         val cuIndexes = this.global.activeUnits().map { u => CompilationUnitIndex(u.body) }
-        val index = GlobalIndex(cuIndexes.toList)
+        val index = GlobalIndex(cuIndexes)
       }
       val result = performRefactoring(procId, tpe, name)
     }.result
@@ -153,7 +158,7 @@ trait RefactoringImpl { self: RichPresentationCompiler =>
       val refactoring = new ExtractLocal with GlobalIndexes {
         val global = RefactoringImpl.this
         val cuIndexes = this.global.activeUnits().map { u => CompilationUnitIndex(u.body) }
-        val index = GlobalIndex(cuIndexes.toList)
+        val index = GlobalIndex(cuIndexes)
       }
       val result = performRefactoring(procId, tpe, name)
     }.result
@@ -164,7 +169,7 @@ trait RefactoringImpl { self: RichPresentationCompiler =>
       val refactoring = new InlineLocal with GlobalIndexes {
         val global = RefactoringImpl.this
         val cuIndexes = this.global.activeUnits().map { u => CompilationUnitIndex(u.body) }
-        val index = GlobalIndex(cuIndexes.toList)
+        val index = GlobalIndex(cuIndexes)
       }
       val result = performRefactoring(procId, tpe, new refactoring.RefactoringParameters())
     }.result
@@ -214,8 +219,19 @@ trait RefactoringImpl { self: RichPresentationCompiler =>
           reloadAndType(file)
           doInlineLocal(procId, tpe, file, start, end)
         case RenameRefactorDesc(newName, file, start, end) =>
-          reloadAndType(file)
-          doRename(procId, tpe, newName, file, start, end)
+          import scala.reflect.internal.util.{ RangePosition, OffsetPosition }
+
+          val sourceFile = createSourceFile(file.getPath)
+          val pos = if (start == end) new OffsetPosition(sourceFile, start)
+          else new RangePosition(sourceFile, start, start, end)
+          val symbol = symbolAt(pos)
+          val files = sourceFile :: (symbol match {
+            case None => Nil
+            case Some(sym) =>
+              usesOfSym(sym).map(f => createSourceFile(f.file.getPath))
+          })
+          reloadAndTypeFiles(files)
+          doRename(procId, tpe, newName, file, start, end, files.map(_.path)(collection.breakOut))
         case ExtractMethodRefactorDesc(methodName, file, start, end) =>
           reloadAndType(file)
           doExtractMethod(procId, tpe, methodName, file, start, end)
