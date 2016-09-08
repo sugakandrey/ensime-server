@@ -48,6 +48,8 @@ class SearchService(
   /**
    * Changelog:
    *
+   * 2.3.2g - bump orientdb version to 2.2.11
+   *
    * 2.3.1g - bump schema for Lucene analyser
    *
    * 2.3g - persist reverse lookups info
@@ -74,7 +76,7 @@ class SearchService(
    *
    * 1.0 - initial schema
    */
-  private val version = "2.3.1"
+  private val version = "2.3.2"
 
   private val index = new IndexService((config.cacheDir / ("index-" + version)).toPath)
   private val db = new GraphService(config.cacheDir / ("graph-" + version))

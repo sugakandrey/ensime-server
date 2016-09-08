@@ -10,6 +10,7 @@ import scala.concurrent._
 import akka.event.slf4j.SLF4JLogging
 import com.orientechnologies.orient.core.Orient
 import com.orientechnologies.orient.core.config.OGlobalConfiguration
+import com.orientechnologies.orient.core.db.ODatabaseRecordThreadLocal
 import com.orientechnologies.orient.core.intent.OIntentMassiveInsert
 import com.orientechnologies.orient.core.metadata.schema.OType
 import com.tinkerpop.blueprints.Vertex
@@ -166,11 +167,16 @@ class GraphService(dir: File) extends SLF4JLogging {
     //OGlobalConfiguration.WAL_SYNC_ON_PAGE_FLUSH.setValue(false)
     //OGlobalConfiguration.DISK_CACHE_SIZE.setValue(7200)
 
+    //This is a hack, that resolves some classloading issues in OrientDB.
+    //https://github.com/orientechnologies/orientdb/issues/5146
+    if (ODatabaseRecordThreadLocal.INSTANCE == null) {
+      sys.error("Calling this manually apparently prevent an initialization issue.")
+    }
+    Orient.setRegisterDatabaseByPath(true)
     val url = "plocal:" + dir.getAbsolutePath
     val db = new OrientGraphFactory(url).setupPool(pools, pools)
     // The placement of this fix needs futher thought, if placed before actual GraphFactory creation it wil work for me locally,
     // but causes NoClassDefFound during orient initialization on testing machine@fommmil.com
-    Orient.setRegisterDatabaseByPath(true)
     val g = db.getNoTx
 
     // is this just needed on schema creation or always?
