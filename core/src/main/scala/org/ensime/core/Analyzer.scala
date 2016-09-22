@@ -180,13 +180,13 @@ class Analyzer(
     case TypecheckModule(moduleName) =>
       //consider the case of a project with no modules
       config.modules get (moduleName) foreach {
-        case module =>
+        module =>
           val files: List[SourceFileInfo] = module.scalaSourceFiles.map(SourceFileInfo(_, None, None))(breakOut)
           sender ! scalaCompiler.handleReloadFiles(files)
       }
     case UnloadModuleReq(moduleName) =>
       config.modules get (moduleName) foreach {
-        case module =>
+        module =>
           val files = module.scalaSourceFiles.toList
           files.foreach(scalaCompiler.askRemoveDeleted)
           sender ! VoidResponse
@@ -285,22 +285,6 @@ class Analyzer(
         val rawAst = scalaCompiler.askRaw(ast)
         AstInfo(rawAst)
       }
-  }
-
-  def handleReloadFiles(files: List[SourceFileInfo]): RpcResponse = {
-    val (existing, missingFiles) = files.partition(_.exists())
-    if (missingFiles.nonEmpty) {
-      val missingFilePaths = missingFiles.map { f => "\"" + f.file + "\"" }.mkString(",")
-      EnsimeServerError(s"file(s): $missingFilePaths do not exist")
-    } else {
-      val (javas, scalas) = existing.partition(_.file.getName.endsWith(".java"))
-      if (scalas.nonEmpty) {
-        val sourceFiles = scalas.map(createSourceFile)
-        scalaCompiler.askReloadFiles(sourceFiles)
-        scalaCompiler.askNotifyWhenReady()
-      }
-      VoidResponse
-    }
   }
 
   def withExisting(x: SourceFileInfo)(f: => RpcResponse): RpcResponse =

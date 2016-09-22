@@ -56,6 +56,7 @@ import org.ensime.config._
 import org.ensime.indexer._
 import org.ensime.model._
 import org.ensime.util.file.{ File, _ }
+import org.ensime.util.sourcefile._
 import org.ensime.vfs._
 import org.slf4j.LoggerFactory
 
@@ -216,8 +217,7 @@ trait RichCompilerControl extends CompilerControl with RefactoringControl with C
     askOption(usesOfSymbol(sym.pos, files).toList).getOrElse(List.empty)
 
   def handleReloadFiles(files: List[SourceFileInfo]): RpcResponse = {
-    import org.ensime.util.FileUtils
-    val (existing, missingFiles) = files.partition(FileUtils.exists)
+    val (existing, missingFiles) = files.partition(_.exists())
     if (missingFiles.nonEmpty) {
       val missingFilePaths = missingFiles.map { f => "\"" + f.file + "\"" }.mkString(",")
       EnsimeServerError(s"file(s): $missingFilePaths do not exist")

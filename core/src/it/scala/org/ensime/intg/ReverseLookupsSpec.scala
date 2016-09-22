@@ -6,6 +6,7 @@ import org.ensime.api._
 import org.ensime.core.RefactoringHandlerTestUtils
 import org.ensime.fixture.{ IsolatedEnsimeConfigFixture, _ }
 import org.ensime.util.EnsimeSpec
+import org.ensime.util.ensimefile.Implicits.DefaultCharset
 import org.ensime.util.file._
 
 import scala.util.Properties
