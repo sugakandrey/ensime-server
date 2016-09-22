@@ -119,9 +119,13 @@ class BasicWorkflow extends EnsimeSpec
 
           asyncHelper.expectMsg(FullTypeCheckCompleteEvent)
 
+          val packageFile = sourceRoot / "org/example/package.scala"
+          val packageFilePath = packageFile.getAbsolutePath
           project ! UsesOfSymbolAtPointReq(Left(fooFile), 119) // point on testMethod
           expectMsgType[ERangePositions].positions should contain theSameElementsAs List(
-            ERangePosition(`fooFilePath`, 114, 110, 172), ERangePosition(`fooFilePath`, 273, 269, 283)
+            ERangePosition(`fooFilePath`, 114, 110, 172),
+            ERangePosition(`fooFilePath`, 273, 269, 283),
+            ERangePosition(`packageFilePath`, 94, 80, 104)
           )
 
           // note that the line numbers appear to have been stripped from the
