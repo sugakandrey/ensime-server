@@ -225,13 +225,13 @@ trait RefactoringImpl { self: RichPresentationCompiler =>
           val pos = if (start == end) new OffsetPosition(sourceFile, start)
           else new RangePosition(sourceFile, start, start, end)
           val symbol = symbolAt(pos)
-          val files = sourceFile :: (symbol match {
+          val files = (symbol match {
             case None => Nil
             case Some(sym) =>
               usesOfSym(sym).map(f => createSourceFile(f.file.getPath))
-          })
+          }).toSet + sourceFile
           reloadAndTypeFiles(files)
-          doRename(procId, tpe, newName, file, start, end, files.map(_.path)(collection.breakOut))
+          doRename(procId, tpe, newName, file, start, end, files.map(_.path))
         case ExtractMethodRefactorDesc(methodName, file, start, end) =>
           reloadAndType(file)
           doExtractMethod(procId, tpe, methodName, file, start, end)

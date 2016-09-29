@@ -216,7 +216,7 @@ trait RichCompilerControl extends CompilerControl with RefactoringControl with C
   def askUsesOfSym(sym: Symbol, files: collection.Set[String]): List[RangePosition] =
     askOption(usesOfSymbol(sym.pos, files).toList).getOrElse(List.empty)
 
-  def handleReloadFiles(files: List[SourceFileInfo]): RpcResponse = {
+  def handleReloadFiles(files: collection.Set[SourceFileInfo]): RpcResponse = {
     val (existing, missingFiles) = files.partition(_.exists())
     if (missingFiles.nonEmpty) {
       val missingFilePaths = missingFiles.map { f => "\"" + f.file + "\"" }.mkString(",")
@@ -226,6 +226,7 @@ trait RichCompilerControl extends CompilerControl with RefactoringControl with C
       if (scalas.nonEmpty) {
         val sourceFiles = scalas.map(createSourceFile)
         askReloadFiles(sourceFiles)
+        sourceFiles.foreach(askLoadedTyped)
         askNotifyWhenReady()
       }
       VoidResponse
@@ -239,17 +240,17 @@ trait RichCompilerControl extends CompilerControl with RefactoringControl with C
     files.map(_.file)(collection.breakOut)
   }
 
-  def usesOfSym(sym: Symbol): List[SourceFileInfo] = {
+  def usesOfSym(sym: Symbol): collection.Set[SourceFileInfo] = {
     import scala.concurrent.Await
     import scala.concurrent.duration.Duration
 
     val noReverseLookups = search.noReverseLookups
     if (noReverseLookups) {
-      Nil
+      Set.empty
     } else {
       val fqn = askSymbolFqn(sym)
       val usages = Await.result(search.findUsages(fqn.fqnString), Duration.Inf)
-      val files: List[SourceFileInfo] = usages.flatMap { usage =>
+      val files: collection.Set[SourceFileInfo] = usages.flatMap { usage =>
         val source = usage.source
         source.map(s => SourceFileInfo(File(s.replaceFirst("file:", "")), None, None))
       }(collection.breakOut)

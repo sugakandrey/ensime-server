@@ -181,7 +181,7 @@ class Analyzer(
       //consider the case of a project with no modules
       config.modules get (moduleName) foreach {
         module =>
-          val files: List[SourceFileInfo] = module.scalaSourceFiles.map(SourceFileInfo(_, None, None))(breakOut)
+          val files: Set[SourceFileInfo] = module.scalaSourceFiles.map(SourceFileInfo(_, None, None))(breakOut)
           sender ! scalaCompiler.handleReloadFiles(files)
       }
     case UnloadModuleReq(moduleName) =>
@@ -192,9 +192,9 @@ class Analyzer(
           sender ! VoidResponse
       }
     case TypecheckFileReq(fileInfo) =>
-      sender ! scalaCompiler.handleReloadFiles(List(fileInfo))
+      sender ! scalaCompiler.handleReloadFiles(Set(fileInfo))
     case TypecheckFilesReq(files) =>
-      sender ! scalaCompiler.handleReloadFiles(files.map(toSourceFileInfo))
+      sender ! scalaCompiler.handleReloadFiles(files.map(toSourceFileInfo)(breakOut))
     case req: RefactorReq =>
       sender ! handleRefactorRequest(req)
     case CompletionsReq(fileInfo, point, maxResults, caseSens, _reload) =>
