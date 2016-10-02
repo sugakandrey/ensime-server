@@ -176,7 +176,7 @@ trait RichCompilerControl extends CompilerControl with RefactoringControl with C
         file <- config.scalaSourceFiles
         source = createSourceFile(file)
       } yield source
-    }.toSet ++ activeUnits().map(_.source)
+    } ++ activeUnits().map(_.source)
     askReloadFiles(all)
   }
 
@@ -201,13 +201,13 @@ trait RichCompilerControl extends CompilerControl with RefactoringControl with C
     askOption(reloadAndTypeFiles(files))
 
   def askUsesOfSymAtPos(pos: Position): List[RangePosition] = {
+    askLoadedTyped(pos.source)
     val symbol = askSymbolAt(pos)
     symbol match {
       case None => Nil
       case Some(sym) =>
         val source = pos.source
         val loadedFiles = loadUsesOfSym(sym)
-        askLoadedTyped(source)
         val files = loadedFiles.map(_.getPath) + source.file.path
         askUsesOfSym(sym, files)
     }
@@ -391,7 +391,7 @@ class RichPresentationCompiler(
     val members = new mutable.LinkedHashMap[Symbol, TypeMember]
     def addTypeMember(sym: Symbol, pre: Type, inherited: Boolean, viaView: Symbol): Unit = {
       try {
-        val m = new TypeMember(
+        val m = TypeMember(
           sym,
           sym.tpe,
           sym.isPublic,
@@ -438,7 +438,7 @@ class RichPresentationCompiler(
 
   protected def inspectType(tpe: Type): TypeInspectInfo = {
     val parents = tpe.parents
-    new TypeInspectInfo(
+    TypeInspectInfo(
       TypeInfo(tpe, PosNeededAvail),
       prepareSortedInterfaceInfo(typePublicMembers(tpe.asInstanceOf[Type]), parents)
     )
@@ -449,7 +449,7 @@ class RichPresentationCompiler(
       val members = getMembersForTypeAt(tpe, p)
       val parents = tpe.parents
       val preparedMembers = prepareSortedInterfaceInfo(members, parents)
-      new TypeInspectInfo(
+      TypeInspectInfo(
         TypeInfo(tpe, PosNeededAvail),
         preparedMembers
       )
@@ -642,19 +642,19 @@ class RichPresentationCompiler(
       case _ => None
     }
     superseded.foreach(_.response.set(()))
-    wrap[Unit](r => new ReloadItem(sources, r).apply(), _ => ())
+    wrap[Unit](r => ReloadItem(sources, r).apply(), _ => ())
   }
 
   def wrapTypeMembers(p: Position): List[Member] =
-    wrap[List[Member]](r => new AskTypeCompletionItem(p, r).apply(), _ => List.empty)
+    wrap[List[Member]](r => AskTypeCompletionItem(p, r).apply(), _ => List.empty)
 
   def wrapTypedTree(source: SourceFile, forceReload: Boolean): Tree =
-    wrap[Tree](r => new AskTypeItem(source, forceReload, r).apply(), t => throw t)
+    wrap[Tree](r => AskTypeItem(source, forceReload, r).apply(), t => throw t)
 
   def wrapTypedTreeAt(position: Position): Tree =
-    wrap[Tree](r => new AskTypeAtItem(position, r).apply(), t => throw t)
+    wrap[Tree](r => AskTypeAtItem(position, r).apply(), t => throw t)
 
   def wrapLinkPos(sym: Symbol, source: SourceFile): Position =
-    wrap[Position](r => new AskLinkPosItem(sym, source, r).apply(), t => throw t)
+    wrap[Position](r => AskLinkPosItem(sym, source, r).apply(), t => throw t)
 
 }

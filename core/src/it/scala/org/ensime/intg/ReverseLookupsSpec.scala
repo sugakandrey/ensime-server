@@ -27,10 +27,6 @@ class ReverseLookupsSpec extends EnsimeSpec
         val sourceRoot = scalaMain(config)
         val fooFile = sourceRoot / "org/example/Foo.scala"
 
-        project ! TypecheckFilesReq(List(Left(fooFile)))
-        expectMsg(VoidResponse)
-        asyncHelper.expectMsg(FullTypeCheckCompleteEvent)
-
         // uses of `testMethod`
         project ! UsesOfSymbolAtPointReq(Left(fooFile), 119)
         val uses = expectMsgType[ERangePositions]
@@ -52,10 +48,6 @@ class ReverseLookupsSpec extends EnsimeSpec
           val sourceRoot = scalaMain(config)
           val fooFile = sourceRoot / "org/example/Foo.scala"
 
-          project ! TypecheckFilesReq(List(Left(fooFile)))
-          expectMsg(VoidResponse)
-          asyncHelper.expectMsg(FullTypeCheckCompleteEvent)
-
           project ! UsesOfSymbolAtPointReq(Left(fooFile), 119)
           val uses = expectMsgType[ERangePositions]
           uses.positions.map(usage => (s"${File(usage.file).getName}", usage.offset, usage.start, usage.end)) should contain theSameElementsAs List(
@@ -74,10 +66,6 @@ class ReverseLookupsSpec extends EnsimeSpec
         val sourceRoot = scalaMain(config)
         val fooFile = sourceRoot / "org/example/Foo.scala"
         val packageFile = sourceRoot / "org/example/package.scala"
-
-        project ! TypecheckFilesReq(List(Left(fooFile)))
-        expectMsg(VoidResponse)
-        asyncHelper.expectMsg(FullTypeCheckCompleteEvent)
 
         project ! RefactorReq(1234, RenameRefactorDesc("notATestMethod", fooFile, 119, 119), interactive = false)
         expectMsgPF() {
@@ -122,11 +110,6 @@ class ReverseLookupsSpec extends EnsimeSpec
           import testKit._
           val sourceRoot = scalaMain(config)
           val fooFile = sourceRoot / "org/example/Foo.scala"
-          val packageFile = sourceRoot / "org/example/package.scala"
-
-          project ! TypecheckFilesReq(List(Left(fooFile)))
-          expectMsg(VoidResponse)
-          asyncHelper.expectMsg(FullTypeCheckCompleteEvent)
 
           project ! RefactorReq(1234, RenameRefactorDesc("notATestMethod", fooFile, 119, 119), interactive = false)
           expectMsgPF() {

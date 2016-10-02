@@ -40,7 +40,7 @@ abstract class RefactoringEnvironment(file: String, start: Int, end: Int) {
       val edits = modifications.flatMap(FileEditHelper.fromChange).sorted
 
       writeDiffChanges(edits, renameTarget) match {
-        case Right(diff) => Right(new RefactorDiffEffect(procId, tpe, diff))
+        case Right(diff) => Right(RefactorDiffEffect(procId, tpe, diff))
         case Left(err) => Left(RefactorFailure(procId, err.toString))
       }
     }
@@ -202,7 +202,7 @@ trait RefactoringImpl { self: RichPresentationCompiler =>
     val edits = modifications.flatMap(FileEditHelper.fromChange)
 
     writeDiffChanges(edits)(charset) match {
-      case Right(diff) => Right(new RefactorDiffEffect(procId, tpe, diff))
+      case Right(diff) => Right(RefactorDiffEffect(procId, tpe, diff))
       case Left(err) => Left(RefactorFailure(procId, err.toString))
     }
   }
@@ -220,8 +220,8 @@ trait RefactoringImpl { self: RichPresentationCompiler =>
           doInlineLocal(procId, tpe, file, start, end)
         case RenameRefactorDesc(newName, file, start, end) =>
           import scala.reflect.internal.util.{ RangePosition, OffsetPosition }
-
           val sourceFile = createSourceFile(file.getPath)
+          askLoadedTyped(sourceFile)
           val pos = if (start == end) new OffsetPosition(sourceFile, start)
           else new RangePosition(sourceFile, start, start, end)
           val symbol = symbolAt(pos)
@@ -229,9 +229,10 @@ trait RefactoringImpl { self: RichPresentationCompiler =>
             case None => Nil
             case Some(sym) =>
               usesOfSym(sym).map(f => createSourceFile(f.file.getPath))
-          }).toSet + sourceFile
-          reloadAndTypeFiles(files)
-          doRename(procId, tpe, newName, file, start, end, files.map(_.path))
+          }).toSet - sourceFile
+          askReloadFiles(files)
+          files.foreach(askLoadedTyped)
+          doRename(procId, tpe, newName, file, start, end, files.map(_.path) + sourceFile.path)
         case ExtractMethodRefactorDesc(methodName, file, start, end) =>
           reloadAndType(file)
           doExtractMethod(procId, tpe, methodName, file, start, end)
