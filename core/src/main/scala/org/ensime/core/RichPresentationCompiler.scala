@@ -252,9 +252,9 @@ trait RichCompilerControl extends CompilerControl with RefactoringControl with C
       val usages = Await.result(search.findUsages(fqn.fqnString), Duration.Inf)
       val files: collection.Set[SourceFileInfo] = usages.flatMap { usage =>
         val source = usage.source
-        source.map(s => SourceFileInfo(File(s.replaceFirst("file:", "")), None, None))
+        source.map(s => SourceFileInfo(File(s.replaceFirst("file:", ""))))
       }(collection.breakOut)
-      files
+      files + SourceFileInfo(sym.sourceFile.file)
     }
   }
 
