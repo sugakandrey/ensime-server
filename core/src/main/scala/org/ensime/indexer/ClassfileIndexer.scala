@@ -212,7 +212,6 @@ trait ClassfileIndexer {
       addRef(ClassName.fromDescriptor(desc))
 
     override def visitTypeInsn(opcode: Int, desc: String): Unit = {
-      val classNames = extractClassNames(desc)
       addRefs(extractClassNames(desc).map(ClassName.fromInternal))
     }
 
