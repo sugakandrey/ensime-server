@@ -180,21 +180,21 @@ class Analyzer(
     case TypecheckModule(moduleName) =>
       //consider the case of a project with no modules
       config.modules get (moduleName) foreach {
-        case module =>
-          val files: List[SourceFileInfo] = module.scalaSourceFiles.map(SourceFileInfo(_, None, None))(breakOut)
-          sender ! handleReloadFiles(files)
+        module =>
+          val files: Set[SourceFileInfo] = module.scalaSourceFiles.map(SourceFileInfo(_, None, None))(breakOut)
+          sender ! scalaCompiler.handleReloadFiles(files)
       }
     case UnloadModuleReq(moduleName) =>
       config.modules get (moduleName) foreach {
-        case module =>
+        module =>
           val files = module.scalaSourceFiles.toList
           files.foreach(scalaCompiler.askRemoveDeleted)
           sender ! VoidResponse
       }
     case TypecheckFileReq(fileInfo) =>
-      sender ! handleReloadFiles(List(fileInfo))
+      sender ! scalaCompiler.handleReloadFiles(Set(fileInfo))
     case TypecheckFilesReq(files) =>
-      sender ! handleReloadFiles(files.map(toSourceFileInfo))
+      sender ! scalaCompiler.handleReloadFiles(files.map(toSourceFileInfo)(breakOut))
     case req: RefactorReq =>
       sender ! handleRefactorRequest(req)
     case CompletionsReq(fileInfo, point, maxResults, caseSens, _reload) =>
@@ -205,8 +205,7 @@ class Analyzer(
     case UsesOfSymbolAtPointReq(file, point) =>
       sender ! withExisting(file) {
         val p = pos(file, point)
-        scalaCompiler.askLoadedTyped(p.source)
-        val uses = scalaCompiler.askUsesOfSymAtPoint(p)
+        val uses = scalaCompiler.askUsesOfSymAtPos(p)
         ERangePositions(uses.map(ERangePositionHelper.fromRangePosition))
       }
     case PackageMemberCompletionReq(path: String, prefix: String) =>
@@ -286,22 +285,6 @@ class Analyzer(
         val rawAst = scalaCompiler.askRaw(ast)
         AstInfo(rawAst)
       }
-  }
-
-  def handleReloadFiles(files: List[SourceFileInfo]): RpcResponse = {
-    val (existing, missingFiles) = files.partition(_.exists())
-    if (missingFiles.nonEmpty) {
-      val missingFilePaths = missingFiles.map { f => "\"" + f.file + "\"" }.mkString(",")
-      EnsimeServerError(s"file(s): $missingFilePaths do not exist")
-    } else {
-      val (javas, scalas) = existing.partition(_.file.getName.endsWith(".java"))
-      if (scalas.nonEmpty) {
-        val sourceFiles = scalas.map(createSourceFile)
-        scalaCompiler.askReloadFiles(sourceFiles)
-        scalaCompiler.askNotifyWhenReady()
-      }
-      VoidResponse
-    }
   }
 
   def withExisting(x: SourceFileInfo)(f: => RpcResponse): RpcResponse =

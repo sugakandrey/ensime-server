@@ -54,6 +54,8 @@ class ClassfileIndexerSpec extends EnsimeSpec with IsolatedEnsimeVFSFixture {
         Set(
           ClassName(PackageName(Nil), "void"),
           FieldName(ClassName(PackageName(List("java", "lang")), "System"), "out"),
+          ClassName(PackageName(List("java", "lang")), "System"),
+          ClassName(PackageName(List("java", "lang")), "System$"),
           ClassName(PackageName(List("java", "io")), "PrintStream"),
           ClassName(PackageName(List("java", "lang")), "String"),
           MethodName(
@@ -70,6 +72,8 @@ class ClassfileIndexerSpec extends EnsimeSpec with IsolatedEnsimeVFSFixture {
     refs shouldBe Set(
       ClassName(PackageName(Nil), "void"),
       ClassName(PackageName(List("java", "lang")), "Object"),
+      ClassName(PackageName(List("java", "lang")), "System"),
+      ClassName(PackageName(List("java", "lang")), "System$"),
       FieldName(ClassName(PackageName(List("java", "lang")), "System"), "out"),
       ClassName(PackageName(List("java", "io")), "PrintStream"),
       MethodName(

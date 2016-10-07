@@ -86,7 +86,7 @@ class SearchService(
   // poor man's backpressure.
   val semaphore = new Semaphore(Properties.propOrElse("ensime.index.parallel", "10").toInt, true)
 
-  private val noReverseLookups = Properties.propOrFalse("ensime.index.no.reverse.lookups")
+  val noReverseLookups: Boolean = Properties.propOrFalse("ensime.index.no.reverse.lookups")
 
   private[indexer] def getTopLevelClassFile(f: FileObject): FileObject = {
     import scala.reflect.NameTransformer
@@ -464,9 +464,7 @@ class IndexingQueueActor(searchService: SearchService) extends Actor with ActorL
                 val boost = searchService.isUserFile(file)
                 val persisting = searchService.persist(syms, commitIndex = true, boost = boost)
 
-                persisting.onComplete {
-                  case _ => searchService.semaphore.release()
-                }
+                persisting.onComplete(_ => searchService.semaphore.release())
 
                 persisting.onComplete {
                   case Failure(t) =>

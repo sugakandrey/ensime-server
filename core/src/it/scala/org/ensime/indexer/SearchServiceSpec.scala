@@ -329,6 +329,11 @@ class SearchServiceSpec extends EnsimeSpec
     )
   }
 
+  it should "detect uses of outer classes in inner class calls" in withSearchService { implicit service =>
+    val barUsages = findUsages("org.example.Bar$")
+    barUsages.map(mn => unifyMethodName(mn.toSearchResult)) should contain("Method org.example.Qux#<init>(): org.example.Qux")
+  }
+
   "scala names" should "be correctly resolved for overloaded methods" in withSearchService { implicit service =>
     val hits = service.searchClassesMethods(List("Overloads", "foo"), 100).filter(hit => hit.declAs == DeclaredAs.Method && hit.fqn.contains("Overloads.foo"))
     hits.length should ===(5)
