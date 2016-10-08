@@ -166,6 +166,11 @@ trait RichCompilerControl extends CompilerControl with RefactoringControl with C
 
   def askUnloadAllFiles(): Unit = askOption(unloadAllFiles())
 
+  def askUnloadFile(f: File): Unit = {
+    val sourceFile = createSourceFile(f)
+    askOption(unloadFile(sourceFile))
+  }
+
   def askRemoveAllDeleted(): Option[Unit] = askOption(removeAllDeleted())
 
   def askRemoveDeleted(f: File) = askOption(removeDeleted(AbstractFile.getFile(f)))
@@ -307,6 +312,8 @@ class RichPresentationCompiler(
   def unloadAllFiles(): Unit = {
     allSources.foreach(removeUnitOf)
   }
+
+  def unloadFile(s: SourceFile): Unit = removeUnitOf(s)
 
   /**
    * Remove symbols defined by files that no longer exist.

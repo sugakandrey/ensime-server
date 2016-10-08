@@ -282,6 +282,9 @@ class Analyzer(
         val rawAst = scalaCompiler.askRaw(ast)
         AstInfo(rawAst)
       }
+    case UnloadFileReq(file) =>
+      scalaCompiler.askUnloadFile(file)
+      sender ! VoidResponse
   }
 
   def handleReloadFiles(files: List[SourceFileInfo]): RpcResponse = {

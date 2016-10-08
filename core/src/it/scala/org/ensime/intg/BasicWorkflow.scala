@@ -395,6 +395,13 @@ class BasicWorkflow extends EnsimeSpec
               val diffContent = diff.canon.readString()
               diffContent should ===(expectedDiff)
           }
+
+          project ! UnloadFileReq(barFile)
+          expectMsg(VoidResponse)
+
+          project ! TypecheckFilesReq(List(Left(fooFile)))
+          expectMsg(VoidResponse)
+          asyncHelper.expectMsg(FullTypeCheckCompleteEvent)
         }
       }
     }
