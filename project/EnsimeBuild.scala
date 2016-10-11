@@ -11,8 +11,7 @@ import sbtbuildinfo.BuildInfoPlugin, BuildInfoPlugin.autoImport._
 import SonatypeSupport._
 
 import org.ensime.EnsimePlugin.JdkDir
-import org.ensime.EnsimePlugin.JdkDir
-import org.ensime.Imports.EnsimeKeys._
+import org.ensime.EnsimeKeys._
 
 
 object ProjectPlugin extends AutoPlugin {
