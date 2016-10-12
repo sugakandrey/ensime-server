@@ -30,7 +30,7 @@ build:
         echo "1.7" > .java-version ;
         cask pkg-file ;
         cask install ;
-        cask build ;
+        cask package ;
         export JVM_OPTS="-XX:MaxPermSize=256m -Xss2m -Xms500m -Xmx500m";
         test/run_emacs_tests.sh || test/run_emacs_tests.sh;
         cd $CI_BUILD_DIR ;
