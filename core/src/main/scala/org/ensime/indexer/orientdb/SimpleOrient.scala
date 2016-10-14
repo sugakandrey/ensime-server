@@ -12,7 +12,7 @@ import akka.event.slf4j.SLF4JLogging
 import com.orientechnologies.orient.core.metadata.schema.OClass
 import com.tinkerpop.blueprints._
 import com.tinkerpop.blueprints.impls.orient._
-import org.ensime.indexer.graph.GraphService.{ IsParent, UsedIn }
+import org.ensime.indexer.graph.GraphService.{ IsParent, UsedIn, EnclosingClass }
 import org.ensime.indexer.graph._
 import org.ensime.indexer.orientdb.api.{ NotUnique, OrientProperty }
 import org.ensime.indexer.stringymap.api._
@@ -265,8 +265,8 @@ package object syntax {
       u: BigDataFormatId[T, P],
       p: SPrimitive[P]
     ): Boolean = {
-      import GraphService.{ DefinedInS, OwningClassS }
-      val followEdges = Seq(DefinedInS.label, OwningClassS.label)
+      import GraphService.{ DefinedInS, EnclosingClassS }
+      val followEdges = Seq(DefinedInS.label, EnclosingClassS.label)
 
       def removeRecursive(
         v: Vertex
@@ -348,12 +348,19 @@ package object syntax {
       bdf: BigDataFormat[FqnSymbol],
       bdfId: BigDataFormatId[FqnSymbol, P],
       p: SPrimitive[P]
-    ): Iterable[VertexT[FqnSymbol]] = {
-      import GraphService.UsedInS
+    ): Seq[VertexT[FqnSymbol]] = {
+      import GraphService.{ UsedInS, EnclosingClassS }
+
+      def traverseEnclosingClasses(v: VertexT[FqnSymbol]): Iterable[VertexT[FqnSymbol]] = {
+        val vertices = v.getInVertices[FqnSymbol, EnclosingClass.type]
+        vertices ++ vertices.flatMap(traverseEnclosingClasses)
+      }
 
       readUniqueV[FqnSymbol, P](value) match {
-        case Some(vertexT) => vertexT.getOutVertices[FqnSymbol, UsedIn.type]
-        case None => Iterable.empty
+        case Some(vertexT) =>
+          val innerClasses = traverseEnclosingClasses(vertexT).toList
+          (vertexT :: innerClasses).flatMap(_.getOutVertices[FqnSymbol, UsedIn.type]).distinct
+        case None => Seq.empty
       }
     }
   }

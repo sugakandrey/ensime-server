@@ -212,7 +212,7 @@ class GraphService(dir: File) extends SLF4JLogging {
     g.createVertexFrom[FileCheck]()
 
     g.createEdge[DefinedIn.type]
-      .createEdge[OwningClass.type]
+      .createEdge[EnclosingClass.type]
       .createEdge[UsedIn.type]
       .createEdge[IsParent.type]
     g.createIndexOn[Vertex, FqnSymbol, String](Unique)
@@ -248,9 +248,9 @@ class GraphService(dir: File) extends SLF4JLogging {
             case (None, Some(t: RawType)) => // only scalap symbol (type alias case)
               val owningClass = RichGraph.readUniqueV[ClassDef, String](t.owner.fqnString)
               val field = Field(t.javaName.fqnString, None, None, source, t.access, Some(t.scalaName + t.typeSignature))
-              val fieldV: VertexT[Member] = RichGraph.upsertV[Field, String](field)
+              val fieldV: VertexT[FqnSymbol] = RichGraph.upsertV[Field, String](field)
               owningClass.foreach(classV =>
-                RichGraph.insertE(fieldV, classV, OwningClass))
+                RichGraph.insertE(fieldV, classV, EnclosingClass))
               Some(fieldV)
 
             case (Some(bytecode), scalap) => // bytecode and possibly scalap symbols present (regular java/scala symbol)
@@ -275,22 +275,27 @@ class GraphService(dir: File) extends SLF4JLogging {
                     val parentV = RichGraph.upsertV[ClassDef, String](cdef)
                     RichGraph.insertE(classV, parentV, IsParent)
                   }
+                  s.outerClass.foreach { outer =>
+                    val cdef = ClassDef(outer.fqnString, null, null, None, None, null, None, None)
+                    val outerV: VertexT[ClassDef] = RichGraph.upsertV[ClassDef, String](cdef)
+                    RichGraph.insertE(classV: VertexT[FqnSymbol], outerV, EnclosingClass)
+                  }
                   Some(classV)
 
                 case s: RawField =>
                   val owningClass = RichGraph.readUniqueV[ClassDef, String](s.name.owner.fqnString)
                   val field = Field(s.name.fqnString, Some(s.fqn), None, source, s.access, scalaName)
-                  val fieldV: VertexT[Member] = RichGraph.upsertV[Field, String](field)
+                  val fieldV: VertexT[FqnSymbol] = RichGraph.upsertV[Field, String](field)
                   owningClass.foreach(classV =>
-                    RichGraph.insertE(fieldV, classV, OwningClass))
+                    RichGraph.insertE(fieldV, classV, EnclosingClass))
                   Some(fieldV)
 
                 case s: RawMethod =>
                   val owningClass = RichGraph.readUniqueV[ClassDef, String](s.name.owner.fqnString)
                   val method = Method(s.fqn, s.line, source, s.access, (scalaName ++ typeSignature).reduceOption(_ + _))
-                  val methodV: VertexT[Member] = RichGraph.upsertV[Method, String](method)
+                  val methodV: VertexT[FqnSymbol] = RichGraph.upsertV[Method, String](method)
                   owningClass.foreach(classV =>
-                    RichGraph.insertE(methodV, classV, OwningClass))
+                    RichGraph.insertE(methodV, classV, EnclosingClass))
                   Some(methodV)
               }
             case (_, _) => throw new AssertionError(s"Illegal combination of bytecode and scalap information in $info")
@@ -350,12 +355,12 @@ class GraphService(dir: File) extends SLF4JLogging {
 
 object GraphService {
   private[indexer] case object DefinedIn extends EdgeT[ClassDef, FileCheck]
-  private[indexer] case object OwningClass extends EdgeT[Member, ClassDef]
+  private[indexer] case object EnclosingClass extends EdgeT[FqnSymbol, ClassDef]
   private[indexer] case object UsedIn extends EdgeT[FqnSymbol, FqnSymbol]
   private[indexer] case object IsParent extends EdgeT[ClassDef, ClassDef]
 
   implicit val DefinedInS: BigDataFormat[DefinedIn.type] = cachedImplicit
-  implicit val OwningClassS: BigDataFormat[OwningClass.type] = cachedImplicit
+  implicit val EnclosingClassS: BigDataFormat[EnclosingClass.type] = cachedImplicit
   implicit val UsedInS: BigDataFormat[UsedIn.type] = cachedImplicit
   implicit val IsParentS: BigDataFormat[IsParent.type] = cachedImplicit
 }

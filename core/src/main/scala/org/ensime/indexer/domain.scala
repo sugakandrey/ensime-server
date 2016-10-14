@@ -213,7 +213,8 @@ final case class RawClassfile(
     methods: Queue[RawMethod],
     source: RawSource,
     isScala: Boolean,
-    internalRefs: Set[FullyQualifiedName]
+    internalRefs: Set[FullyQualifiedName],
+    outerClass: Option[ClassName]
 ) extends RawSymbol {
   override def fqn: String = name.fqnString
 }

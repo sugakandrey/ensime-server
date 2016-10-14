@@ -71,8 +71,13 @@ trait ClassfileIndexer {
         (ACC_DEPRECATED & access) > 0,
         Nil, Queue.empty, RawSource(None, None),
         isScala = false,
-        internalRefs
+        internalRefs,
+        None
       )
+    }
+
+    override def visitOuterClass(owner: String, name: String, desc: String): Unit = {
+      clazz = clazz.copy(outerClass = Some(ClassName.fromInternal(owner)))
     }
 
     override def visitSource(filename: String, debug: String): Unit = {
