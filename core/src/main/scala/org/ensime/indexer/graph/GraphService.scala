@@ -275,7 +275,11 @@ class GraphService(dir: File) extends SLF4JLogging {
                     val parentV = RichGraph.upsertV[ClassDef, String](cdef)
                     RichGraph.insertE(classV, parentV, IsParent)
                   }
-                  s.outerClass.foreach { outer =>
+                  val outerClass = scalap match {
+                    case Some(c: RawScalapClass) => c.enclosingClass
+                    case _ => None
+                  }
+                  outerClass.foreach { outer =>
                     val cdef = ClassDef(outer.fqnString, null, null, None, None, null, None, None)
                     val outerV: VertexT[ClassDef] = RichGraph.upsertV[ClassDef, String](cdef)
                     RichGraph.insertE(classV: VertexT[FqnSymbol], outerV, EnclosingClass)

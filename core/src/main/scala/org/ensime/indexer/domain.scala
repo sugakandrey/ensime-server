@@ -213,8 +213,7 @@ final case class RawClassfile(
     methods: Queue[RawMethod],
     source: RawSource,
     isScala: Boolean,
-    internalRefs: Set[FullyQualifiedName],
-    outerClass: Option[ClassName]
+    internalRefs: Set[FullyQualifiedName]
 ) extends RawSymbol {
   override def fqn: String = name.fqnString
 }
@@ -259,7 +258,8 @@ final case class RawScalapClass(
   declaredAs: DeclaredAs,
   fields: Map[String, RawScalapField],
   methods: Map[String, IndexedSeq[RawScalapMethod]],
-  typeAliases: Map[String, RawType]
+  typeAliases: Map[String, RawType],
+  enclosingClass: Option[ClassName]
 ) extends RawScalapSymbol
 
 final case class RawScalapField(

@@ -263,15 +263,23 @@ package object syntax {
       graph: OrientBaseGraph,
       s: BigDataFormat[T],
       u: BigDataFormatId[T, P],
-      p: SPrimitive[P]
+      p: SPrimitive[P],
+      cdefFormat: BigDataFormat[ClassDef]
     ): Boolean = {
       import GraphService.{ DefinedInS, EnclosingClassS }
-      val followEdges = Seq(DefinedInS.label, EnclosingClassS.label)
 
       def removeRecursive(
         v: Vertex
       ): Unit = {
-        v.getVertices(Direction.IN, followEdges: _*).asScala.foreach(removeRecursive)
+        v.getVertices(Direction.IN, DefinedInS.label)
+          .asScala
+          .foreach(removeRecursive)
+
+        v.getVertices(Direction.IN, EnclosingClassS.label)
+          .asScala
+          .filter(_.getProperty[String]("typehint") != cdefFormat.label)
+          .foreach(removeRecursive)
+
         graph.removeVertex(v)
       }
 
@@ -296,7 +304,8 @@ package object syntax {
       graph: OrientBaseGraph,
       s: BigDataFormat[T],
       u: BigDataFormatId[T, P],
-      p: SPrimitive[P]
+      p: SPrimitive[P],
+      cdefFormat: BigDataFormat[ClassDef]
     ): Int = ts.map(removeV(_)).count(_ == true)
 
     def allV[T](
