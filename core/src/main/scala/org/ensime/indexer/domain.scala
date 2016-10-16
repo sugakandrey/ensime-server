@@ -258,7 +258,8 @@ final case class RawScalapClass(
   declaredAs: DeclaredAs,
   fields: Map[String, RawScalapField],
   methods: Map[String, IndexedSeq[RawScalapMethod]],
-  typeAliases: Map[String, RawType]
+  typeAliases: Map[String, RawType],
+  enclosingClass: Option[ClassName]
 ) extends RawScalapSymbol
 
 final case class RawScalapField(

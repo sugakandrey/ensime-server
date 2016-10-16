@@ -187,16 +187,6 @@ trait ClassfileIndexer {
         case member => FieldName(ClassName.fromInternal(owner), member)
       }
 
-    private def extractClassNames(className: String): Seq[String] = {
-      if (!className.contains("anonfun")) {
-        val parts = className.split("\\$")
-        val baseName = parts.head
-        val classNames = parts.tail.foldLeft(List(baseName))((acc, p) => s"${acc.last}$$$p" :: acc)
-        val objectNames = classNames.map(_ + "$")
-        classNames ++ objectNames
-      } else Nil
-    }
-
     protected def addRefs(refs: Seq[FullyQualifiedName]): Unit = internalRefs = internalRefs ++ refs
 
     protected def addRef(ref: FullyQualifiedName): Unit = addRefs(Seq(ref))
@@ -212,19 +202,17 @@ trait ClassfileIndexer {
       addRef(ClassName.fromDescriptor(desc))
 
     override def visitTypeInsn(opcode: Int, desc: String): Unit = {
-      addRefs(extractClassNames(desc).map(ClassName.fromInternal))
+      addRef(ClassName.fromInternal(desc))
     }
 
     override def visitFieldInsn(
       opcode: Int, owner: String, name: String, desc: String
     ): Unit = {
-      addRefs(extractClassNames(owner).map(ClassName.fromInternal))
       addRef(memberOrInit(owner, name))
     }
 
     override def visitTryCatchBlock(start: Label, end: Label, handler: Label, `type`: String): Unit = {
-      Option(`type`).foreach(desc =>
-        addRefs(extractClassNames(desc).map(ClassName.fromInternal)))
+      Option(`type`).foreach(desc => addRef(ClassName.fromInternal(desc)))
     }
 
     override def visitMethodInsn(

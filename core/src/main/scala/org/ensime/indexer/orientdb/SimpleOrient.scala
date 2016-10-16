@@ -12,7 +12,7 @@ import akka.event.slf4j.SLF4JLogging
 import com.orientechnologies.orient.core.metadata.schema.OClass
 import com.tinkerpop.blueprints._
 import com.tinkerpop.blueprints.impls.orient._
-import org.ensime.indexer.graph.GraphService.{ IsParent, UsedIn }
+import org.ensime.indexer.graph.GraphService.{ IsParent, UsedIn, EnclosingClass }
 import org.ensime.indexer.graph._
 import org.ensime.indexer.orientdb.api.{ NotUnique, OrientProperty }
 import org.ensime.indexer.stringymap.api._
@@ -263,15 +263,23 @@ package object syntax {
       graph: OrientBaseGraph,
       s: BigDataFormat[T],
       u: BigDataFormatId[T, P],
-      p: SPrimitive[P]
+      p: SPrimitive[P],
+      cdefFormat: BigDataFormat[ClassDef]
     ): Boolean = {
-      import GraphService.{ DefinedInS, OwningClassS }
-      val followEdges = Seq(DefinedInS.label, OwningClassS.label)
+      import GraphService.{ DefinedInS, EnclosingClassS }
 
       def removeRecursive(
         v: Vertex
       ): Unit = {
-        v.getVertices(Direction.IN, followEdges: _*).asScala.foreach(removeRecursive)
+        v.getVertices(Direction.IN, DefinedInS.label)
+          .asScala
+          .foreach(removeRecursive)
+
+        v.getVertices(Direction.IN, EnclosingClassS.label)
+          .asScala
+          .filter(_.getProperty[String]("typehint") != cdefFormat.label)
+          .foreach(removeRecursive)
+
         graph.removeVertex(v)
       }
 
@@ -296,7 +304,8 @@ package object syntax {
       graph: OrientBaseGraph,
       s: BigDataFormat[T],
       u: BigDataFormatId[T, P],
-      p: SPrimitive[P]
+      p: SPrimitive[P],
+      cdefFormat: BigDataFormat[ClassDef]
     ): Int = ts.map(removeV(_)).count(_ == true)
 
     def allV[T](
@@ -348,12 +357,19 @@ package object syntax {
       bdf: BigDataFormat[FqnSymbol],
       bdfId: BigDataFormatId[FqnSymbol, P],
       p: SPrimitive[P]
-    ): Iterable[VertexT[FqnSymbol]] = {
-      import GraphService.UsedInS
+    ): Seq[VertexT[FqnSymbol]] = {
+      import GraphService.{ UsedInS, EnclosingClassS }
+
+      def traverseEnclosingClasses(v: VertexT[FqnSymbol]): Iterable[VertexT[FqnSymbol]] = {
+        val vertices = v.getInVertices[FqnSymbol, EnclosingClass.type]
+        vertices ++ vertices.flatMap(traverseEnclosingClasses)
+      }
 
       readUniqueV[FqnSymbol, P](value) match {
-        case Some(vertexT) => vertexT.getOutVertices[FqnSymbol, UsedIn.type]
-        case None => Iterable.empty
+        case Some(vertexT) =>
+          val innerClasses = traverseEnclosingClasses(vertexT).toList
+          (vertexT :: innerClasses).flatMap(_.getOutVertices[FqnSymbol, UsedIn.type]).distinct
+        case None => Seq.empty
       }
     }
   }

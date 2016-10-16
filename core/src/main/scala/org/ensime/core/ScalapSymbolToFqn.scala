@@ -81,6 +81,8 @@ trait ScalapSymbolToFqn {
         alias.javaName.fqnString -> alias
     }(breakOut)
 
+    val enclosingClass = ownerChain.init.reverse.collectFirst { case cs: ClassSymbol => className(cs) }
+
     RawScalapClass(
       javaName,
       scalaName,
@@ -89,7 +91,8 @@ trait ScalapSymbolToFqn {
       declaredAs,
       fields,
       methods,
-      aliases
+      aliases,
+      enclosingClass
     )
   }
 
