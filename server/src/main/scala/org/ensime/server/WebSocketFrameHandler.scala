@@ -2,12 +2,9 @@
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 package org.ensime.server
 
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
-
 import io.netty.channel.{ Channel, ChannelHandlerContext, SimpleChannelInboundHandler }
-import io.netty.handler.codec.http.websocketx.WebSocketServerProtocolHandler.ServerHandshakeStateEvent.HANDSHAKE_COMPLETE
-import io.netty.handler.codec.http.websocketx.{ WebSocketServerHandshaker, TextWebSocketFrame, WebSocketFrame }
+import io.netty.handler.codec.http.websocketx.WebSocketServerProtocolHandler.HandshakeComplete
+import io.netty.handler.codec.http.websocketx.{ TextWebSocketFrame, WebSocketFrame }
 import io.netty.util.AttributeKey
 import org.slf4j.LoggerFactory
 
@@ -20,33 +17,11 @@ class WebSocketFrameHandler(
 
   val log = LoggerFactory.getLogger(this.getClass)
 
-  val handshakerKey: AttributeKey[WebSocketServerHandshaker] =
-    AttributeKey.valueOf(classOf[WebSocketServerHandshaker], "HANDSHAKER");
-
   val inHandlerKey: AttributeKey[String => Unit] =
     AttributeKey.valueOf(classOf[String => Unit], "INHANDLER");
 
   val outHandlerKey: AttributeKey[OutgoingHandler] =
     AttributeKey.valueOf(classOf[OutgoingHandler], "OUTHANDLER");
-
-  val stashKey: AttributeKey[Vector[String]] =
-    AttributeKey.valueOf(classOf[Vector[String]], "STASH");
-
-  private def stashInHandler(ch: Channel): String => Unit =
-    {
-      msg =>
-        val stashAttr = ch.attr(stashKey)
-        stashAttr.set(stashAttr.get() :+ msg)
-    }
-
-  private def unstash(ctx: ChannelHandlerContext): Unit = {
-    val inHandler = getInHandler(ctx)
-    val stashAttr = ctx.channel().attr(stashKey)
-    stashAttr.getAndRemove().foreach(inHandler)
-  }
-
-  private def getSelectedSubprotocol(ctx: ChannelHandlerContext): String =
-    ctx.channel().attr(handshakerKey).get().selectedSubprotocol()
 
   private def setInHandler(ctx: ChannelHandlerContext, inHandler: String => Unit): Unit =
     ctx.channel().attr(inHandlerKey).set(inHandler)
@@ -78,29 +53,17 @@ class WebSocketFrameHandler(
       inHandler(rpcReq)
   }
 
-  override protected def userEventTriggered(ctx: ChannelHandlerContext, evt: Object): Unit = {
-    if (HANDSHAKE_COMPLETE == evt) {
-      ctx.channel().attr(stashKey).set(Vector())
-      setInHandler(ctx, stashInHandler(ctx.channel()))
-      Future {
-        // Sorry about this tricky hack, it's the only way I found to access the handshaker
-        // associated with the channel so I can ask it for the selected subprotocol.
-        // The thing is that for the time when we receive this event the handshaker wasn't
-        // set as a channel attribute yet. So we MUST wait for it for a few millis, and for
-        // some reason we MUST do it in a separate thread.
-        // See: [WebSocketServerProtocolHandshakeHandler.java:88](https://git.io/v6DcJ)
-        Thread.sleep(500)
-        val subprotocol = getSelectedSubprotocol(ctx)
-        val encoder = encoderFor(subprotocol)
-        val outHandler = encodedOutHandler(ctx.channel(), encoder)
-        val inHandler = encodedInHandler(hookHandlers(outHandler), encoder)
-        setInHandler(ctx, inHandler)
-        setOutHandler(ctx, outHandler)
-        log.info("Handlers ready")
-        unstash(ctx)
-      }
+  override protected def userEventTriggered(ctx: ChannelHandlerContext, evt: Object): Unit =
+    if (evt.isInstanceOf[HandshakeComplete]) {
+      val serverHandshakeComplete = evt.asInstanceOf[HandshakeComplete];
+      val subprotocol = serverHandshakeComplete.selectedSubprotocol
+      val encoder = encoderFor(subprotocol)
+      val outHandler = encodedOutHandler(ctx.channel(), encoder)
+      val inHandler = encodedInHandler(hookHandlers(outHandler), encoder)
+      setInHandler(ctx, inHandler)
+      setOutHandler(ctx, outHandler)
+      log.info("Handlers ready")
     }
-  }
 
   override protected def channelRead0(ctx: ChannelHandlerContext, frame: WebSocketFrame): Unit = {
     frame match {

@@ -178,7 +178,7 @@ object EnsimeBuild {
   }
 
   val luceneVersion = "5.5.2"
-  val nettyVersion = "4.1.2.Final"
+  val nettyVersion = "4.1.6.Final"
   lazy val server = Project("server", file("server")).dependsOn(
     core, swanky, jerky,
     s_express % "test->test",
