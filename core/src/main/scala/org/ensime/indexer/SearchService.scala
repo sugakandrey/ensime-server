@@ -27,15 +27,13 @@ import org.ensime.vfs._
  * and Lucene for advanced indexing.
  */
 class SearchService(
-  config: EnsimeConfig,
-  resolver: SourceResolver
+    config: EnsimeConfig,
+    resolver: SourceResolver
 )(
-  implicit
-  actorSystem: ActorSystem,
-  vfs: EnsimeVFS
-) extends ClassfileIndexer
-    with FileChangeListener
-    with SLF4JLogging {
+    implicit
+    actorSystem: ActorSystem,
+    vfs: EnsimeVFS
+) extends FileChangeListener with SLF4JLogging {
 
   private[indexer] def isUserFile(file: FileName): Boolean = {
     (config.allTargets map (vfs.vfile)) exists (file isAncestor _.getName)
@@ -213,7 +211,8 @@ class SearchService(
       case _ =>
         val name = container.getName.getURI
         val path = f.getName.getURI
-        val (clazz, refs) = indexClassfile(f)
+        val indexer = new ClassfileIndexer(f)
+        val (clazz, refs) = indexer.indexClassfile()
 
         val depickler = new ClassfileDepickler(f)
 
