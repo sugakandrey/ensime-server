@@ -1,16 +1,18 @@
-import SonatypeSupport._
-import com.typesafe.sbt.SbtScalariform._
 import java.io._
-import org.ensime.EnsimePlugin.JdkDir
-import org.ensime.Imports.EnsimeKeys._
-import sbt.{ IntegrationTest => It, _ }
-import sbt.Keys._
-import sbtassembly.{ AssemblyKeys, MergeStrategy, PathList }
-import sbtassembly.AssemblyKeys._
 import scala.util.{ Properties, Try }
-import org.ensime.EnsimePlugin.JdkDir
-import sbtbuildinfo.BuildInfoPlugin, BuildInfoPlugin.autoImport._
+
+import com.typesafe.sbt.SbtScalariform._
 import de.heikoseeberger.sbtheader.{ HeaderKey, HeaderPlugin }
+import sbt.Keys._
+import sbt.{ IntegrationTest => It, _ }
+import sbtassembly.AssemblyKeys._
+import sbtassembly.{ AssemblyKeys, MergeStrategy, PathList }
+import sbtbuildinfo.BuildInfoPlugin, BuildInfoPlugin.autoImport._
+import SonatypeSupport._
+
+import org.ensime.EnsimePlugin.JdkDir
+import org.ensime.EnsimeKeys._
+
 
 object ProjectPlugin extends AutoPlugin {
   override def requires = plugins.JvmPlugin
@@ -177,7 +179,7 @@ object EnsimeBuild {
   }
 
   val luceneVersion = "5.5.2"
-  val streamsVersion = "2.0.4"
+  val nettyVersion = "4.1.6.Final"
   lazy val server = Project("server", file("server")).dependsOn(
     core, swanky, jerky,
     s_express % "test->test",
@@ -191,11 +193,10 @@ object EnsimeBuild {
       commonSettings ++ commonItSettings
     ).settings(
         libraryDependencies ++= Seq(
-          "com.typesafe.akka" %% "akka-stream-experimental" % streamsVersion,
-          "com.typesafe.akka" %% "akka-http-core-experimental" % streamsVersion,
-          "com.typesafe.akka" %% "akka-http-experimental" % streamsVersion,
-          "com.typesafe.akka" %% "akka-http-xml-experimental" % streamsVersion,
-          "com.typesafe.akka" %% "akka-http-testkit-experimental" % streamsVersion % "test,it"
+          "io.netty"    %  "netty-transport"  % nettyVersion,
+          "io.netty"    %  "netty-handler"    % nettyVersion,
+          "io.netty"    %  "netty-codec-http" % nettyVersion,
+          "com.lihaoyi" %% "scalatags"        % "0.6.0"
         ) ++ Sensible.testLibs("it,test") ++ Sensible.shapeless(scalaVersion.value)
       )
 
@@ -262,6 +263,7 @@ object EnsimeBuild {
       aggregate in assembly := false,
       assemblyMergeStrategy in assembly := {
         case PathList("org", "apache", "commons", "vfs2", xs @ _*) => MergeStrategy.first // assumes our classpath is setup correctly
+        case PathList("META-INF", "io.netty.versions.properties") => MergeStrategy.concat // assumes our classpath is setup correctly
         case other => MergeStrategy.defaultMergeStrategy(other)
       },
       assemblyExcludedJars in assembly <<= (fullClasspath in assembly).map { everything =>

@@ -2,7 +2,7 @@
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 package org.ensime.indexer
 
-import akka.event.slf4j.SLF4JLogging
+import org.apache.commons.vfs2.FileObject
 import org.ensime.fixture.IsolatedEnsimeVFSFixture
 import org.ensime.util.EnsimeSpec
 import org.ensime.vfs._
@@ -10,8 +10,7 @@ import scala.collection.immutable.Queue
 
 class ClassfileIndexerSpec extends EnsimeSpec with IsolatedEnsimeVFSFixture {
 
-  val indexer = new ClassfileIndexer with SLF4JLogging {}
-  import indexer._
+  def indexClassfile(f: FileObject) = new ClassfileIndexer(f).indexClassfile()
 
   "ClassfileIndexer" should "support Java 6 class files" in withVFS { implicit vfs =>
     val clazz = indexClassfile(vfs.vres("jdk6/Test.class"))

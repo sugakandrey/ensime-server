@@ -26,15 +26,13 @@ import org.ensime.vfs._
  * and Lucene for advanced indexing.
  */
 class SearchService(
-  config: EnsimeConfig,
-  resolver: SourceResolver
+    config: EnsimeConfig,
+    resolver: SourceResolver
 )(
-  implicit
-  actorSystem: ActorSystem,
-  vfs: EnsimeVFS
-) extends ClassfileIndexer
-    with FileChangeListener
-    with SLF4JLogging {
+    implicit
+    actorSystem: ActorSystem,
+    vfs: EnsimeVFS
+) extends FileChangeListener with SLF4JLogging {
   import SearchService._
 
   private[indexer] val allTargets = config.allTargets.map(vfs.vfile)
@@ -57,6 +55,8 @@ class SearchService(
    * 2.2g - persist scalap information (scala names, type sigs, etc)
    *
    * 2.1g - remodel OrientDB schema with new domain objects
+   * 
+   * 2.0.1 - change the lucene analyser
    *
    * 2.0 - upgrade Lucene, format not backwards compatible.
    *
@@ -278,7 +278,8 @@ class SearchService(
           val file = if (path.startsWith("jar") || path.startsWith("zip")) {
             FileCheck(container)
           } else FileCheck(f)
-          val clazz = indexClassfile(f)
+          val indexer = new ClassfileIndexer(f)
+          val clazz = indexer.indexClassfile()
           val userFile = isUserFile(f.getName)
           val source = resolver.resolve(clazz.name.pack, clazz.source)
           val sourceUri = source.map(_.getName.getURI)

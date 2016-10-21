@@ -20,19 +20,19 @@ build:
         exit 1 ;
       fi
     - sbt ++$SCALA_VERSION ";test ;it:test"
-#    - if [ "${SCALA_VERSION}" = "2.11.8" ] ; then
-#        sbt ++$SCALA_VERSION publishLocal ;
-#        git clone --depth 1 https://github.com/ensime/ensime-emacs.git ensime-emacs ;
-#        cd ensime-emacs ;
-#        echo "1.7" > .java-version ;
-#        cask pkg-file ;
-#        cask install ;
-#        cask build ;
-#        export JVM_OPTS="-XX:MaxPermSize=256m -Xss2m -Xms500m -Xmx500m";
-#        test/run_emacs_tests.sh ;
-#        cd $CI_BUILD_DIR ;
-#        unset JVM_OPTS ;
-#      fi
+    - if [ "${SCALA_VERSION}" = "2.11.8" ] ; then
+        sbt ++$SCALA_VERSION publishLocal ;
+        git clone --depth 1 https://github.com/ensime/ensime-emacs.git ensime-emacs ;
+        cd ensime-emacs ;
+        echo "1.7" > .java-version ;
+        cask pkg-file ;
+        cask install ;
+        cask package ;
+        export JVM_OPTS="-XX:MaxPermSize=256m -Xss2m -Xms500m -Xmx500m";
+        test/run_emacs_tests.sh || test/run_emacs_tests.sh;
+        cd $CI_BUILD_DIR ;
+        unset JVM_OPTS ;
+      fi
     - if [ -z "$CI_PULL_REQUEST" ] ; then
         sbt ++$SCALA_VERSION publish ;
         sbt ++$SCALA_VERSION ensime/assembly ;

@@ -2,21 +2,17 @@
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 package org.ensime.indexer
 
+import scala.collection.immutable.Queue
+import scala.util._
+
 import akka.event.slf4j.SLF4JLogging
 import org.apache.commons.vfs2.FileObject
 import org.objectweb.asm._
 import org.objectweb.asm.Opcodes._
 
-import scala.collection.immutable.Queue
-
-trait ClassfileIndexer {
-  this: SLF4JLogging =>
-
-  /**
-   * @param file to index
-   * @return the parsed version of the classfile and FQNs referenced within
-   */
-  def indexClassfile(file: FileObject): RawClassfile = {
+final class ClassfileIndexer(file: FileObject) extends SLF4JLogging {
+  
+  def indexClassfile(): RawClassfile = {
     val name = file.getName
     require(file.exists(), s"$name does not exist")
     require(name.getBaseName.endsWith(".class"), s"$name is not a class file")
@@ -51,7 +47,16 @@ trait ClassfileIndexer {
     ): Unit = {
 
       val signatureClass = if (signature != null && signature.nonEmpty) {
-        Some(SignatureParser.parseGeneric(signature))
+        Try(SignatureParser.parseGeneric(signature)) match {
+          case Success(sig) => Some(sig)
+          case Failure(t) =>
+            // WORKAROUND bad scalac plugins that produce dodgy classfiles
+            // https://github.com/ensime/ensime-server/issues/1614
+            log.warn(s"""Failed to parse '$file' signature for '$name'.
+                        |Consider removing or fixing the offending binary.
+                        |'$signature'""".stripMargin, t)
+            None
+        }
       } else {
         None
       }
