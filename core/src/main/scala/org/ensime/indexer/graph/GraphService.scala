@@ -173,10 +173,9 @@ class GraphService(dir: File) extends SLF4JLogging {
       sys.error("Calling this manually apparently prevent an initialization issue.")
     }
     Orient.setRegisterDatabaseByPath(true)
+
     val url = "plocal:" + dir.getAbsolutePath
     val db = new OrientGraphFactory(url).setupPool(pools, pools)
-    // The placement of this fix needs futher thought, if placed before actual GraphFactory creation it wil work for me locally,
-    // but causes NoClassDefFound during orient initialization on testing machine@fommmil.com
     val g = db.getNoTx
 
     // is this just needed on schema creation or always?

@@ -216,19 +216,34 @@ trait RichCompilerControl extends CompilerControl with RefactoringControl with C
   def askUsesOfSym(sym: Symbol, files: collection.Set[String]): List[RangePosition] =
     askOption(usesOfSymbol(sym.pos, files).toList).getOrElse(List.empty)
 
-  def handleReloadFiles(files: collection.Set[SourceFileInfo]): RpcResponse = {
+  protected def withExistingScalaFiles(
+    files: collection.Set[SourceFileInfo]
+  )(
+    f: List[SourceFile] => RpcResponse
+  ): RpcResponse = {
     val (existing, missingFiles) = files.partition(_.exists())
     if (missingFiles.nonEmpty) {
       val missingFilePaths = missingFiles.map { f => "\"" + f.file + "\"" }.mkString(",")
       EnsimeServerError(s"file(s): $missingFilePaths do not exist")
     } else {
-      val (javas, scalas) = existing.partition(_.file.getName.endsWith(".java"))
-      if (scalas.nonEmpty) {
-        val sourceFiles = scalas.map(createSourceFile)
-        askReloadFiles(sourceFiles)
-        sourceFiles.foreach(askLoadedTyped)
-        askNotifyWhenReady()
-      }
+      val (_, scalas) = existing.partition(_.file.getName.endsWith(".java"))
+      val sourceFiles: List[SourceFile] = scalas.map(createSourceFile)(collection.breakOut)
+      f(sourceFiles)
+    }
+  }
+
+  def handleReloadFiles(files: collection.Set[SourceFileInfo]): RpcResponse = {
+    withExistingScalaFiles(files) { scalas =>
+      wrapReloadSources(scalas)
+      askNotifyWhenReady()
+      VoidResponse
+    }
+  }
+
+  def handleReloadAndRetypeFiles(files: collection.Set[SourceFileInfo]): RpcResponse = {
+    withExistingScalaFiles(files) { scalas =>
+      reloadAndTypeFiles(scalas)
+      askNotifyWhenReady()
       VoidResponse
     }
   }
@@ -236,7 +251,7 @@ trait RichCompilerControl extends CompilerControl with RefactoringControl with C
   import org.ensime.util.file.File
   def loadUsesOfSym(sym: Symbol): collection.immutable.Set[File] = {
     val files = usesOfSym(sym)
-    handleReloadFiles(files)
+    handleReloadAndRetypeFiles(files)
     files.map(_.file)(collection.breakOut)
   }
 

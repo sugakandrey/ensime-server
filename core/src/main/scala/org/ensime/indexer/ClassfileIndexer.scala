@@ -11,7 +11,7 @@ import org.objectweb.asm._
 import org.objectweb.asm.Opcodes._
 
 final class ClassfileIndexer(file: FileObject) extends SLF4JLogging {
-  
+
   def indexClassfile(): RawClassfile = {
     val name = file.getName
     require(file.exists(), s"$name does not exist")

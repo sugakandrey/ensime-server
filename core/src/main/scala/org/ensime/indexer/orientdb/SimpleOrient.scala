@@ -162,8 +162,6 @@ package object syntax {
     factory: OrientGraphFactory,
     ec: ExecutionContext
   ): Future[T] = Future { blocking { withGraph(f) } }
-  // FIXME: all interaction with OrientDB should be from a dedicated thread pool
-  //        see http://orientdb.com/docs/last/Java-Multi-Threading.html
 
   // the presentation complier doesn't like it if we pimp the Graph,
   // so do it this way instead
@@ -178,8 +176,6 @@ package object syntax {
       VertexT[T](v)
     }
 
-    // TODO: handle traits in the O and I
-    //       requires higher kinded types or .Aux, beyond my foo.
     def insertE[O, I, E <: EdgeT[O, I]](out: VertexT[O], in: VertexT[I], e: E)(
       implicit
       graph: Graph,
@@ -208,20 +204,6 @@ package object syntax {
           case head :: Nil => Some(VertexT(head))
           case multi => throw new IllegalStateException(s"multiple hits ${multi.size}")
         }
-
-      // TODO: minimal gremlin-scala syntax for this sort of thing
-      // new GremlinPipeline[Vertex, Vertex](graph)
-      //   //.property("typehint").cast(classOf[String])
-      //   // .filter(new PipeFunction[String, java.lang.Boolean]() {
-      //   //   def compute(argument: String) = argument == s.label
-      //   // })
-      //   .map().transform(
-      //     new PipeFunction[java.util.Map[String, AnyRef], T] {
-      //       def compute(argument: java.util.Map[String, AnyRef]): T =
-      //         s.fromProperties(argument.asScala.toMap)
-      //     }
-      //   ).iterator().asScala.toList
-
     }
 
     def upsertV[T, P](

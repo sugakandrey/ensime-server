@@ -55,7 +55,7 @@ class SearchService(
    * 2.2g - persist scalap information (scala names, type sigs, etc)
    *
    * 2.1g - remodel OrientDB schema with new domain objects
-   * 
+   *
    * 2.0.1 - change the lucene analyser
    *
    * 2.0 - upgrade Lucene, format not backwards compatible.
