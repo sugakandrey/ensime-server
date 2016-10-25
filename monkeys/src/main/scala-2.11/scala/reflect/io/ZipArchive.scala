@@ -148,7 +148,8 @@ final class FileZipArchive(file: JFile) extends ZipArchive(file) {
     val enum = zipFile.entries()
 
     try {
-      val loader = ucp(file.toURI.toURL)
+      var timestamp = file.lastModified
+      var loader = ucp(url)
       // but we still need to parse the contents to find directories
       while (enum.hasMoreElements) {
         val zipEntry = enum.nextElement
@@ -159,6 +160,14 @@ final class FileZipArchive(file: JFile) extends ZipArchive(file) {
             override def getArchive = openZipFile
             override def lastModified = zipEntry.getTime()
             override def input = {
+              // classmonkey maintains an internal cache, so must be
+              // recreated if the file changes. Also, file is null here
+              val modified = FileZipArchive.this.lastModified
+              if (timestamp != modified) {
+                Try(loader.closeLoaders())
+                timestamp = modified
+                loader = ucp(url)
+              }
               val delegate = loader.getResource(zipEntry.getName).getInputStream
               new FilterInputStream(delegate) {}
             }
@@ -174,6 +183,7 @@ final class FileZipArchive(file: JFile) extends ZipArchive(file) {
 
   def iterator: Iterator[Entry] = root.iterator
 
+  def url = file.toURI.toURL
   def name = file.getName
   def path = file.getPath
   def input = File(file).inputStream()
