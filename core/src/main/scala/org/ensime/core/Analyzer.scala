@@ -268,11 +268,6 @@ class Analyzer(
       }
     case ExpandSelectionReq(file, start: Int, stop: Int) =>
       sender ! handleExpandselection(file, start, stop)
-    case FormatSourceReq(files: List[File]) =>
-      handleFormatFiles(files)
-      sender ! VoidResponse
-    case FormatOneSourceReq(fileInfo: SourceFileInfo) =>
-      sender ! StringResponse(handleFormatFile(fileInfo))
     case StructureViewReq(fileInfo: SourceFileInfo) =>
       sender ! withExisting(fileInfo) {
         val sourceFile = createSourceFile(fileInfo)

@@ -90,16 +90,6 @@ class SwankFormatsSpec extends EnsimeSpec with EnsimeTestData {
     )
 
     unmarshal(
-      s"""(swank:format-source ("$file1" "$file2"))""",
-      FormatSourceReq(List(file1, file2)): RpcRequest
-    )
-
-    unmarshal(
-      s"""(swank:format-one-source (:file "$file1" :contents "{/* code here */}" :contents-in "$file2"))""",
-      FormatOneSourceReq(sourceFileInfo): RpcRequest
-    )
-
-    unmarshal(
       s"""(swank:doc-uri-at-point "$file1" (1 10))""",
       DocUriAtPointReq(Left(file1), OffsetRange(1, 10)): RpcRequest
     )

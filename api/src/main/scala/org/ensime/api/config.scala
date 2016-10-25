@@ -3,7 +3,6 @@
 package org.ensime.api
 
 import java.io.File
-import scalariform.formatter.preferences.FormattingPreferences
 
 // there is quite a lot of code in this file, when we clean up the
 // config file format so that a lot of these hacks are no longer
@@ -19,7 +18,6 @@ final case class EnsimeConfig(
     compilerArgs: List[String],
     referenceSourceRoots: List[File],
     subprojects: List[EnsimeModule],
-    formattingPrefs: FormattingPreferences,
     sourceMode: Boolean,
     javaLibs: List[File],
     // WORKAROUND: https://github.com/ensime/ensime-server/issues/1042
