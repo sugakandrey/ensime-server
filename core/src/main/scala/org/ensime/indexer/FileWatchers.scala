@@ -5,6 +5,7 @@ package org.ensime.indexer
 import akka.actor.Actor
 import akka.event.slf4j.SLF4JLogging
 import org.apache.commons.vfs2._
+import scala.util.Properties._
 
 import org.ensime.api._
 import org.ensime.vfs._
@@ -43,7 +44,7 @@ class ClassfileWatcher(
 ) extends Actor with SLF4JLogging {
 
   private val impls =
-    if (config.disableClassMonitoring) Nil
+    if (propOrFalse("ensime.disableClassMonitoring")) Nil
     else {
       val jarJava7WatcherBuilder = new JarJava7WatcherBuilder()
       val classJava7WatcherBuilder = new ClassJava7WatcherBuilder()
@@ -77,7 +78,7 @@ class SourceWatcher(
     vfs: EnsimeVFS
 ) extends Watcher with SLF4JLogging {
   private val impls =
-    if (config.disableSourceMonitoring) Nil
+    if (propOrFalse("ensime.disableSourceMonitoring")) Nil
     else {
       val sourceJava7WatcherBuilder = new SourceJava7WatcherBuilder()
       for {

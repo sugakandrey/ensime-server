@@ -22,6 +22,7 @@ import scala.reflect.internal.util.{ OffsetPosition, RangePosition, SourceFile }
 import scala.tools.nsc.Settings
 import scala.tools.nsc.interactive.Global
 import scala.util.Try
+import scala.util.Properties._
 
 final case class CompilerFatalError(e: Throwable)
 
@@ -96,7 +97,7 @@ class Analyzer(
     broadcaster ! SendBackgroundMessageEvent("Initializing Analyzer. Please wait...")
 
     scalaCompiler.askNotifyWhenReady()
-    if (config.sourceMode) scalaCompiler.askReloadAllFiles()
+    if (propOrFalse("ensime.sourceMode")) scalaCompiler.askReloadAllFiles()
   }
 
   protected def makeScalaCompiler() = new RichPresentationCompiler(
@@ -168,7 +169,7 @@ class Analyzer(
       scalaCompiler.askNotifyWhenReady()
       sender ! VoidResponse
     case UnloadAllReq =>
-      if (config.sourceMode) {
+      if (propOrFalse("ensime.sourceMode")) {
         log.info("in source mode, will reload all files")
         scalaCompiler.askRemoveAllDeleted()
         restartCompiler(keepLoaded = true)

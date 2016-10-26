@@ -3,6 +3,7 @@
 package org.ensime.api
 
 import java.io.File
+import scala.util.Properties._
 
 // there is quite a lot of code in this file, when we clean up the
 // config file format so that a lot of these hacks are no longer
@@ -18,11 +19,7 @@ final case class EnsimeConfig(
     compilerArgs: List[String],
     referenceSourceRoots: List[File],
     subprojects: List[EnsimeModule],
-    sourceMode: Boolean,
-    javaLibs: List[File],
-    // WORKAROUND: https://github.com/ensime/ensime-server/issues/1042
-    disableSourceMonitoring: Boolean = false,
-    disableClassMonitoring: Boolean = false
+    javaLibs: List[File]
 ) {
   (rootDir :: cacheDir :: javaHome :: referenceSourceRoots ::: javaLibs).foreach { f =>
     require(f.exists, "" + f + " is required but does not exist")
@@ -38,7 +35,7 @@ final case class EnsimeConfig(
 
   def compileClasspath: Set[File] = modules.values.toSet.flatMap {
     m: EnsimeModule => m.compileDeps ++ m.testDeps
-  } ++ (if (sourceMode) List.empty else targetClasspath)
+  } ++ (if (propOrFalse("ensime.sourceMode")) List.empty else targetClasspath)
 
   def targetClasspath: Set[File] = modules.values.toSet.flatMap {
     m: EnsimeModule => m.targets ++ m.testTargets
