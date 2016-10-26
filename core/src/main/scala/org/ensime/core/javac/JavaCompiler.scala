@@ -2,15 +2,15 @@
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 package org.ensime.core.javac
 
-import java.io.{ File => JFile, InputStream, OutputStream, Reader, StringReader, Writer }
+import java.io.{ InputStream, OutputStream, Reader, StringReader, Writer, File => JFile }
 import java.net.URI
 import java.nio.charset.Charset
+import java.nio.file.Path
 import java.util.concurrent.ConcurrentHashMap
 import java.util.Locale
 import javax.lang.model.element.{ Modifier, NestingKind }
 
 import scala.collection.JavaConverters._
-
 import akka.actor.ActorRef
 import akka.event.slf4j.SLF4JLogging
 import com.sun.source.tree.Scope
@@ -18,6 +18,8 @@ import com.sun.source.util.{ JavacTask, TreePath }
 import com.sun.tools.javac.util.Abort
 import javax.lang.model.`type`.TypeMirror
 import javax.tools._
+
+import com.sun.tools.javac.file.{ BaseFileObject, JavacFileManager }
 import org.ensime.api._
 import org.ensime.core.DocSigPair
 import org.ensime.indexer.{ FullyQualifiedName, SearchService }
@@ -46,7 +48,8 @@ class JavaCompiler(
   private val workingSet = new ConcurrentHashMap[String, JavaFileObject]()
 
   private implicit def charset: Charset = Charset.defaultCharset() // how can we infer this?
-
+  val context = new com.sun.tools.javac.util.Context() //Need to have a single context and not one for each source??
+  val javacFileManager: JavacFileManager = new JavacFileManager(context, false, charset)
   lazy val compiler = ToolProvider.getSystemJavaCompiler()
   lazy val fileManager: JavaFileManager = compiler.getStandardFileManager(listener, null, charset)
 
@@ -62,11 +65,11 @@ class JavaCompiler(
 
   def createJavaFileObject(sf: SourceFileInfo): JavaFileObject = sf match {
     case SourceFileInfo(f, None, None) =>
-      new NotSoSimpleJavaFileObject(f, None)
+      new NotSoSimpleJavaFileObject(f, None, javacFileManager)
     case SourceFileInfo(f, None, Some(contentsIn)) =>
-      new NotSoSimpleJavaFileObject(f, Some(contentsIn.readString))
+      new NotSoSimpleJavaFileObject(f, Some(contentsIn.readString), javacFileManager)
     case SourceFileInfo(f, contents, _) =>
-      new NotSoSimpleJavaFileObject(f, contents)
+      new NotSoSimpleJavaFileObject(f, contents, javacFileManager)
   }
 
   def internSource(sf: SourceFileInfo): JavaFileObject = {
@@ -187,13 +190,17 @@ class JavaCompiler(
 // as opposed to javax.tools.SimpleFileObject which doesn't handle archive entries
 private class NotSoSimpleJavaFileObject(
     val f: EnsimeFile,
-    val contents: Option[String]
+    val contents: Option[String],
+    val javacFileManager: JavacFileManager
 )(
     implicit
     charset: Charset
-) extends JavaFileObject {
+) extends BaseFileObject(javacFileManager) {
   @inline private def unsupported = throw new UnsupportedOperationException
-
+  override def inferBinaryName(path: java.lang.Iterable[_ <: java.io.File]): String = f match {
+    case RawFile(rf) => rf.toFile.toString
+    case ArchiveFile(p, e) => p.toFile.toString.replace(".jar", "") + s"""${if (e.startsWith("/")) "" else "/"}""" + e
+  }
   override def delete(): Boolean = unsupported
   override def getCharContent(ignoreEncodingErrors: Boolean): CharSequence = contents.getOrElse(f.readStringDirect)
   override def getLastModified(): Long = f.lastModified
@@ -211,5 +218,23 @@ private class NotSoSimpleJavaFileObject(
     simpleName: String,
     kind: JavaFileObject.Kind
   ): Boolean = false // this can probably be optimised, but the intended javac use is not clear
-
+  override def equals(other: Any): Boolean = this.f match {
+    case RawFile(rf) => other match {
+      case p: Path => rf.toString == p.toString
+      case r: RawFile => rf.toString == r.file.toString
+      case _ => false
+    }
+    case ArchiveFile(p, e) => other match {
+      case af: ArchiveFile => af.entry.toString == e && af.jar.toFile.toString == p.toFile.toString
+      case _ => false
+    }
+  }
+  override def hashCode(): Int = f match {
+    case rf @ RawFile(_) => rf.hashCode()
+    case af @ ArchiveFile(_, _) => af.hashCode()
+  }
+  override def getShortName: String = f match {
+    case RawFile(rf) => rf.getFileName.toString
+    case ArchiveFile(p, e) => s"""${p.getFileName.toString.replace(".jar", "")}(${e.substring(e.lastIndexOf("/"))})"""
+  }
 }
