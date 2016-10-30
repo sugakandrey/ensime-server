@@ -1,12 +1,12 @@
 install:
   - ps: |
       Add-Type -AssemblyName System.IO.Compression.FileSystem
-      if (!(Test-Path -Path "C:\sbt" )) {
+      if (!(Test-Path -Path "C:\sbt\sbt-launcher-packaging-0.13.13" )) {
         (new-object System.Net.WebClient).DownloadFile(
-          'https://dl.bintray.com/sbt/native-packages/sbt/0.13.12/sbt-0.13.12.zip',
-          'C:\sbt-bin.zip'
+          'https://dl.bintray.com/sbt/native-packages/sbt/0.13.13/sbt-0.13.13.zip',
+          'C:\sbt-0.13.13.zip'
         )
-        [System.IO.Compression.ZipFile]::ExtractToDirectory("C:\sbt-bin.zip", "C:\sbt")
+        [System.IO.Compression.ZipFile]::ExtractToDirectory("C:\sbt-0.13.13.zip", "C:\sbt")
       }
   - ps: |
       if (!(Test-Path -Path "C:\Program Files\Java\jdk1.7.0\src.zip")) {
@@ -17,8 +17,7 @@ install:
       }
   - cmd: SET JDK_HOME=C:\Program Files\Java\jdk1.7.0
   - cmd: SET JAVA_HOME=C:\Program Files\Java\jdk1.7.0
-  - cmd: SET PATH=C:\sbt\sbt\bin;%JDK_HOME%\bin;%PATH%
-  - cmd: SET SBT_OPTS=-XX:MaxPermSize=256m -Xss2m -Xms1g -Xmx1g
+  - cmd: SET PATH=C:\sbt\sbt-launcher-packaging-0.13.13\bin;%JDK_HOME%\bin;%PATH%
   - cmd: SET AKKA_TEST_TIMEFACTOR=10
   - cmd: SET SBT_TASK_LIMIT=2
   - cmd: SET GC_LOGGING=true
@@ -27,8 +26,7 @@ build_script:
 test_script:
   - sbt ";test ;it:test"
 cache:
-  - C:\sbt\
-  - C:\Users\appveyor\.m2
+  - C:\sbt\sbt-launcher-packaging-0.13.13
   - C:\Users\appveyor\.ivy2
   - C:\Users\appveyor\.coursier
   - C:\Program Files\Java\jdk1.7.0\src.zip
