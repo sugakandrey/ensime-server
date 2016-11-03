@@ -234,7 +234,7 @@ trait RichCompilerControl extends CompilerControl with RefactoringControl with C
 
   def handleReloadFiles(files: collection.Set[SourceFileInfo]): RpcResponse = {
     withExistingScalaFiles(files) { scalas =>
-      wrapReloadSources(scalas)
+      askReloadFiles(scalas)
       askNotifyWhenReady()
       VoidResponse
     }
@@ -242,7 +242,8 @@ trait RichCompilerControl extends CompilerControl with RefactoringControl with C
 
   def handleReloadAndRetypeFiles(files: collection.Set[SourceFileInfo]): RpcResponse = {
     withExistingScalaFiles(files) { scalas =>
-      reloadAndTypeFiles(scalas)
+      askReloadFiles(scalas)
+      scalas.foreach(askLoadedTyped)
       askNotifyWhenReady()
       VoidResponse
     }
