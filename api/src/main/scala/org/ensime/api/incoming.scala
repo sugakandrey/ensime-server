@@ -75,16 +75,6 @@ case object TypecheckAllReq extends RpcAnalyserRequest
  */
 final case class TypecheckFilesReq(files: List[Either[File, SourceFileInfo]]) extends RpcAnalyserRequest
 
-/**
- * Responds with `VoidResponse`.
- */
-final case class FormatSourceReq(files: List[File]) extends RpcAnalyserRequest
-
-/**
- * Responds with the formatted file as a `StringResponse`.
- */
-final case class FormatOneSourceReq(file: SourceFileInfo) extends RpcAnalyserRequest
-
 // related to searching the indexer
 sealed trait RpcSearchRequest extends RpcRequest
 

@@ -48,7 +48,6 @@ class EnsimeConfigSpec extends EnsimeSpec {
       val module1 = config.modules("module1")
       module1.name shouldBe "module1"
       module1.dependencies shouldBe empty
-      config.sourceMode shouldBe false
     })
   }
 
@@ -77,35 +76,6 @@ class EnsimeConfigSpec extends EnsimeSpec {
       module1.dependencies shouldBe empty
       module1.targets should have size 1
     })
-  }
-
-  it should "base class paths on source-mode value" in {
-    List(true, false) foreach { (sourceMode: Boolean) =>
-      withTempDir { dir =>
-        val abc = dir / "abc"
-        val cache = dir / ".ensime_cache"
-        val javaHome = File(Properties.javaHome)
-
-        abc.mkdirs()
-        cache.mkdirs()
-
-        test(dir, s"""
-(:name "project"
- :scala-version "2.10.4"
- :java-home "$javaHome"
- :root-dir "$dir"
- :cache-dir "$cache"
- :source-mode ${if (sourceMode) "t" else "nil"}
- :subprojects ((:name "module1"
-                :scala-version "2.10.4"
-                :targets ("$abc"))))""", { implicit config =>
-          config.sourceMode shouldBe sourceMode
-          config.compileClasspath shouldBe (
-            if (sourceMode) Set.empty else Set(abc)
-          )
-        })
-      }
-    }
   }
 
 }

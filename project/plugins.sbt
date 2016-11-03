@@ -1,5 +1,5 @@
 // sbt-ensime is needed for the integration tests
-addSbtPlugin("org.ensime" % "sbt-ensime" % "1.10.0")
+addSbtPlugin("org.ensime" % "sbt-ensime" % "1.11.1")
 
 addSbtPlugin("de.heikoseeberger" % "sbt-header" % "1.5.1")
 

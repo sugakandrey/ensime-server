@@ -88,16 +88,6 @@ class JerkyFormatsSpec extends EnsimeSpec with SprayJsonTestSupport with EnsimeT
     )
 
     roundtrip(
-      FormatSourceReq(List(file1, file2)): RpcRequest,
-      s"""{"typehint":"FormatSourceReq","files":["$file1","$file2"]}"""
-    )
-
-    roundtrip(
-      FormatOneSourceReq(sourceFileInfo): RpcRequest,
-      s"""{"typehint":"FormatOneSourceReq","file":{"file":"$file1","contents":"{/* code here */}","contentsIn":"$file2"}}"""
-    )
-
-    roundtrip(
       DocUriAtPointReq(Left(file1), OffsetRange(1, 10)): RpcRequest,
       s"""{"typehint":"DocUriAtPointReq","file":"$file1","point":{"from":1,"to":10}}"""
     )

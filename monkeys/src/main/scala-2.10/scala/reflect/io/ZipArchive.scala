@@ -8,17 +8,12 @@
 package scala.reflect
 package io
 
-import java.lang.reflect.Constructor
 import java.net.URL
 import java.io.{ IOException, InputStream, ByteArrayInputStream, FilterInputStream }
 import java.io.{ File => JFile }
 import java.util.zip.{ ZipEntry, ZipFile, ZipInputStream }
 import scala.collection.{ immutable, mutable }
 import scala.annotation.tailrec
-
-import scala.util.Try
-
-import sun.misc.URLClassPath
 
 /**
  * An abstraction for zip files and streams.  Everything is written the way
@@ -64,15 +59,6 @@ object ZipArchive {
     else if (front) path.substring(0, idx + 1)
     else path.substring(idx + 1)
   }
-
-  private val classmonkey: Option[Constructor[URLClassPath]] = Try(Class.forName("fommil.URLClassPath")).toOption.map {
-    klass => klass.getDeclaredConstructors.find(_.getGenericParameterTypes.length == 1).get.asInstanceOf[Constructor[URLClassPath]]
-  }
-  private[io] def ucp(url: URL): URLClassPath = classmonkey match {
-    case Some(monkey) => monkey.newInstance(Array(url))
-    case None => new URLClassPath(Array(url))
-  }
-
 }
 import ZipArchive._
 /** ''Note:  This library is considered experimental and should not be used unless you know what you are doing.'' */
@@ -144,6 +130,9 @@ final class FileZipArchive(file: JFile) extends ZipArchive(file) {
   lazy val (root, allDirs) = {
     val root = new DirEntry("/")
     val dirs = mutable.HashMap[String, DirEntry]("/" -> root)
+
+    // NOTE: please read the ENSIME specific comments in the
+    //       scala-2.11 version of this file to address SI-9632
     def openZipFile(): ZipFile = try {
       new ZipFile(file)
     } catch {
@@ -154,8 +143,6 @@ final class FileZipArchive(file: JFile) extends ZipArchive(file) {
     val enum = zipFile.entries()
 
     try {
-      val loader = ucp(file.toURI.toURL)
-      // but we still need to parse the contents to find directories
       while (enum.hasMoreElements) {
         val zipEntry = enum.nextElement
         val dir = getDir(dirs, zipEntry)
@@ -165,8 +152,14 @@ final class FileZipArchive(file: JFile) extends ZipArchive(file) {
             override def getArchive = openZipFile
             override def lastModified = zipEntry.getTime()
             override def input = {
-              val delegate = loader.getResource(zipEntry.getName).getInputStream
-              new FilterInputStream(delegate) {}
+              val zipFile = getArchive
+              val delegate = zipFile getInputStream zipEntry
+              new FilterInputStream(delegate) {
+                override def close(): Unit = {
+                  delegate.close()
+                  zipFile.close()
+                }
+              }
             }
             override def sizeOption = Some(zipEntry.getSize().toInt)
           }

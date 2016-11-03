@@ -14,9 +14,7 @@ import scala.tools.refactoring._
 import scala.tools.refactoring.analysis.GlobalIndexes
 import scala.tools.refactoring.common.{ Change, CompilerAccess, RenameSourceFileChange }
 import scala.tools.refactoring.implementations._
-import scala.util.{ Success, Try }
 import scalariform.astselect.AstSelector
-import scalariform.formatter.ScalaFormatter
 import scalariform.utils.Range
 
 abstract class RefactoringEnvironment(file: String, start: Int, end: Int) {
@@ -86,26 +84,6 @@ trait RefactoringHandler { self: Analyzer =>
         }
       case Left(e) => throw e
     }
-  }
-
-  def handleFormatFiles(files: List[File]): Unit = {
-    val changeList = files.map { f =>
-      readFile(f) match {
-        case Right(contents) =>
-          Try(ScalaFormatter.format(contents, config.formattingPrefs)).map((f, contents, _))
-        case Left(e) => throw e
-      }
-    }.collect {
-      case Success((f, contents, formatted)) =>
-        TextEdit(f, 0, contents.length, formatted)
-    }
-    writeChanges(changeList)
-  }
-
-  def handleFormatFile(fileInfo: SourceFileInfo): String = {
-    val sourceFile = createSourceFile(fileInfo)
-    val contents = sourceFile.content.mkString
-    ScalaFormatter.format(contents, config.formattingPrefs)
   }
 
 }

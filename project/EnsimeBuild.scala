@@ -18,7 +18,7 @@ object ProjectPlugin extends AutoPlugin {
   override def requires = plugins.JvmPlugin
   override def trigger = allRequirements
 
-  override def projectSettings = Seq(
+  override def buildSettings = Seq(
     scalaVersion := "2.11.8",
     organization := "org.ensime",
     version := "2.0.0-graph-SNAPSHOT"

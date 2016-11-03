@@ -9,7 +9,6 @@ package scala
 package reflect
 package io
 
-import java.lang.reflect.Constructor
 import java.net.URL
 import java.io.{ IOException, InputStream, ByteArrayInputStream, FilterInputStream }
 import java.io.{ File => JFile }
@@ -18,9 +17,6 @@ import java.util.jar.Manifest
 import scala.collection.mutable
 import scala.collection.convert.WrapAsScala.asScalaIterator
 import scala.annotation.tailrec
-import scala.util.Try
-
-import sun.misc.URLClassPath
 
 /**
  * An abstraction for zip files and streams.  Everything is written the way
@@ -64,15 +60,6 @@ object ZipArchive {
     else if (front) path.substring(0, idx + 1)
     else path.substring(idx + 1)
   }
-
-  private val classmonkey: Option[Constructor[URLClassPath]] = Try(Class.forName("fommil.URLClassPath")).toOption.map {
-    klass => klass.getDeclaredConstructors.find(_.getGenericParameterTypes.length == 1).get.asInstanceOf[Constructor[URLClassPath]]
-  }
-  private[io] def ucp(url: URL): URLClassPath = classmonkey match {
-    case Some(monkey) => monkey.newInstance(Array(url))
-    case None => new URLClassPath(Array(url))
-  }
-
 }
 import ZipArchive._
 /** ''Note:  This library is considered experimental and should not be used unless you know what you are doing.'' */
@@ -138,6 +125,24 @@ final class FileZipArchive(file: JFile) extends ZipArchive(file) {
   lazy val (root, allDirs) = {
     val root = new DirEntry("/")
     val dirs = mutable.HashMap[String, DirEntry]("/" -> root)
+
+    // NOTES on SI-9632
+    //
+    // The original scalac implementation of this class opens the zip
+    // file and retains the file handle, relying on the GC to call the
+    // finalizers (which reliably doesn't happen). On UNIX-like OS the
+    // file handle will refer to the file at the point when it was
+    // created (causing a huge PermGen memory leak), on Windows it is
+    // impossible for any process to delete the file.
+    //
+    // The changes here ensure that zip files are closed immediately
+    // after use: the live version of the file is always accessed.
+    // This can result in runtime exceptions if the file is mutated.
+    //
+    // There is an expected performance penalty, but it is not
+    // significant in practice for ENSIME users. An alternative would
+    // be to eagerly load the zip into memory, but that would have a
+    // significant cost to the heap.
     def openZipFile(): ZipFile = try {
       new ZipFile(file)
     } catch {
@@ -148,19 +153,30 @@ final class FileZipArchive(file: JFile) extends ZipArchive(file) {
     val enum = zipFile.entries()
 
     try {
-      val loader = ucp(file.toURI.toURL)
-      // but we still need to parse the contents to find directories
       while (enum.hasMoreElements) {
         val zipEntry = enum.nextElement
         val dir = getDir(dirs, zipEntry)
         if (zipEntry.isDirectory) dir
         else {
           class FileEntry() extends Entry(zipEntry.getName) {
+            // WARNING: provides a newly created archive, which will
+            //          disagree with the FileZipArchive.iterator if
+            //          the file has been mutated. Note that calls to
+            //          this method can leak file handles.
             override def getArchive = openZipFile
             override def lastModified = zipEntry.getTime()
+            // WARNING: input will fail if the zip has been mutated
+            //          whereas the scalac implementation will provide
+            //          the old (stale) entry
             override def input = {
-              val delegate = loader.getResource(zipEntry.getName).getInputStream
-              new FilterInputStream(delegate) {}
+              val zipFile = getArchive
+              val delegate = zipFile getInputStream zipEntry
+              new FilterInputStream(delegate) {
+                override def close(): Unit = {
+                  delegate.close()
+                  zipFile.close()
+                }
+              }
             }
             override def sizeOption = Some(zipEntry.getSize().toInt)
           }

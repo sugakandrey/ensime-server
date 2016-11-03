@@ -81,16 +81,6 @@ class SwankyFormatsSpec extends EnsimeSpec with EnsimeTestData {
     )
 
     roundtrip(
-      FormatSourceReq(List(file1, file2)): RpcRequest,
-      s"""(:ensime-api-format-source-req (:files ("$file1" "$file2")))"""
-    )
-
-    roundtrip(
-      FormatOneSourceReq(sourceFileInfo): RpcRequest,
-      s"""(:ensime-api-format-one-source-req (:file (:file "$file1" :contents "{/* code here */}" :contents-in "$file2")))"""
-    )
-
-    roundtrip(
       DocUriAtPointReq(Left(file1), OffsetRange(1, 10)): RpcRequest,
       s"""(:ensime-api-doc-uri-at-point-req (:file "$file1" :point (:from 1 :to 10)))"""
     )
