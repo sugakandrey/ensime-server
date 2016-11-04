@@ -35,6 +35,7 @@ class BasicWorkflow extends EnsimeSpec
           project ! TypecheckModule("testingSimple")
           expectMsg(VoidResponse)
           asyncHelper.expectMsgType[NewScalaNotesEvent]
+          asyncHelper.expectMsgType[NewScalaNotesEvent]
           asyncHelper.expectMsgType[FullTypeCheckCompleteEvent.type]
 
           project ! TypeByNameReq("org.example.Bloo")
@@ -396,10 +397,20 @@ class BasicWorkflow extends EnsimeSpec
               diffContent should ===(expectedDiff)
           }
 
-          project ! UnloadFileReq(barFile)
-          expectMsg(VoidResponse)
+          val bazFile = sourceRoot / "org/example2/Baz.scala"
+          val toBeUnloaded = sourceRoot / "org/example2/ToBeUnloaded.scala"
 
-          project ! TypecheckFilesReq(List(Left(fooFile)))
+          project ! TypecheckFilesReq(List(Left(bazFile), Left(toBeUnloaded)))
+          expectMsg(VoidResponse)
+          asyncHelper.expectMsgType[NewScalaNotesEvent]
+          asyncHelper.expectMsgType[FullTypeCheckCompleteEvent.type]
+
+          project ! UnloadFileReq(toBeUnloaded)
+          expectMsg(VoidResponse)
+          // file with deprecated procedure syntax has been unloaded
+          // `NewScalaNotesEvent` should not appear when typechecking `bazFile`
+
+          project ! TypecheckFilesReq(List(Left(bazFile)))
           expectMsg(VoidResponse)
           asyncHelper.expectMsg(FullTypeCheckCompleteEvent)
         }
