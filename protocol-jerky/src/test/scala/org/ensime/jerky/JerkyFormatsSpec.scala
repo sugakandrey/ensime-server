@@ -194,8 +194,8 @@ class JerkyFormatsSpec extends EnsimeSpec with SprayJsonTestSupport with EnsimeT
     )
 
     roundtrip(
-      UnloadFileReq(file1): RpcRequest,
-      s"""{"typehint":"UnloadFileReq","file":"$file1"}"""
+      UnloadFileReq(sourceFileInfo2): RpcRequest,
+      s"""{"typehint":"UnloadFileReq","fileInfo":{"file":"$file1"}}"""
     )
   }
 

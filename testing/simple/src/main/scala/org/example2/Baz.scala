@@ -9,5 +9,5 @@ class Baz {
 }
 
 object Baz {
-  new ToBeUnloaded().procedure()
+  new ToBeUnloaded().warning()
 }

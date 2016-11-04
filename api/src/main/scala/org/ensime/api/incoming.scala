@@ -58,7 +58,7 @@ final case class UnloadModuleReq(module: String) extends RpcAnalyserRequest
 /**
  * Responds with a `VoidResponse`
  */
-final case class UnloadFileReq(file: File) extends RpcAnalyserRequest
+final case class UnloadFileReq(fileInfo: SourceFileInfo) extends RpcAnalyserRequest
 
 /**
  * Response with a `VoidResponse`.

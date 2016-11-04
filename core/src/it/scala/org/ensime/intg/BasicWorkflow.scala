@@ -405,10 +405,10 @@ class BasicWorkflow extends EnsimeSpec
           asyncHelper.expectMsgType[NewScalaNotesEvent]
           asyncHelper.expectMsgType[FullTypeCheckCompleteEvent.type]
 
-          project ! UnloadFileReq(toBeUnloaded)
+          project ! UnloadFileReq(SourceFileInfo(toBeUnloaded))
           expectMsg(VoidResponse)
-          // file with deprecated procedure syntax has been unloaded
-          // `NewScalaNotesEvent` should not appear when typechecking `bazFile`
+          // file with deprecation warning has been unloaded
+          // `NewScalaNotesEvent` should now not appear when typechecking `bazFile`
 
           project ! TypecheckFilesReq(List(Left(bazFile)))
           expectMsg(VoidResponse)

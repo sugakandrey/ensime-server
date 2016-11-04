@@ -192,8 +192,8 @@ class SwankyFormatsSpec extends EnsimeSpec with EnsimeTestData {
     )
 
     roundtrip(
-      UnloadFileReq(file1): RpcRequest,
-      s"""(:ensime-api-unload-file-req (:file "$file1"))"""
+      UnloadFileReq(sourceFileInfo2): RpcRequest,
+      s"""(:ensime-api-unload-file-req (:file-info (:file "$file1")))"""
     )
   }
 

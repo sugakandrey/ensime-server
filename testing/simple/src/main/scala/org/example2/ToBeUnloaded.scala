@@ -1,7 +1,7 @@
 package org.example2
 
 class ToBeUnloaded {
-  def procedure() {
-    println(123)
+  def warning(): Unit = {
+    val foo: ClassManifest[Int] = ???
   }
 }

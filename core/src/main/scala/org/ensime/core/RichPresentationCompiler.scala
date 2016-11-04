@@ -166,7 +166,7 @@ trait RichCompilerControl extends CompilerControl with RefactoringControl with C
 
   def askUnloadAllFiles(): Unit = askOption(unloadAllFiles())
 
-  def askUnloadFile(f: File): Unit = {
+  def askUnloadFile(f: SourceFileInfo): Unit = {
     val sourceFile = createSourceFile(f)
     askOption(unloadFile(sourceFile))
   }

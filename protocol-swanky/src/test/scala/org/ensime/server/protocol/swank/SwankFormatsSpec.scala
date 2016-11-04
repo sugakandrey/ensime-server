@@ -201,8 +201,8 @@ class SwankFormatsSpec extends EnsimeSpec with EnsimeTestData {
     )
 
     unmarshal(
-      s"""(swank:unload-file "$file1")""",
-      UnloadFileReq(file1): RpcRequest
+      s"""(swank:unload-file (:file "$file1"))""",
+      UnloadFileReq(sourceFileInfo2): RpcRequest
     )
   }
 
