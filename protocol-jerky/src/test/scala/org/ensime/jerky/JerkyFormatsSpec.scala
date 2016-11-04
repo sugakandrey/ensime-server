@@ -192,7 +192,7 @@ class JerkyFormatsSpec extends EnsimeSpec with SprayJsonTestSupport with EnsimeT
       AstAtPointReq(sourceFileInfo, OffsetRange(1, 100)): RpcRequest,
       s"""{"typehint":"AstAtPointReq","file":{"file":"$file1","contents":"{/* code here */}","contentsIn":"$file2"},"offset":{"from":1,"to":100}}"""
     )
-    
+
     roundtrip(
       UnloadFileReq(file1): RpcRequest,
       s"""{"typehint":"UnloadFileReq","file":"$file1"}"""
