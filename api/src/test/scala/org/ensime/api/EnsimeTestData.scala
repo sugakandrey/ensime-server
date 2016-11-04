@@ -118,6 +118,7 @@ trait EnsimeTestData {
   val completionInfoList = List(completionInfo, completionInfo2)
 
   val sourceFileInfo = SourceFileInfo(file1, Some("{/* code here */}"), Some(file2))
+  val sourceFileInfo2 = SourceFileInfo(file1)
   val dtid = DebugThreadId(13)
   val debugLocationArray = DebugArrayElement(DebugObjectId(13), 14)
 

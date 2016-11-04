@@ -190,6 +190,11 @@ class SwankyFormatsSpec extends EnsimeSpec with EnsimeTestData {
       AstAtPointReq(sourceFileInfo, OffsetRange(1, 100)): RpcRequest,
       s"""(:ensime-api-ast-at-point-req (:file (:file "$file1" :contents "{/* code here */}" :contents-in "$file2") :offset (:from 1 :to 100)))"""
     )
+
+    roundtrip(
+      UnloadFileReq(sourceFileInfo2): RpcRequest,
+      s"""(:ensime-api-unload-file-req (:file-info (:file "$file1")))"""
+    )
   }
 
   it should "roundtrip RpcDebugRequests" in {

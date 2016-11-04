@@ -199,6 +199,11 @@ class SwankFormatsSpec extends EnsimeSpec with EnsimeTestData {
       s"""(swank:ast-at-point (:file "$file1" :contents "{/* code here */}" :contents-in "$file2") (1 100))""",
       AstAtPointReq(sourceFileInfo, OffsetRange(1, 100)): RpcRequest
     )
+
+    unmarshal(
+      s"""(swank:unload-file (:file "$file1"))""",
+      UnloadFileReq(sourceFileInfo2): RpcRequest
+    )
   }
 
   it should "unmarshal RpcDebugRequests" in {

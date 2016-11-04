@@ -600,6 +600,7 @@ object SwankProtocolRequest {
   implicit val ConnectionInfoReqHint: TypeHint[ConnectionInfoReq.type] = TypeHint[ConnectionInfoReq.type](SexpSymbol("swank:connection-info"))
 
   implicit val RemoveFileReqHint: TypeHint[RemoveFileReq] = TypeHint[RemoveFileReq](SexpSymbol("swank:remove-file"))
+  implicit val UnloadFileReqHint: TypeHint[UnloadFileReq] = TypeHint[UnloadFileReq](SexpSymbol("swank:unload-file"))
   implicit val TypecheckFileReqHint: TypeHint[TypecheckFileReq] = TypeHint[TypecheckFileReq](SexpSymbol("swank:typecheck-file"))
   implicit val TypecheckFilesReqHint: TypeHint[TypecheckFilesReq] = TypeHint[TypecheckFilesReq](SexpSymbol("swank:typecheck-files"))
   implicit val UnloadAllReqHint: TypeHint[UnloadAllReq.type] = TypeHint[UnloadAllReq.type](SexpSymbol("swank:unload-all"))
@@ -746,6 +747,7 @@ object SwankProtocolRequest {
 
   // incoming messages
   implicit def RemoveFileReqFormat: SexpFormat[RemoveFileReq] = { def RemoveFileReqFormat = ???; implicitly[SexpFormat[RemoveFileReq]] }
+  implicit def UnloadFileReqFormat: SexpFormat[UnloadFileReq] = { def UnloadFileReqFormat = ???; implicitly[SexpFormat[UnloadFileReq]] }
   implicit def TypecheckFileReqFormat: SexpFormat[TypecheckFileReq] = { def TypecheckFileReqFormat = ???; implicitly[SexpFormat[TypecheckFileReq]] }
   implicit def TypecheckFilesReqFormat: SexpFormat[TypecheckFilesReq] = { def TypecheckFilesReqFormat = ???; implicitly[SexpFormat[TypecheckFilesReq]] }
   implicit def PublicSymbolSearchHint: SexpFormat[PublicSymbolSearchReq] = { def PublicSymbolSearchHint = ???; implicitly[SexpFormat[PublicSymbolSearchReq]] }
@@ -790,6 +792,7 @@ object SwankProtocolRequest {
         kind match {
           case s if s == ConnectionInfoReqHint.hint => ConnectionInfoReq
           case s if s == RemoveFileReqHint.hint => value.convertTo[RemoveFileReq]
+          case s if s == UnloadFileReqHint.hint => value.convertTo[UnloadFileReq]
           case s if s == TypecheckFileReqHint.hint => value.convertTo[TypecheckFileReq]
           case s if s == TypecheckFilesReqHint.hint => value.convertTo[TypecheckFilesReq]
           case s if s == UnloadAllReqHint.hint => UnloadAllReq
