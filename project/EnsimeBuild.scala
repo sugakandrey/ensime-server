@@ -194,8 +194,7 @@ object EnsimeBuild {
         libraryDependencies ++= Seq(
           "io.netty"    %  "netty-transport"  % nettyVersion,
           "io.netty"    %  "netty-handler"    % nettyVersion,
-          "io.netty"    %  "netty-codec-http" % nettyVersion,
-          "com.lihaoyi" %% "scalatags"        % "0.6.0"
+          "io.netty"    %  "netty-codec-http" % nettyVersion
         ) ++ Sensible.testLibs("it,test") ++ Sensible.shapeless(scalaVersion.value)
       )
 
