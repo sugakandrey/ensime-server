@@ -21,7 +21,8 @@ object SonatypeSupport {
     pomIncludeRepository := { _ => false },
     homepage := Some(url(s"http://github.com/$ghUser/$ghRepo")),
     licenses := Seq(license),
-    publishTo <<= version { v: String =>
+    publishTo := {
+      val v = version.value
       val nexus = "https://oss.sonatype.org/"
       if (v.contains("SNAP")) Some("snapshots" at nexus + "content/repositories/snapshots")
       else Some("releases" at nexus + "service/local/staging/deploy/maven2")

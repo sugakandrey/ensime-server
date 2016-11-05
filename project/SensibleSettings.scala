@@ -80,32 +80,27 @@ object Sensible {
     // one JVM per test suite
     fork := true,
     testForkedParallel := true,
-    testGrouping <<= (
-      definedTests,
-      baseDirectory,
-      javaOptions,
-      outputStrategy,
-      envVars,
-      javaHome,
-      connectInput
-    ).map { (tests, base, options, strategy, env, javaHomeDir, connectIn) =>
-        val opts = ForkOptions(
-          bootJars = Nil,
-          javaHome = javaHomeDir,
-          connectInput = connectIn,
-          outputStrategy = strategy,
-          runJVMOptions = options,
-          workingDirectory = Some(base),
-          envVars = env
-        )
-        tests.map { test =>
-          Tests.Group(test.name, Seq(test), Tests.SubProcess(opts))
-        }
-      },
+    testGrouping := {
+      val opts = ForkOptions(
+        bootJars = Nil,
+        javaHome = javaHome.value,
+        connectInput = connectInput.value,
+        outputStrategy = outputStrategy.value,
+        runJVMOptions = javaOptions.value,
+        workingDirectory = Some(baseDirectory.value),
+        envVars = envVars.value
+      )
+      definedTests.value.map { test =>
+        Tests.Group(test.name, Seq(test), Tests.SubProcess(opts))
+      }
+    },
 
-    javaOptions <++= (baseDirectory in ThisBuild, configuration, name).map { (base, config, n) =>
+    javaOptions ++= {
       if (sys.env.get("GC_LOGGING").isEmpty) Nil
       else {
+        val base = (baseDirectory in ThisBuild).value
+        val config = configuration.value
+        val n = name.value
         val count = forkCount.incrementAndGet() // subject to task evaluation
         val out = { base / s"gc-$config-$n.log" }.getCanonicalPath
         Seq(
