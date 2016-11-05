@@ -1,4 +1,6 @@
--XX:MaxPermSize=256m
+-XX:+UseG1GC
+-XX:+UseStringDeduplication
+-XX:MaxMetaspaceSize=256m
 -Xss2m
 -Xms1g
 -Xmx1g

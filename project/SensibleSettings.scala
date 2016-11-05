@@ -42,14 +42,16 @@ object Sensible {
         else Nil
       },
     javacOptions in (Compile, compile) ++= Seq(
-      "-source", "1.7", "-target", "1.7", "-Xlint:all", "-Werror",
+      "-Xlint:all", "-Werror",
       "-Xlint:-options", "-Xlint:-path", "-Xlint:-processing"
     ),
-    javacOptions in doc ++= Seq("-source", "1.7"),
 
-    javaOptions := Seq("-Xss2m", "-XX:MaxPermSize=256m", "-Xms384m", "-Xmx384m"),
-    javaOptions += "-Dfile.encoding=UTF8",
-    javaOptions ++= Seq("-XX:+UseConcMarkSweepGC", "-XX:+CMSIncrementalMode"),
+    javaOptions := Seq(
+      "-XX:MaxMetaspaceSize=256m",
+      "-Xss2m", "-Xms512m", "-Xmx512m",
+      "-Dfile.encoding=UTF8",
+      "-XX:+UseG1GC", "-XX:+UseStringDeduplication"
+    ),
     javaOptions in run ++= yourkitAgent, // interferes with sockets
 
     maxErrors := 1,
