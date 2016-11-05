@@ -44,6 +44,8 @@ class SearchService(
   /**
    * Changelog:
    *
+   * 2.0.2 - bump lucene and h2 versions
+   *
    * 2.0.1 - change the lucene analyser
    *
    * 2.0 - upgrade Lucene, format not backwards compatible.
@@ -62,7 +64,7 @@ class SearchService(
    *
    * 1.0 - initial schema
    */
-  private val version = "2.0.1"
+  private val version = "2.0.2"
 
   private[indexer] val index = new IndexService((config.cacheDir / ("index-" + version)).toPath)
   private val db = new DatabaseService(config.cacheDir / ("sql-" + version))

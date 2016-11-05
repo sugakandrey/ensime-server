@@ -94,7 +94,7 @@ object EnsimeBuild {
   lazy val s_express = Project("s-express", file("s-express")) settings (commonSettings) settings (
       HeaderKey.headers := Copyright.LgplMap,
       libraryDependencies ++= Seq(
-        "org.parboiled" %% "parboiled" % "2.1.2" // 2.1.3 doesn't have a _2.10
+        "org.parboiled" %% "parboiled" % "2.1.3"
       ) ++ Sensible.shapeless(scalaVersion.value)
     )
 
@@ -143,9 +143,9 @@ object EnsimeBuild {
       unmanagedJars in Compile += JavaTools,
       ensimeUnmanagedSourceArchives += (baseDirectory in ThisBuild).value / "openjdk-langtools/openjdk7-langtools-src.zip",
       libraryDependencies ++= Seq(
-        "com.h2database" % "h2" % "1.4.192",
+        "com.h2database" % "h2" % "1.4.193",
         "com.typesafe.slick" %% "slick" % "3.1.1",
-        "com.zaxxer" % "HikariCP" % "2.4.7",
+        "com.zaxxer" % "HikariCP" % "2.5.1",
         "org.apache.lucene" % "lucene-core" % luceneVersion,
         "org.apache.lucene" % "lucene-analyzers-common" % luceneVersion,
         "org.ow2.asm" % "asm-commons" % "5.1",
@@ -174,7 +174,7 @@ object EnsimeBuild {
     dtf.format(new java.util.Date())
   }
 
-  val luceneVersion = "5.5.2"
+  val luceneVersion = "6.2.1"
   val nettyVersion = "4.1.6.Final"
   lazy val server = Project("server", file("server")).dependsOn(
     core, swanky, jerky,

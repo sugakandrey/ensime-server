@@ -119,7 +119,7 @@ object Sensible {
   )
 
   val scalaModulesVersion = "1.0.4"
-  val akkaVersion = "2.3.15"
+  val akkaVersion = "2.3.16"
   val scalatestVersion = "3.0.0"
   val logbackVersion = "1.7.21"
   val quasiquotesVersion = "2.0.1"
@@ -144,10 +144,11 @@ object Sensible {
   )
 
   def testLibs(config: String = "test") = Seq(
+    // janino 3.0.6 is not compatible and causes http://www.slf4j.org/codes.html#replay
     "org.codehaus.janino" % "janino" % "2.7.8" % config,
     "org.scalatest" %% "scalatest" % scalatestVersion % config,
-    "org.scalamock" %% "scalamock-scalatest-support" % "3.2.2" % config,
-    "org.scalacheck" %% "scalacheck" % "1.13.2" % config,
+    "org.scalamock" %% "scalamock-scalatest-support" % "3.3.0" % config,
+    "org.scalacheck" %% "scalacheck" % "1.13.4" % config,
     "com.typesafe.akka" %% "akka-testkit" % akkaVersion % config,
     "com.typesafe.akka" %% "akka-slf4j" % akkaVersion % config
   ) ++ logback.map(_ % config)
