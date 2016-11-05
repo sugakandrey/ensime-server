@@ -71,9 +71,6 @@ object EnsimeBuild {
   )
 
   lazy val api = Project("api", file("api")) settings (commonSettings) settings (
-    libraryDependencies ++= Seq(
-      "org.scalariform" %% "scalariform" % "0.1.8"
-    ),
     licenses := Seq(Apache2),
     HeaderKey.headers := Copyright.ApacheMap
   )

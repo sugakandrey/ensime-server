@@ -245,13 +245,13 @@ class BasicWorkflow extends EnsimeSpec
           )
 
           // expand selection around 'val foo'
-          project ! ExpandSelectionReq(fooFile, 215, 215)
+          project ! ExpandSelectionReq(fooFile, 290, 290)
           val expandRange1 = expectMsgType[FileRange]
-          expandRange1 shouldBe FileRange(fooFilePath, 214, 217)
+          expandRange1 shouldBe FileRange(fooFilePath, 287, 294)
 
-          project ! ExpandSelectionReq(fooFile, 214, 217)
+          project ! ExpandSelectionReq(fooFile, 287, 294)
           val expandRange2 = expectMsgType[FileRange]
-          expandRange2 shouldBe FileRange(fooFilePath, 210, 229)
+          expandRange2 shouldBe FileRange(fooFilePath, 269, 295)
 
           project ! RefactorReq(1234, RenameRefactorDesc("bar", fooFile, 215, 215), false)
           expectMsgPF() {

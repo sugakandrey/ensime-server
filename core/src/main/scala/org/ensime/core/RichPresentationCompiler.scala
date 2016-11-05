@@ -262,6 +262,11 @@ trait RichCompilerControl extends CompilerControl with RefactoringControl with C
   def askRaw(any: Any): String =
     showRaw(any, printTypes = true, printIds = false, printKinds = true, printMirrors = true)
 
+  /**
+   * Returns the smallest `Tree`, which position `properlyIncludes` `p`
+   */
+  def askEnclosingTreePosition(p: Position): Position =
+    onUnitOf(p.source) { unit => enclosingTree(p, unit.body).pos }
 }
 
 class RichPresentationCompiler(
@@ -281,7 +286,8 @@ class RichPresentationCompiler(
     with StructureViewBuilder
     with SymbolToFqn
     with FqnToSymbol
-    with TypeToScalaName {
+    with TypeToScalaName
+    with PositionLocator {
 
   val logger = LoggerFactory.getLogger(this.getClass)
 
