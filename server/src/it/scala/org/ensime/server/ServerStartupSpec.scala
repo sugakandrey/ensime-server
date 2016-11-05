@@ -83,7 +83,7 @@ class ServerStartupSpec extends EnsimeSpec
         system.actorOf(Props(new ServerActor(config, protocol)), "ensime-main")
 
         eventually(timeout(30 seconds), interval(1 second)) {
-          system.whenTerminated
+          system.isTerminated
         }
       }
     }
@@ -103,7 +103,7 @@ class ServerStartupSpec extends EnsimeSpec
         system.actorOf(Props(new ServerActor(config, protocol)), "ensime-main")
 
         eventually(timeout(30 seconds), interval(1 second)) {
-          system.whenTerminated
+          system.isTerminated
         }
       }
     }

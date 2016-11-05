@@ -43,21 +43,17 @@ class DebugTest extends EnsimeSpec
         ) { (threadId, breakpointsFile) =>
             import testkit._
 
-            // enforced arbitrary finite time. Yay, thanks akka...
-            within(10 minutes) {
+            // Should be able to step over a method call
+            project ! DebugNextReq(threadId)
+            expectMsg(remaining, "Failed to step over line!", TrueResponse)
 
-              // Should be able to step over a method call
-              project ! DebugNextReq(threadId)
-              expectMsg(remaining, "Failed to step over line!", TrueResponse)
+            // Should be able to step into a method call
+            project ! DebugStepReq(threadId)
+            expectMsg(remaining, "Failed to step into method call!", TrueResponse)
 
-              // Should be able to step into a method call
-              project ! DebugStepReq(threadId)
-              expectMsg(remaining, "Failed to step into method call!", TrueResponse)
-
-              // Should be able to step out of a method call
-              project ! DebugStepOutReq(threadId)
-              expectMsg(remaining, "Failed to step out of method call!", TrueResponse)
-            }
+            // Should be able to step out of a method call
+            project ! DebugStepOutReq(threadId)
+            expectMsg(remaining, "Failed to step out of method call!", TrueResponse)
           }
       }
     }
@@ -349,7 +345,7 @@ class DebugTest extends EnsimeSpec
         ) { (threadId, variablesFile) =>
             import testkit._
 
-            /* boolean local */ within(10 minutes) {
+            /* boolean local */ {
               val n = "a"
 
               project ! DebugLocateNameReq(threadId, n)
@@ -363,7 +359,7 @@ class DebugTest extends EnsimeSpec
               }
             }
 
-            /* char local */ within(10 minutes) {
+            /* char local */ {
               val n = "b"
 
               project ! DebugLocateNameReq(threadId, n)
@@ -377,7 +373,7 @@ class DebugTest extends EnsimeSpec
               }
             }
 
-            /* short local */ within(10 minutes) {
+            /* short local */ {
               val n = "c"
 
               project ! DebugLocateNameReq(threadId, n)
@@ -391,7 +387,7 @@ class DebugTest extends EnsimeSpec
               }
             }
 
-            /* int local */ within(10 minutes) {
+            /* int local */ {
               val n = "d"
 
               project ! DebugLocateNameReq(threadId, n)
@@ -405,7 +401,7 @@ class DebugTest extends EnsimeSpec
               }
             }
 
-            /* long local */ within(10 minutes) {
+            /* long local */ {
               val n = "e"
 
               project ! DebugLocateNameReq(threadId, n)
@@ -419,7 +415,7 @@ class DebugTest extends EnsimeSpec
               }
             }
 
-            /* float local */ within(10 minutes) {
+            /* float local */ {
               val n = "f"
 
               project ! DebugLocateNameReq(threadId, n)
@@ -433,7 +429,7 @@ class DebugTest extends EnsimeSpec
               }
             }
 
-            /* double local */ within(10 minutes) {
+            /* double local */ {
               val n = "g"
 
               project ! DebugLocateNameReq(threadId, n)
@@ -447,7 +443,7 @@ class DebugTest extends EnsimeSpec
               }
             }
 
-            /* string local */ within(10 minutes) {
+            /* string local */ {
               val n = "h"
 
               project ! DebugLocateNameReq(threadId, n)

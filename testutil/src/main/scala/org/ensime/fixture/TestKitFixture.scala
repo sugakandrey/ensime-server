@@ -2,17 +2,14 @@
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 package org.ensime.fixture
 
+import akka.util.Timeout
+import com.typesafe.config.ConfigFactory
 import java.util.concurrent.TimeUnit
-
-import scala.concurrent.Await
+import org.scalatest._
 import scala.concurrent.duration._
-import scala.util.Try
 
 import akka.actor.ActorSystem
 import akka.testkit._
-import akka.util.Timeout
-import com.typesafe.config.ConfigFactory
-import org.scalatest._
 
 /**
  * Normally a TestKit will reuse the same actor system for all tests
@@ -43,8 +40,8 @@ trait IsolatedTestKitFixture extends TestKitFixture {
     try {
       testCode(sys)
     } finally {
-      Try(sys.system.terminate())
-      Try(Await.result(sys.system.whenTerminated, Duration.Inf))
+      sys.system.shutdown()
+      sys.system.awaitTermination()
     }
   }
 }
@@ -63,8 +60,8 @@ trait SharedTestKitFixture extends TestKitFixture with BeforeAndAfterAll {
 
   override def afterAll(): Unit = {
     super.afterAll()
-    Try(_testkit.system.terminate())
-    Try(Await.result(_testkit.system.whenTerminated, Duration.Inf))
+    _testkit.system.shutdown()
+    _testkit.system.awaitTermination()
   }
 
   override def withTestKit(testCode: TestKitFix => Any): Any = testCode(_testkit)
