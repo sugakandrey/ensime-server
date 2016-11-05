@@ -265,8 +265,7 @@ trait RichCompilerControl extends CompilerControl with RefactoringControl with C
   /**
    * Returns the smallest `Tree`, which position `properlyIncludes` `p`
    */
-  def askEnclosingTreePosition(p: Position): Position =
-    onUnitOf(p.source) { unit => enclosingTree(p, unit.body).pos }
+  def askEnclosingTreePosition(p: Position): Position = enclosingTree(p, parseTree(p.source)).pos
 }
 
 class RichPresentationCompiler(

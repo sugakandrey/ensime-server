@@ -269,7 +269,6 @@ class Analyzer(
       }
     case ExpandSelectionReq(file, start: Int, stop: Int) =>
       val p = new RangePosition(createSourceFile(file), start, start, stop)
-      scalaCompiler.askLoadedTyped(p.source)
       val enclosingPos = scalaCompiler.askEnclosingTreePosition(p)
       sender ! FileRange(file.getPath, enclosingPos.start, enclosingPos.end)
     case StructureViewReq(fileInfo: SourceFileInfo) =>
