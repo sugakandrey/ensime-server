@@ -2,12 +2,14 @@
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 package org.ensime.fixture
 
-import akka.actor.ActorSystem
-import org.ensime.api._
-import org.ensime.vfs._
-import org.ensime.indexer.SearchService
 import scala.concurrent._
 import scala.concurrent.duration._
+import scala.util.Try
+
+import akka.actor.ActorSystem
+import org.ensime.api._
+import org.ensime.indexer.SearchService
+import org.ensime.vfs._
 
 trait IsolatedSearchServiceFixture extends IsolatedSourceResolverFixture {
 
@@ -17,8 +19,8 @@ trait IsolatedSearchServiceFixture extends IsolatedSourceResolverFixture {
       testCode(config, searchService)
     } finally {
       Await.ready(searchService.shutdown(), Duration.Inf)
-      actorSystem.shutdown()
-      actorSystem.awaitTermination(10.seconds)
+      Try(actorSystem.terminate())
+      Try(Await.result(actorSystem.whenTerminated, 10.seconds))
     }
   }
 }

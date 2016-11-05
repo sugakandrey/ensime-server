@@ -4,6 +4,8 @@ package org.ensime.server
 
 import java.io._
 import java.net.InetSocketAddress
+
+import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.util._
 import scala.util.Properties._
@@ -14,13 +16,12 @@ import akka.util.Timeout
 import com.google.common.base.Charsets
 import com.google.common.io.Files
 import io.netty.channel.Channel
-import org.slf4j._
-
 import org.ensime.api._
 import org.ensime.config._
 import org.ensime.core._
 import org.ensime.server.tcp.TCPServer
 import org.ensime.util.Slf4jSetup
+import org.slf4j._
 
 class ServerActor(
     config: EnsimeConfig,
@@ -153,10 +154,10 @@ object Server {
           log.info(s"Shutdown requested: ${request.reason}")
 
         log.info("Shutting down the ActorSystem")
-        Try(system.shutdown())
+        Try(system.terminate())
 
         log.info("Awaiting actor system termination")
-        Try(system.awaitTermination())
+        Try(Await.result(system.whenTerminated, Duration.Inf))
 
         log.info("Shutting down the Netty channel")
         Try(channel.close().sync())
