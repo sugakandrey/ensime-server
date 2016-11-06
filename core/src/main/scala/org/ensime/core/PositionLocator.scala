@@ -2,15 +2,46 @@
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 package org.ensime.core
 
-import scala.tools.nsc.interactive.Global
+import scala.reflect.io.AbstractFile
+import scala.tools.refactoring.common.{ CompilerAccess, EnrichedTrees }
 
-trait PositionLocator {
-  self: Global =>
+class PositionLocator(val global: RichPresentationCompiler) extends CompilerAccess with EnrichedTrees {
+  import global._
 
-  private class ProperlyIncludingLocator(pos: Position) extends Locator(pos) {
-    override protected def isEligible(t: Tree): Boolean = super.isEligible(t) && (t.pos properlyIncludes pos)
+  def compilationUnitOfFile(f: AbstractFile): Option[CompilationUnit] = unitOfFile.get(f)
+
+  private class ProperlyIncludingLocator(pos: Position) extends Traverser {
+    private var last: Position = NoPosition
+
+    protected def isEligible(t: Tree) = !t.pos.isTransparent
+
+    override def traverse(t: Tree): Unit = t match {
+      case tt: TypeTree if tt.original != null && (tt.pos includes tt.original.pos) =>
+        traverse(tt.original)
+      case _ =>
+        if (t.pos properlyIncludes pos) {
+          if (isEligible(t)) {
+            val namePosition = t.namePosition()
+            last = if (namePosition properlyIncludes pos) namePosition else t.pos
+          }
+          super.traverse(t)
+        } else t match {
+          case mdef: MemberDef =>
+            val annTrees = mdef.mods.annotations match {
+              case Nil if mdef.symbol != null =>
+                mdef.symbol.annotations.map(_.original)
+              case anns => anns
+            }
+            traverseTrees(annTrees)
+          case _ =>
+        }
+    }
+
+    def locateIn(root: Tree): Position = {
+      traverse(root)
+      last
+    }
   }
 
-  def enclosingTree(p: Position, root: Tree): Tree = new ProperlyIncludingLocator(p).locateIn(root)
-
+  def enclosingTreePosition(p: Position): Position = new ProperlyIncludingLocator(p).locateIn(parseTree(p.source))
 }
