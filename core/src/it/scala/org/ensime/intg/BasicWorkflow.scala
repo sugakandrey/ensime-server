@@ -245,7 +245,7 @@ class BasicWorkflow extends EnsimeSpec
             BasicTypeInfo("package", DeclaredAs.Object, "org.example.package")
           )
 
-          // expand selection around 'val foo'
+          // expand selection around "seven" in `foo.testMethod` call
           project ! ExpandSelectionReq(fooFile, 215, 215)
           val expandRange1 = expectMsgType[FileRange]
           expandRange1 shouldBe FileRange(fooFilePath, 214, 217)

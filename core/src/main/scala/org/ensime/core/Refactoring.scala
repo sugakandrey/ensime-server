@@ -12,8 +12,6 @@ import scala.tools.refactoring._
 import scala.tools.refactoring.analysis.GlobalIndexes
 import scala.tools.refactoring.common.{ Change, CompilerAccess, RenameSourceFileChange }
 import scala.tools.refactoring.implementations._
-import scalariform.astselect.AstSelector
-import scalariform.utils.Range
 
 abstract class RefactoringEnvironment(file: String, start: Int, end: Int) {
 
@@ -70,20 +68,6 @@ trait RefactoringHandler { self: Analyzer =>
       case Right(success) => success
       case Left(failure) => failure
     }
-
-  def handleExpandselection(file: File, start: Int, stop: Int): FileRange = {
-    readFile(file) match {
-      case Right(contents) =>
-        val selectionRange = Range(start, stop - start)
-        AstSelector.expandSelection(contents, selectionRange) match {
-          case Some(range) => FileRange(file.getPath, range.offset, range.offset + range.length)
-          case _ =>
-            FileRange(file.getPath, start, stop)
-        }
-      case Left(e) => throw e
-    }
-  }
-
 }
 
 trait RefactoringControl { self: RichCompilerControl with RefactoringImpl =>

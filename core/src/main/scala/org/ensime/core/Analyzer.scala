@@ -268,7 +268,9 @@ class Analyzer(
         scalaCompiler.askImplicitInfoInRegion(p)
       }
     case ExpandSelectionReq(file, start: Int, stop: Int) =>
-      sender ! handleExpandselection(file, start, stop)
+      val p = new RangePosition(createSourceFile(file), start, start, stop)
+      val enclosingPos = scalaCompiler.askEnclosingTreePosition(p)
+      sender ! FileRange(file.getPath, enclosingPos.start, enclosingPos.end)
     case StructureViewReq(fileInfo: SourceFileInfo) =>
       sender ! withExisting(fileInfo) {
         val sourceFile = createSourceFile(fileInfo)

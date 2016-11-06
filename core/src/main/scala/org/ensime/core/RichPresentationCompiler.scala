@@ -267,6 +267,11 @@ trait RichCompilerControl extends CompilerControl with RefactoringControl with C
   def askRaw(any: Any): String =
     showRaw(any, printTypes = true, printIds = false, printKinds = true, printMirrors = true)
 
+  /**
+   * Returns the smallest `Tree`, which position `properlyIncludes` `p`
+   */
+  def askEnclosingTreePosition(p: Position): Position =
+    new PositionLocator(this).enclosingTreePosition(p)
 }
 
 class RichPresentationCompiler(
