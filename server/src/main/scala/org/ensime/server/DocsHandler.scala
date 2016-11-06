@@ -15,7 +15,6 @@ import io.netty.handler.codec.http.HttpVersion.HTTP_1_1
 import io.netty.handler.codec.http.{ DefaultFullHttpResponse, FullHttpRequest, HttpUtil }
 import io.netty.util.CharsetUtil
 import org.slf4j.LoggerFactory
-import scalatags.Text.all._
 
 import org.ensime.core.DocJarReading
 
@@ -108,14 +107,20 @@ class DocsHandler(docs: DocJarReading) extends SimpleChannelInboundHandler[FullH
 
   private val docJarsPage: ByteBuf = {
     def jars = docs.docJars().toList.map(_.getName).sorted
+    val jarRefs = jars
+      .map(jar => s"""<li><a href="docs/$jar/index.html">$jar</a></li>""")
+      .mkString(String.format("%-12s", "\n"))
     val content =
-      html(
-        body(
-          h1("ENSIME: Your Project's Documentation"),
-          ul(for (jar <- jars) yield li(a(href := s"docs/$jar/index.html")(jar)))
-        )
-      )
-    Unpooled.copiedBuffer(content.toString, CharsetUtil.UTF_8)
+      s"""|<html>
+          |    <body>
+          |        <h1>ENSIME: Your Project's Documentation</h1>
+          |        <ul>
+          |           $jarRefs
+          |        </ul>
+          |    </body>
+          |</html>
+          |""".stripMargin
+    Unpooled.copiedBuffer(content, CharsetUtil.UTF_8)
   }
 
 }

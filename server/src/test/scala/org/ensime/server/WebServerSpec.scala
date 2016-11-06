@@ -62,10 +62,16 @@ class WebServerSpec extends FlatSpec with Matchers with MockFactory {
     resp.headers.get("Content-Type") shouldEqual "text/html; charset=UTF-8"
 
     val expectedContent =
-      """<html><body><h1>ENSIME: Your Project's Documentation</h1><ul>""" +
-        """<li><a href="docs/bar-javadoc.jar/index.html">bar-javadoc.jar</a></li>""" +
-        """<li><a href="docs/foo-javadoc.jar/index.html">foo-javadoc.jar</a></li>""" +
-        """</ul></body></html>"""
+      s"""|<html>
+          |    <body>
+          |        <h1>ENSIME: Your Project's Documentation</h1>
+          |        <ul>
+          |           <li><a href="docs/bar-javadoc.jar/index.html">bar-javadoc.jar</a></li>
+          |           <li><a href="docs/foo-javadoc.jar/index.html">foo-javadoc.jar</a></li>
+          |        </ul>
+          |    </body>
+          |</html>
+          |""".stripMargin
     resp.content.toString(Charset.forName("UTF-8")) shouldEqual expectedContent
 
     ch.finish()
