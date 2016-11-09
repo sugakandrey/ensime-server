@@ -141,7 +141,7 @@ object EnsimeBuild {
       commonSettings, commonItSettings
     ).settings(
       unmanagedJars in Compile += JavaTools,
-      ensimeUnmanagedSourceArchives += (baseDirectory in ThisBuild).value / "openjdk-langtools/openjdk7-langtools-src.zip",
+      ensimeUnmanagedSourceArchives += (baseDirectory in ThisBuild).value / "openjdk-langtools/openjdk8-langtools-src.zip",
       libraryDependencies ++= Seq(
         "com.h2database" % "h2" % "1.4.193",
         "com.typesafe.slick" %% "slick" % "3.1.1",
