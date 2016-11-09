@@ -9,15 +9,16 @@ install:
         [System.IO.Compression.ZipFile]::ExtractToDirectory("C:\sbt-0.13.13.zip", "C:\sbt")
       }
   - ps: |
-      if (!(Test-Path -Path "C:\Program Files\Java\jdk1.7.0\src.zip")) {
+      if (!(Test-Path -Path "C:\Program Files\Java\jdk1.8.0\src.zip")) {
         (new-object System.Net.WebClient).DownloadFile(
-          'http://downloads.sourceforge.net/project/jdk7src/jdk7u10/2013-01-04/src-jdk.zip',
-          'C:\Program Files\Java\jdk1.7.0\src.zip'
+          'https://github.com/fommil/openjdk8src/raw/master/src.zip',
+          'C:\Program Files\Java\jdk1.8.0\src.zip'
         )
       }
-  - cmd: SET JDK_HOME=C:\Program Files\Java\jdk1.7.0
-  - cmd: SET JAVA_HOME=C:\Program Files\Java\jdk1.7.0
-  - cmd: SET PATH=C:\sbt\sbt-launcher-packaging-0.13.13\bin;%JDK_HOME%\bin;%PATH%
+  - cmd: SET JAVA_HOME=C:\Program Files\Java\jdk1.8.0
+  - cmd: SET PATH=C:\sbt\sbt-launcher-packaging-0.13.13\bin;%JAVA_HOME%\bin;%PATH%
+  - cmd: SET SBT_HOME=C:\Users\appveyor\.sbt
+  - cmd: SET COURSIER_VERBOSITY=-1
   - cmd: SET AKKA_TEST_TIMEFACTOR=10
   - cmd: SET SBT_TASK_LIMIT=2
   - cmd: SET GC_LOGGING=true
@@ -26,9 +27,10 @@ build_script:
 test_script:
   - sbt ";test ;it:test"
 cache:
+  - C:\Program Files\Java\jdk1.8.0\src.zip
   - C:\sbt\sbt-launcher-packaging-0.13.13
-  - C:\Users\appveyor\.ivy2
-  - C:\Users\appveyor\.coursier
-  - C:\Program Files\Java\jdk1.7.0\src.zip
+  - C:\Users\appveyor\.sbt -> appveyor.yml
+  - C:\Users\appveyor\.ivy2 -> appveyor.yml
+  - C:\Users\appveyor\.coursier -> appveyor.yml
 on_finish:
-  - ps: Get-ChildItem -Path .\* -Include *.log -Recurse | % { Push-AppveyorArtifact $_.FullName -FileName $_.Name }
+  - ps: Get-ChildItem -Path .\* -Include *.log,*.hprof -Recurse | % { Push-AppveyorArtifact $_.FullName -FileName $_.Name }

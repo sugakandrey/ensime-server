@@ -5,7 +5,7 @@ package org.ensime.indexer.lucene
 import java.nio.file.{ Files, Path }
 
 import akka.event.slf4j.SLF4JLogging
-import org.apache.lucene.analysis._
+import org.apache.lucene.analysis.Analyzer
 import org.apache.lucene.analysis.core._
 import org.apache.lucene.analysis.miscellaneous._
 import org.apache.lucene.document._

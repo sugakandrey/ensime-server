@@ -2,6 +2,8 @@
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 package org.ensime.intg
 
+import java.nio.file.Files
+
 import org.apache.commons.io.FileUtils
 import org.ensime.api._
 import org.ensime.fixture._
@@ -55,7 +57,7 @@ class CompileTimingTest extends EnsimeSpec
           expectMsgType[SymbolDesignations]
 
           // simulate sbt clean https://github.com/sbt/sbt/issues/106
-          target.tree.reverse.foreach(_.delete())
+          target.tree.reverse.filter(_.isFile).foreach(_.delete())
 
           asyncHelper.receiveN(2) should contain theSameElementsAs (Seq(
             FullTypeCheckCompleteEvent,
@@ -66,7 +68,17 @@ class CompileTimingTest extends EnsimeSpec
           expectMsgType[SymbolDesignations]
 
           // simulate sbt compile
-          FileUtils.copyDirectory(targetBak, target)
+          targetBak.tree.toList.foreach { file =>
+            // something better (using file walker) should go into Path utils...
+            val from = file.toPath
+            val relative = targetBak.toPath.relativize(from)
+            val to = target.toPath.resolve(relative)
+            if (Files.isRegularFile(from)) {
+              // WORKAROUND: https://bugs.openjdk.java.net/browse/JDK-8029608
+              // this throws AccessDeniedException if we deleted the folders
+              Files.copy(from, to)
+            }
+          }
 
           asyncHelper.receiveN(2) should contain theSameElementsAs (Seq(
             FullTypeCheckCompleteEvent,
