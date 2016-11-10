@@ -4,6 +4,7 @@ package org.ensime.fixture
 
 import akka.actor.ActorSystem
 import org.ensime.api._
+import org.ensime.AkkaBackCompat._
 import org.ensime.vfs._
 import org.ensime.indexer.SearchService
 import scala.concurrent._
@@ -17,8 +18,8 @@ trait IsolatedSearchServiceFixture extends IsolatedSourceResolverFixture {
       testCode(config, searchService)
     } finally {
       Await.ready(searchService.shutdown(), Duration.Inf)
-      actorSystem.shutdown()
-      actorSystem.awaitTermination(10.seconds)
+      actorSystem.close()
+      actorSystem.awaitClosure(10.seconds)
     }
   }
 }

@@ -6,6 +6,7 @@ import akka.util.Timeout
 import com.typesafe.config.ConfigFactory
 import java.util.concurrent.TimeUnit
 import org.scalatest._
+import org.ensime.AkkaBackCompat._
 import scala.concurrent.duration._
 
 import akka.actor.ActorSystem
@@ -40,8 +41,8 @@ trait IsolatedTestKitFixture extends TestKitFixture {
     try {
       testCode(sys)
     } finally {
-      sys.system.shutdown()
-      sys.system.awaitTermination()
+      sys.system.close()
+      sys.system.awaitClosure()
     }
   }
 }
@@ -60,8 +61,8 @@ trait SharedTestKitFixture extends TestKitFixture with BeforeAndAfterAll {
 
   override def afterAll(): Unit = {
     super.afterAll()
-    _testkit.system.shutdown()
-    _testkit.system.awaitTermination()
+    _testkit.system.close()
+    _testkit.system.awaitClosure()
   }
 
   override def withTestKit(testCode: TestKitFix => Any): Any = testCode(_testkit)

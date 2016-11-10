@@ -8,6 +8,7 @@ import scala.concurrent.duration._
 import scala.util.{ Properties, Try }
 
 import akka.actor.Props
+import org.ensime.AkkaBackCompat._
 import org.ensime.fixture._
 import org.ensime.util.EnsimeSpec
 import org.ensime.util.ensimefile.Implicits.DefaultCharset
@@ -82,9 +83,7 @@ class ServerStartupSpec extends EnsimeSpec
         val protocol = new SwankProtocol
         system.actorOf(Props(new ServerActor(config, protocol)), "ensime-main")
 
-        eventually(timeout(30 seconds), interval(1 second)) {
-          system.isTerminated
-        }
+        system.awaitClosure(30.seconds).get
       }
     }
   }
@@ -102,9 +101,7 @@ class ServerStartupSpec extends EnsimeSpec
         val protocol = new SwankProtocol
         system.actorOf(Props(new ServerActor(config, protocol)), "ensime-main")
 
-        eventually(timeout(30 seconds), interval(1 second)) {
-          system.isTerminated
-        }
+        system.awaitClosure(30.seconds).get
       }
     }
   }
