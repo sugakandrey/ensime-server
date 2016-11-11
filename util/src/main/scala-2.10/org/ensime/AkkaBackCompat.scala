@@ -4,14 +4,14 @@ package org.ensime
 
 import akka.actor.ActorSystem
 
-import scala.concurrent.Await
-import scala.concurrent.duration._
-import scala.util.Try
+import scala.concurrent.Future
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration.Duration
 
-object AkkaBackCompat {
+trait AkkaBackCompat {
   implicit class ActorSystemShutdownBackCompat(val actorSystem: ActorSystem) {
-    def close(): Try[Unit] = Try(actorSystem.shutdown())
+    def terminate(): Future[Unit] = Future.successful(actorSystem.shutdown())
 
-    def awaitClosure(d: Duration = Duration.Inf): Try[Unit] = Try(actorSystem.awaitTermination(d))
+    def whenTerminated: Future[Unit] = Future(actorSystem.awaitTermination(Duration.Inf))(global)
   }
 }

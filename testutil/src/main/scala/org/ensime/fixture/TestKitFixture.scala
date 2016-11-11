@@ -2,15 +2,18 @@
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 package org.ensime.fixture
 
-import akka.util.Timeout
-import com.typesafe.config.ConfigFactory
 import java.util.concurrent.TimeUnit
-import org.scalatest._
-import org.ensime.AkkaBackCompat._
+
+import scala.concurrent.Await
 import scala.concurrent.duration._
+import scala.util.Try
 
 import akka.actor.ActorSystem
 import akka.testkit._
+import akka.util.Timeout
+import com.typesafe.config.ConfigFactory
+import org.ensime.AkkaBackCompat
+import org.scalatest._
 
 /**
  * Normally a TestKit will reuse the same actor system for all tests
@@ -35,21 +38,23 @@ trait TestKitFixture {
 
 class TestKitFix extends TestKit(ActorSystem()) with ImplicitSender
 
-trait IsolatedTestKitFixture extends TestKitFixture {
+trait IsolatedTestKitFixture extends TestKitFixture with AkkaBackCompat {
   override def withTestKit(testCode: TestKitFix => Any): Any = {
     val sys = new TestKitFix
     try {
       testCode(sys)
     } finally {
-      sys.system.close()
-      sys.system.awaitClosure()
+      Try(sys.system.terminate())
+      Try(Await.result(sys.system.whenTerminated, Duration.Inf))
     }
   }
 }
 
 // this seems redundant, because it mimics "extends TestKit" behaviour,
 // but it allows for easy swapping with the refreshing implementation
-trait SharedTestKitFixture extends TestKitFixture with BeforeAndAfterAll {
+trait SharedTestKitFixture extends TestKitFixture
+    with BeforeAndAfterAll
+    with AkkaBackCompat {
   this: Suite =>
 
   var _testkit: TestKitFix = _
@@ -61,8 +66,8 @@ trait SharedTestKitFixture extends TestKitFixture with BeforeAndAfterAll {
 
   override def afterAll(): Unit = {
     super.afterAll()
-    _testkit.system.close()
-    _testkit.system.awaitClosure()
+    Try(_testkit.system.terminate())
+    Try(Await.result(_testkit.system.whenTerminated, Duration.Inf))
   }
 
   override def withTestKit(testCode: TestKitFix => Any): Any = testCode(_testkit)

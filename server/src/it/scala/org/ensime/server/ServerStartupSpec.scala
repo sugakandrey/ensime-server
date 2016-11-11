@@ -4,11 +4,12 @@ package org.ensime.server
 
 import java.net._
 
+import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.util.{ Properties, Try }
 
 import akka.actor.Props
-import org.ensime.AkkaBackCompat._
+import org.ensime.AkkaBackCompat
 import org.ensime.fixture._
 import org.ensime.util.EnsimeSpec
 import org.ensime.util.ensimefile.Implicits.DefaultCharset
@@ -16,7 +17,8 @@ import org.ensime.util.file._
 
 class ServerStartupSpec extends EnsimeSpec
     with IsolatedEnsimeConfigFixture
-    with IsolatedTestKitFixture {
+    with IsolatedTestKitFixture
+    with AkkaBackCompat {
 
   val original = EnsimeConfigFixture.EmptyTestProject
 
@@ -83,7 +85,7 @@ class ServerStartupSpec extends EnsimeSpec
         val protocol = new SwankProtocol
         system.actorOf(Props(new ServerActor(config, protocol)), "ensime-main")
 
-        system.awaitClosure(30.seconds).get
+        Await.result(system.whenTerminated, 30.seconds)
       }
     }
   }
@@ -101,7 +103,7 @@ class ServerStartupSpec extends EnsimeSpec
         val protocol = new SwankProtocol
         system.actorOf(Props(new ServerActor(config, protocol)), "ensime-main")
 
-        system.awaitClosure(30.seconds).get
+        Await.result(system.whenTerminated, 30.seconds)
       }
     }
   }
