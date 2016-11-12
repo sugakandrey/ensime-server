@@ -4,6 +4,7 @@ package org.ensime
 
 import akka.actor.ActorSystem
 
+import scala.concurrent.blocking
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
@@ -12,6 +13,8 @@ trait AkkaBackCompat {
   implicit class ActorSystemShutdownBackCompat(val actorSystem: ActorSystem) {
     def terminate(): Future[Unit] = Future.successful(actorSystem.shutdown())
 
-    def whenTerminated: Future[Unit] = Future(actorSystem.awaitTermination(Duration.Inf))(global)
+    def whenTerminated: Future[Unit] = Future {
+      blocking { actorSystem.awaitTermination(Duration.Inf) }
+    }(global)
   }
 }
