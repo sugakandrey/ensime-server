@@ -85,7 +85,7 @@ class ServerStartupSpec extends EnsimeSpec
         val protocol = new SwankProtocol
         system.actorOf(Props(new ServerActor(config, protocol)), "ensime-main")
 
-        Await.result(system.whenTerminated, 40.seconds)
+        Await.result(system.whenTerminated, akkaTimeout.duration)
       }
     }
   }
@@ -103,7 +103,7 @@ class ServerStartupSpec extends EnsimeSpec
         val protocol = new SwankProtocol
         system.actorOf(Props(new ServerActor(config, protocol)), "ensime-main")
 
-        Await.result(system.whenTerminated, 40.seconds)
+        Await.result(system.whenTerminated, akkaTimeout.duration)
       }
     }
   }
