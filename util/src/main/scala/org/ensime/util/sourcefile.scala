@@ -3,6 +3,7 @@
 package org.ensime.util
 
 import org.ensime.api._
+import org.ensime.util.ensimefile._
 
 /**
  * Functionality for the SourceFileInfo family.

@@ -2,6 +2,7 @@
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 package org.ensime.swanky
 
+import java.io.File
 import org.ensime.sexp._
 import org.ensime.api._
 import org.ensime.util.{ EnsimeSpec, EscapingStringInterpolation }
@@ -29,6 +30,8 @@ class SwankyFormatsSpec extends EnsimeSpec with EnsimeTestData {
     val enveloped = RpcResponseEnvelope(None, value)
     assertFormat(enveloped, s"""(:payload $via)""".parseSexp)
   }
+
+  implicit def toFile(raw: RawFile): File = raw.file.toFile
 
   "SWANK Formats" should "roundtrip startup messages" in {
     roundtrip(

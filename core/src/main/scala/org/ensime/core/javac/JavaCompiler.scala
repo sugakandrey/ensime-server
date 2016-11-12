@@ -2,9 +2,10 @@
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 package org.ensime.core.javac
 
-import java.io.{ File, FileInputStream, InputStream }
-import java.util.Locale
+import java.io.{ File => JFile }
+import java.nio.charset.Charset
 import java.util.concurrent.ConcurrentHashMap
+import java.util.Locale
 
 import scala.collection.JavaConverters._
 
@@ -19,8 +20,8 @@ import org.ensime.api._
 import org.ensime.core.DocSigPair
 import org.ensime.indexer.{ FullyQualifiedName, SearchService }
 import org.ensime.util.ReportHandler
-import org.ensime.util.ensimefile.Implicits.DefaultCharset
 import org.ensime.util.file._
+import org.ensime.util.ensimefile._
 import org.ensime.vfs._
 
 class JavaCompiler(
@@ -39,11 +40,13 @@ class JavaCompiler(
 
   private val listener = new JavaDiagnosticListener()
   private val silencer = new SilencedDiagnosticListener()
-  private val cp = (config.allJars ++ config.targetClasspath).mkString(File.pathSeparator)
+  private val cp = (config.allJars ++ config.targetClasspath).mkString(JFile.pathSeparator)
   private val workingSet = new ConcurrentHashMap[String, JavaFileObject]()
 
+  private implicit def charset = Charset.defaultCharset() // how can we infer this?
+
   lazy val compiler = ToolProvider.getSystemJavaCompiler()
-  lazy val fileManager: JavaFileManager = compiler.getStandardFileManager(listener, null, DefaultCharset)
+  lazy val fileManager: JavaFileManager = compiler.getStandardFileManager(listener, null, charset)
 
   def getTask(
     lint: String,
@@ -55,9 +58,18 @@ class JavaCompiler(
     ).asJava, null, files).asInstanceOf[JavacTask]
   }
 
+  def createJavaFileObject(sf: SourceFileInfo): JavaFileObject = sf match {
+    case SourceFileInfo(f, None, None) =>
+      new JavaObjectEnsimeFile(f, None)
+    case SourceFileInfo(f, None, Some(contentsIn)) =>
+      new JavaObjectEnsimeFile(f, Some(contentsIn.readString))
+    case SourceFileInfo(f, contents, _) =>
+      new JavaObjectEnsimeFile(f, contents)
+  }
+
   def internSource(sf: SourceFileInfo): JavaFileObject = {
-    val jfo = getJavaFileObject(sf)
-    workingSet.put(sf.file.getAbsolutePath, jfo)
+    val jfo = createJavaFileObject(sf)
+    workingSet.put(sf.file.uri.toString, jfo)
     jfo
   }
 
@@ -141,21 +153,12 @@ class JavaCompiler(
     }
   }
 
-  private class JavaObjectWithContents(val f: File, val contents: String)
-      extends SimpleJavaFileObject(f.toURI, JavaFileObject.Kind.SOURCE) {
-    override def getCharContent(ignoreEncodingErrors: Boolean): CharSequence = contents
-  }
-
-  private class JavaObjectFromFile(val f: File)
-      extends SimpleJavaFileObject(f.toURI, JavaFileObject.Kind.SOURCE) {
-    override def getCharContent(ignoreEncodingErrors: Boolean): CharSequence = f.readString
-    override def openInputStream(): InputStream = new FileInputStream(f)
-  }
-
-  private def getJavaFileObject(sf: SourceFileInfo): JavaFileObject = sf match {
-    case SourceFileInfo(f, None, None) => new JavaObjectFromFile(f)
-    case SourceFileInfo(f, Some(contents), None) => new JavaObjectWithContents(f, contents)
-    case SourceFileInfo(f, None, Some(contentsIn)) => new JavaObjectWithContents(f, contentsIn.readString)
+  private class JavaObjectEnsimeFile(
+      val f: EnsimeFile,
+      val contents: Option[String]
+  ) extends SimpleJavaFileObject(f.uri, JavaFileObject.Kind.SOURCE) {
+    override def getCharContent(ignoreEncodingErrors: Boolean): CharSequence =
+      contents.getOrElse(f.readStringDirect)
   }
 
   private class JavaDiagnosticListener extends DiagnosticListener[JavaFileObject] with ReportHandler {

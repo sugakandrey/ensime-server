@@ -134,6 +134,8 @@ object Server {
         throw e
     }
 
+    Canon.config = config
+
     val protocol: Protocol = propOrElse("ensime.protocol", "swank") match {
       case "swanki" => new SwankiProtocol
       case "swank" => new SwankProtocol

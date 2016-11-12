@@ -5,6 +5,7 @@ package org.ensime.swanky
 import org.ensime.api._
 import org.ensime.sexp._
 import org.ensime.sexp.formats._
+import org.ensime.util.ensimefile._
 import shapeless._
 
 private object SwankyConversions
@@ -34,6 +35,17 @@ private object SwankyConversions
   implicit object DebugObjectIdFormat extends SexpFormat[DebugObjectId] {
     override def read(s: Sexp): DebugObjectId = DebugObjectId(LongFormat.read(s))
     override def write(t: DebugObjectId): Sexp = LongFormat.write(t.id)
+  }
+
+  implicit object EnsimeFileFormat extends SexpFormat[EnsimeFile] {
+    def write(ef: EnsimeFile): Sexp = ef match {
+      case RawFile(path) => SexpString(path.toString)
+      case a: ArchiveFile => SexpString(a.uri.toASCIIString)
+    }
+    def read(sexp: Sexp): EnsimeFile = sexp match {
+      case SexpString(uri) => EnsimeFile(uri)
+      case got => deserializationError(got)
+    }
   }
 
   implicit val RpcRequestEnvelopeFormat: SexpFormat[RpcRequestEnvelope] = cachedImplicit

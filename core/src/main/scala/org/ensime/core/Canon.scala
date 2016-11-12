@@ -3,18 +3,37 @@
 package org.ensime.core
 
 import java.io.File
+import org.ensime.util.LegacyArchiveExtraction
+
 import shapeless._
+import org.ensime.api.EnsimeFile
+import org.ensime.api.EnsimeConfig
 import org.ensime.util.file._
+import org.ensime.util.ensimefile._
 
 /**
  * Goes through sealed families and gets the canonical path of `File`
- * instances. Not to be confused with "the other" Cannon ;-)
+ * and `Path` instances.
+ *
+ * Not to be confused with "the other" Cannon ;-)
  */
 object Canon extends Poly1 {
   // people extend File, so we have to handle subtypes
   implicit def caseFile[F <: File]: Case[F] { type Result = File } = at[F](f => f.canon)
+
+  private val legacyJarUrls: Boolean = sys.props.getOrElse("ensime.legacy.jarurls", "true").toBoolean
+  var config: EnsimeConfig = null // yes, I know...
+  // we really want extractor to be a constructor parameter to a Canon instance
+  private def extractor: Option[LegacyArchiveExtraction] =
+    if (!legacyJarUrls || config == null) None
+    else Some(new LegacyArchiveExtraction(config.cacheDir.toPath))
+
+  implicit def caseEnsimeFile[EF <: EnsimeFile]: Case[EF] { type Result = EnsimeFile } = at[EF] { f =>
+    extractor.map(_.write(f)).getOrElse(f).canon
+  }
 }
 
 object Canonised {
   def apply[T](t: T)(implicit everywhere: Everywhere[Canon.type, T]) = everywhere(t)
 }
+

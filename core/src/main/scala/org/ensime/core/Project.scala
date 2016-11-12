@@ -14,8 +14,8 @@ import scala.collection.immutable.ListSet
 import scala.concurrent.duration._
 import scala.util.Properties._
 import scala.util._
-import org.ensime.util.file._
 import org.ensime.util.FileUtils
+import org.ensime.util.ensimefile._
 
 final case class ShutdownRequest(reason: String, isError: Boolean = false)
 

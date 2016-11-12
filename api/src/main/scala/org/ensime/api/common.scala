@@ -92,8 +92,20 @@ object RefactorType {
   def allTypes = Seq(Rename, ExtractMethod, ExtractLocal, InlineLocal, OrganizeImports, AddImport)
 }
 
+/**
+ * Represents a source file that has a physical location (either a
+ * file or an archive entry) with (optional) up-to-date information in
+ * another file, or as a String.
+ *
+ * Clients using a wire protocol should prefer `contentsIn` for
+ * performance (string escaping), whereas in-process clients should
+ * use the `contents` variant.
+ *
+ * If both contents and contentsIn are provided, contents is
+ * preferred.
+ */
 final case class SourceFileInfo(
-    file: File,
+    file: EnsimeFile,
     contents: Option[String] = None,
     contentsIn: Option[File] = None
 ) {

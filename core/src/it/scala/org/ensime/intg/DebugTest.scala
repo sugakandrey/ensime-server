@@ -69,20 +69,20 @@ class DebugTest extends EnsimeSpec
           32
         ) { (threadId, breakpointsFile) =>
             import testkit._
-
+            val ensimeBreakPointsFile = RawFile(breakpointsFile.toPath)
             // NOTE: Can encounter scala/Predef.scala if picking stack trace
             //       at arbitrary point
             project ! DebugBacktraceReq(threadId, 0, 3)
             expectMsgType[DebugBacktrace] should matchPattern {
               case DebugBacktrace(List(
                 DebugStackFrame(0, Nil, 0, "breakpoints.Breakpoints", "mainTest",
-                  LineSourcePosition(`breakpointsFile`, 32), _),
+                  LineSourcePosition(RawFile(rbf1), 32), _),
                 DebugStackFrame(1, List(
                   DebugStackLocal(0, "args", "Array(length = 0)[<EMPTY>]", "java.lang.String[]")
                   ), 1, "breakpoints.Breakpoints$", "main",
-                  LineSourcePosition(`breakpointsFile`, 42), _),
+                  LineSourcePosition(RawFile(rbf2), 42), _),
                 DebugStackFrame(2, Nil, 1, "breakpoints.Breakpoints", "main",
-                  LineSourcePosition(`breakpointsFile`, _), _)
+                  LineSourcePosition(RawFile(rbf3), _), _)
                 ), `threadId`, "main") =>
             }
 
@@ -95,12 +95,12 @@ class DebugTest extends EnsimeSpec
             project ! DebugContinueReq(threadId)
             expectMsg(TrueResponse)
 
-            asyncHelper.expectMsg(DebugBreakEvent(threadId, "main", breakpointsFile, 11))
+            asyncHelper.expectMsg(DebugBreakEvent(threadId, "main", ensimeBreakPointsFile, 11))
 
             project ! DebugContinueReq(threadId)
             expectMsg(TrueResponse)
 
-            asyncHelper.expectMsg(DebugBreakEvent(threadId, "main", breakpointsFile, 13))
+            asyncHelper.expectMsg(DebugBreakEvent(threadId, "main", RawFile(breakpointsFile.toPath), 13))
 
             project ! DebugClearBreakReq(breakpointsFile, 11)
             expectMsg(TrueResponse)
@@ -108,7 +108,7 @@ class DebugTest extends EnsimeSpec
             project ! DebugContinueReq(threadId)
             expectMsg(TrueResponse)
 
-            asyncHelper.expectMsg(DebugBreakEvent(threadId, "main", breakpointsFile, 13))
+            asyncHelper.expectMsg(DebugBreakEvent(threadId, "main", RawFile(breakpointsFile.toPath), 13))
 
             project ! DebugSetBreakReq(breakpointsFile, 11)
             expectMsg(TrueResponse)
@@ -119,12 +119,12 @@ class DebugTest extends EnsimeSpec
             project ! DebugContinueReq(threadId)
             expectMsg(TrueResponse)
 
-            asyncHelper.expectMsg(DebugBreakEvent(threadId, "main", breakpointsFile, 11))
+            asyncHelper.expectMsg(DebugBreakEvent(threadId, "main", RawFile(breakpointsFile.toPath), 11))
 
             project ! DebugContinueReq(threadId)
             expectMsg(TrueResponse)
 
-            asyncHelper.expectMsg(DebugBreakEvent(threadId, "main", breakpointsFile, 11))
+            asyncHelper.expectMsg(DebugBreakEvent(threadId, "main", RawFile(breakpointsFile.toPath), 11))
 
             project ! DebugContinueReq(threadId)
             expectMsg(TrueResponse)
@@ -475,7 +475,7 @@ class DebugTest extends EnsimeSpec
             val backTrace = expectMsgType[DebugBacktrace]
             // just some sanity assertions
             assert(backTrace.frames.forall(_.className.startsWith("debug.Backtrace")))
-            assert(backTrace.frames.forall(_.pcLocation.file.toString.endsWith("Backtrace.scala")))
+            assert(backTrace.frames.forall(_.pcLocation.file.toString.contains("Backtrace.scala")))
           }
       }
     }
@@ -532,8 +532,9 @@ trait DebugTestUtils {
       // but it doesn't always come through
 
       val allEvents = gotOnStartup +: additionalOnStartup
+      //val ensimeResolvedFile = resolvedFile.toPath
       val threadId = allEvents.flatMap {
-        case DebugBreakEvent(foundThreadId, "main", `resolvedFile`, `breakLine`) =>
+        case DebugBreakEvent(foundThreadId, "main", RawFile(ensimeResolvedFile), `breakLine`) =>
           List(foundThreadId)
         case _ =>
           Nil

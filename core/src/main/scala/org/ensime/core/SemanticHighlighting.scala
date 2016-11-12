@@ -3,6 +3,7 @@
 package org.ensime.core
 
 import java.io.File
+
 import org.slf4j.LoggerFactory
 
 import scala.collection.mutable.ListBuffer
@@ -10,8 +11,8 @@ import scala.reflect.internal.util.RangePosition
 import scala.reflect.io.AbstractFile
 import scala.tools.nsc.symtab.Flags._
 import scala.tools.refactoring.common.{ CompilerAccess, EnrichedTrees }
-
 import org.ensime.api._
+import org.ensime.util.ensimefile._
 
 class SemanticHighlighting(val global: RichPresentationCompiler) extends CompilerAccess with EnrichedTrees {
 
@@ -175,9 +176,10 @@ class SemanticHighlighting(val global: RichPresentationCompiler) extends Compile
       case Some(tree) =>
         val traverser = new SymDesigsTraverser(p, requestedTypes.toSet)
         traverser.traverse(tree)
-        SymbolDesignations(p.source.file.file, traverser.syms.toList)
+        logger.info(s"RANGE POSITION  === $p ${p.source.file.getClass}")
+        SymbolDesignations(EnsimeFile(p.source.file.path), traverser.syms.toList)
       case None =>
-        SymbolDesignations(new File("."), List.empty)
+        SymbolDesignations(EnsimeFile(new File(".")), List.empty)
     }
   }
 
