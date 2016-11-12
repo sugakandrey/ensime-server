@@ -14,7 +14,7 @@ import org.ensime.indexer._
 class JavaCompilerSpec extends EnsimeSpec
     with IsolatedJavaCompilerFixture {
 
-  val original = EnsimeConfigFixture.SimpleTestProject
+  val original = EnsimeConfigFixture.SimpleTestProject.copy(referenceSourceRoots = Nil)
 
   "JavaCompiler" should "generate compilation notes" in {
     withJavaCompiler { (_, config, cc, store, search) =>
