@@ -52,16 +52,22 @@ object WebServer {
       .childHandler(channelInitializer)
 
     val p = Promise[Channel]
-    b.bind(port).addListener(new ChannelFutureListener() {
+    b.bind("127.0.0.1", port).addListener(new ChannelFutureListener() {
       def operationComplete(ftr: ChannelFuture): Unit = {
-        val ch = ftr.channel()
-        ch.closeFuture().addListener(new ChannelFutureListener() {
-          def operationComplete(ftr2: ChannelFuture): Unit = {
-            bossGroup.shutdownGracefully()
-            workerGroup.shutdownGracefully()
-          }
-        })
-        p.success(ch)
+        if (!ftr.isSuccess) {
+          p.failure(ftr.cause())
+          bossGroup.shutdownGracefully()
+          workerGroup.shutdownGracefully()
+        } else {
+          val ch = ftr.channel()
+          ch.closeFuture().addListener(new ChannelFutureListener() {
+            def operationComplete(ftr2: ChannelFuture): Unit = {
+              bossGroup.shutdownGracefully()
+              workerGroup.shutdownGracefully()
+            }
+          })
+          p.success(ch)
+        }
       }
     })
 

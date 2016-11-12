@@ -119,7 +119,15 @@ object Sensible {
   )
 
   val scalaModulesVersion = "1.0.4"
-  val akkaVersion = "2.3.16"
+  
+  def akkaVersion: Def.Initialize[String] = Def.setting {
+    CrossVersion.partialVersion(scalaVersion.value) match {
+      case Some((2, minor)) if minor >= 11 => "2.4.12"
+      case Some((2, minor)) => "2.3.16"
+      case _ => ???
+    }
+  }
+
   val scalatestVersion = "3.0.0"
   val logbackVersion = "1.7.21"
   val quasiquotesVersion = "2.0.1"
@@ -143,15 +151,15 @@ object Sensible {
     "com.google.code.findbugs" % "jsr305" % "3.0.1" % "provided"
   )
 
-  def testLibs(config: String = "test") = Seq(
+  def testLibs(config: String = "test") = Def.setting(Seq(
     // janino 3.0.6 is not compatible and causes http://www.slf4j.org/codes.html#replay
     "org.codehaus.janino" % "janino" % "2.7.8" % config,
     "org.scalatest" %% "scalatest" % scalatestVersion % config,
     "org.scalamock" %% "scalamock-scalatest-support" % "3.3.0" % config,
     "org.scalacheck" %% "scalacheck" % "1.13.4" % config,
-    "com.typesafe.akka" %% "akka-testkit" % akkaVersion % config,
-    "com.typesafe.akka" %% "akka-slf4j" % akkaVersion % config
-  ) ++ logback.map(_ % config)
+    "com.typesafe.akka" %% "akka-testkit" % akkaVersion.value % config,
+    "com.typesafe.akka" %% "akka-slf4j" % akkaVersion.value % config
+  ) ++ logback.map(_ % config))
 
   // e.g. YOURKIT_AGENT=/opt/yourkit/bin/linux-x86-64/libyjpagent.so
   val yourkitAgent = Properties.envOrNone("YOURKIT_AGENT").map { name =>

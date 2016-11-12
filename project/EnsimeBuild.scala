@@ -27,11 +27,11 @@ object ProjectPlugin extends AutoPlugin {
 
 object EnsimeBuild {
   lazy val commonSettings = Sensible.settings ++ Seq(
-    libraryDependencies ++= Sensible.testLibs() ++ Sensible.logback,
+    libraryDependencies ++= Sensible.testLibs().value ++ Sensible.logback,
 
     dependencyOverrides ++= Set(
-       "com.typesafe.akka" %% "akka-actor" % Sensible.akkaVersion,
-       "com.typesafe.akka" %% "akka-testkit" % Sensible.akkaVersion,
+       "com.typesafe.akka" %% "akka-actor" % Sensible.akkaVersion.value,
+       "com.typesafe.akka" %% "akka-testkit" % Sensible.akkaVersion.value,
        "io.spray" %% "spray-json" % "1.3.2"
     ),
 
@@ -79,6 +79,7 @@ object EnsimeBuild {
     api
   ) settings (
     libraryDependencies ++= List(
+      "com.typesafe.akka" %% "akka-actor" % Sensible.akkaVersion.value,
       "org.scala-lang" % "scala-compiler" % scalaVersion.value,
       "org.apache.commons" % "commons-vfs2" % "2.1" exclude ("commons-logging", "commons-logging")
     ) ++ Sensible.guava
@@ -88,7 +89,7 @@ object EnsimeBuild {
     util, api
   ) settings (
       libraryDependencies += "commons-io" % "commons-io" % "2.5",
-      libraryDependencies ++= Sensible.testLibs("compile")
+      libraryDependencies ++= Sensible.testLibs("compile").value
     )
 
   lazy val s_express = Project("s-express", file("s-express")) settings (commonSettings) settings (
@@ -107,7 +108,7 @@ object EnsimeBuild {
   ) settings (
       libraryDependencies ++= Seq(
         "com.github.fommil" %% "spray-json-shapeless" % "1.3.0",
-        "com.typesafe.akka" %% "akka-slf4j" % Sensible.akkaVersion
+        "com.typesafe.akka" %% "akka-slf4j" % Sensible.akkaVersion.value
       ) ++ Sensible.shapeless(scalaVersion.value)
     )
 
@@ -118,7 +119,7 @@ object EnsimeBuild {
     api % "test->test" // for the test data
   ) settings (
       libraryDependencies ++= Seq(
-        "com.typesafe.akka" %% "akka-slf4j" % Sensible.akkaVersion
+        "com.typesafe.akka" %% "akka-slf4j" % Sensible.akkaVersion.value
       ) ++ Sensible.shapeless(scalaVersion.value)
     )
 
@@ -151,8 +152,8 @@ object EnsimeBuild {
         "org.ow2.asm" % "asm-commons" % "5.1",
         "org.ow2.asm" % "asm-util" % "5.1",
         "org.scala-lang" % "scalap" % scalaVersion.value,
-        "com.typesafe.akka" %% "akka-actor" % Sensible.akkaVersion,
-        "com.typesafe.akka" %% "akka-slf4j" % Sensible.akkaVersion,
+        "com.typesafe.akka" %% "akka-actor" % Sensible.akkaVersion.value,
+        "com.typesafe.akka" %% "akka-slf4j" % Sensible.akkaVersion.value,
         scalaBinaryVersion.value match {
           // see notes in https://github.com/ensime/ensime-server/pull/1446
           case "2.10" => "org.scala-refactoring" % "org.scala-refactoring.library_2.10.6" % "0.10.0"
@@ -161,7 +162,7 @@ object EnsimeBuild {
         "commons-lang" % "commons-lang" % "2.6",
         "com.googlecode.java-diff-utils" % "diffutils" % "1.3.0",
         "org.scala-debugger" %% "scala-debugger-api" % "1.1.0-M2"
-      ) ++ Sensible.testLibs("it,test") ++ Sensible.shapeless(scalaVersion.value)
+      ) ++ Sensible.testLibs("it,test").value ++ Sensible.shapeless(scalaVersion.value)
     ) enablePlugins BuildInfoPlugin settings (
         buildInfoPackage := organization.value,
         buildInfoKeys += BuildInfoKey.action("gitSha")(Try("git rev-parse --verify HEAD".!! dropRight 1) getOrElse "n/a"),
@@ -192,7 +193,7 @@ object EnsimeBuild {
           "io.netty"    %  "netty-transport"  % nettyVersion,
           "io.netty"    %  "netty-handler"    % nettyVersion,
           "io.netty"    %  "netty-codec-http" % nettyVersion
-        ) ++ Sensible.testLibs("it,test") ++ Sensible.shapeless(scalaVersion.value)
+        ) ++ Sensible.testLibs("it,test").value ++ Sensible.shapeless(scalaVersion.value)
       )
 
   // testing modules
