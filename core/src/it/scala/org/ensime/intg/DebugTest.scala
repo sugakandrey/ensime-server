@@ -76,13 +76,13 @@ class DebugTest extends EnsimeSpec
             expectMsgType[DebugBacktrace] should matchPattern {
               case DebugBacktrace(List(
                 DebugStackFrame(0, Nil, 0, "breakpoints.Breakpoints", "mainTest",
-                  LineSourcePosition(RawFile(rbf1), 32), _),
+                  LineSourcePosition(`ensimeBreakPointsFile`, 32), _),
                 DebugStackFrame(1, List(
                   DebugStackLocal(0, "args", "Array(length = 0)[<EMPTY>]", "java.lang.String[]")
                   ), 1, "breakpoints.Breakpoints$", "main",
-                  LineSourcePosition(RawFile(rbf2), 42), _),
+                  LineSourcePosition(`ensimeBreakPointsFile`, 42), _),
                 DebugStackFrame(2, Nil, 1, "breakpoints.Breakpoints", "main",
-                  LineSourcePosition(RawFile(rbf3), _), _)
+                  LineSourcePosition(`ensimeBreakPointsFile`, _), _)
                 ), `threadId`, "main") =>
             }
 
@@ -532,9 +532,9 @@ trait DebugTestUtils {
       // but it doesn't always come through
 
       val allEvents = gotOnStartup +: additionalOnStartup
-      //val ensimeResolvedFile = resolvedFile.toPath
+      val ensimeResolvedFile = RawFile(resolvedFile.toPath)
       val threadId = allEvents.flatMap {
-        case DebugBreakEvent(foundThreadId, "main", RawFile(ensimeResolvedFile), `breakLine`) =>
+        case DebugBreakEvent(foundThreadId, "main", `ensimeResolvedFile`, `breakLine`) =>
           List(foundThreadId)
         case _ =>
           Nil
