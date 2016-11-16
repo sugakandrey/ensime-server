@@ -3,13 +3,14 @@
 package org.ensime.core
 
 import java.io.File
-import org.ensime.util.LegacyArchiveExtraction
 
-import shapeless._
-import org.ensime.api.EnsimeFile
-import org.ensime.api.EnsimeConfig
-import org.ensime.util.file._
+import scala.util.Try
+
+import org.ensime.api.{ EnsimeFile, EnsimeConfig }
+import org.ensime.util.LegacyArchiveExtraction
 import org.ensime.util.ensimefile._
+import org.ensime.util.file._
+import shapeless._
 
 /**
  * Goes through sealed families and gets the canonical path of `File`
@@ -29,7 +30,7 @@ object Canon extends Poly1 {
     else Some(new LegacyArchiveExtraction(config.cacheDir.toPath))
 
   implicit def caseEnsimeFile[EF <: EnsimeFile]: Case[EF] { type Result = EnsimeFile } = at[EF] { f =>
-    extractor.map(_.write(f)).getOrElse(f).canon
+    extractor.flatMap { extractor => Try(extractor.write(f)).toOption }.getOrElse(f).canon
   }
 }
 
