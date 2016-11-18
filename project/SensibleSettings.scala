@@ -130,7 +130,7 @@ object Sensible {
   val logbackVersion = "1.7.21"
   val quasiquotesVersion = "2.0.1"
   val guavaVersion = "19.0"
-  val orientVersion = "2.2.9"
+  val orientVersion = "2.2.13"
 
   val macroParadise = Seq(
     compilerPlugin("org.scalamacros" % "paradise" % "2.0.1" cross CrossVersion.full)
