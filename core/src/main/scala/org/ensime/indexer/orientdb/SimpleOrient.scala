@@ -219,7 +219,6 @@ package object syntax {
         case None => insertV(t)
         case Some(existing) =>
           val v = existing.underlying
-          val keys = v.getPropertyKeys.asScala
           val old = v.getPropertyMap.asScala
           val updates = t.toProperties.asScala
 
@@ -230,6 +229,21 @@ package object syntax {
           }
 
           existing
+      }
+    }
+
+    def insertIfNotExists[T, P](
+      t: T
+    )(
+      implicit
+      graph: OrientBaseGraph,
+      s: BigDataFormat[T],
+      u: BigDataFormatId[T, P],
+      p: SPrimitive[P]
+    ): VertexT[T] = {
+      readUniqueV(u.value(t)) match {
+        case None => insertV(t)
+        case Some(existing) => existing
       }
     }
 

@@ -16,7 +16,7 @@ import org.apache.lucene.index.Term
 import org.apache.lucene.search._
 import org.apache.lucene.search.BooleanClause.Occur
 import org.apache.lucene.search.Query
-import org.ensime.indexer.SearchService.SourceSymbolInfo
+import org.ensime.indexer.SearchService._
 import org.ensime.indexer.graph._
 import org.ensime.indexer.lucene._
 import org.ensime.util.list._
@@ -98,19 +98,15 @@ class IndexService(path: Path) {
 
   def persist(symbols: List[SourceSymbolInfo], commit: Boolean, boost: Boolean): Unit = {
     val fqns: List[Document] = symbols.collect {
-      case SourceSymbolInfo(f, _, _, _, Some(bytecodeSymbol), scalapSymbol) =>
-        bytecodeSymbol match {
-          case method: RawMethod => MethodIndex(method.name.fqnString, Some(f)).toDocument
-          case field: RawField => FieldIndex(field.name.fqnString, Some(f)).toDocument
-          case aClass: RawClassfile =>
-            val fqn = aClass.name.fqnString
-            val penalty = calculatePenalty(fqn)
-            val document = ClassIndex(fqn, Some(f)).toDocument
-            document.boostText("fqn", penalty)
-            document
-        }
-      case SourceSymbolInfo(f, _, _, _, None, Some(t: RawType)) =>
-        FieldIndex(t.javaName.fqnString, Some(f)).toDocument
+      case ClassSymbolInfo(f, _, _, _, classSymbol, scalap) if !classSymbol.isScala || scalap.isDefined =>
+        val fqn = classSymbol.name.fqnString
+        val penalty = calculatePenalty(fqn)
+        val document = ClassIndex(fqn, Some(f)).toDocument
+        document.boostText("fqn", penalty)
+        document
+      case MethodSymbolInfo(f, _, _, methodSymbol, _) => MethodIndex(methodSymbol.name.fqnString, Some(f)).toDocument
+      case FieldSymbolInfo(f, _, _, fieldSymbol, _) => FieldIndex(fieldSymbol.name.fqnString, Some(f)).toDocument
+      case TypeAliasSymbolInfo(f, _, t) => FieldIndex(t.javaName.fqnString, Some(f)).toDocument
     }(collection.breakOut)
 
     if (boost) {

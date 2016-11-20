@@ -70,6 +70,7 @@ final class ClassfileIndexer(file: FileObject) extends SLF4JLogging {
       clazz = RawClassfile(
         ClassName.fromInternal(name),
         signatureClass,
+        Set.empty,
         superClass,
         interfaceNames,
         Access(access),
@@ -78,6 +79,15 @@ final class ClassfileIndexer(file: FileObject) extends SLF4JLogging {
         isScala = false,
         internalRefs
       )
+    }
+
+    override def visitInnerClass(name: String, outerName: String, innerName: String, access: Int): Unit = {
+      if (outerName != null) {
+        val outerClassName = ClassName.fromInternal(outerName)
+        if (outerClassName == clazz.name) {
+          clazz = clazz.copy(innerClasses = clazz.innerClasses + ClassName.fromInternal(name))
+        }
+      }
     }
 
     override def visitSource(filename: String, debug: String): Unit = {

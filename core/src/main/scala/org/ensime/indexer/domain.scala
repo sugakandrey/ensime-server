@@ -205,6 +205,7 @@ sealed trait RawSymbol {
 final case class RawClassfile(
     name: ClassName,
     generics: Option[GenericClass],
+    innerClasses: Set[ClassName],
     superClass: Option[ClassName],
     interfaces: List[ClassName],
     access: Access,
@@ -258,8 +259,7 @@ final case class RawScalapClass(
   declaredAs: DeclaredAs,
   fields: Map[String, RawScalapField],
   methods: Map[String, IndexedSeq[RawScalapMethod]],
-  typeAliases: Map[String, RawType],
-  enclosingClass: Option[ClassName]
+  typeAliases: Map[String, RawType]
 ) extends RawScalapSymbol
 
 final case class RawScalapField(
