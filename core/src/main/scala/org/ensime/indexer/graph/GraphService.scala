@@ -146,12 +146,11 @@ class GraphService(dir: File) extends SLF4JLogging {
   // doing all work on a single worker Thread. We can't optimise until
   // we better understand the concurrency of our third party
   // libraries.
-  //  private val pools = Runtime.getRuntime.availableProcessors()
-  private val pools = 2
+  private val pools = 1
   private implicit val ec = ExecutionContext.fromExecutor(
-    //    Executors.newSingleThreadExecutor()
-    // WARNING: Faster, but needs further thought
-    Executors.newFixedThreadPool(pools)
+    Executors.newSingleThreadExecutor()
+  // WARNING: Faster, but needs further thought
+  //Executors.newFixedThreadPool(pools)
   // http://orientdb.com/docs/2.1/Performance-Tuning.html
   )
 
@@ -161,7 +160,6 @@ class GraphService(dir: File) extends SLF4JLogging {
     // this means disabling transactions!
     // slows down mutations, but no commit overhead (the real killer)
     OGlobalConfiguration.USE_WAL.setValue(false)
-    //OGlobalConfiguration.RID_BAG_EMBEDDED_TO_SBTREEBONSAI_THRESHOLD.setValue(-1
     //OGlobalConfiguration.TX_USE_LOG.setValue(false)
 
     // no discernable difference

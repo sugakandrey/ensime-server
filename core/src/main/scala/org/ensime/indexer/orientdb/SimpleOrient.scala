@@ -5,15 +5,11 @@
  */
 package org.ensime.indexer.orientdb
 
-import scala.annotation.tailrec
 import scala.Predef.{ any2stringadd => _, _ }
 import scala.collection.JavaConverters._
 import scala.concurrent.{ ExecutionContext, Future, blocking }
-import scala.util.{ Try, Success, Failure }
 import akka.event.slf4j.SLF4JLogging
-import com.orientechnologies.orient.core.exception.OConcurrentModificationException
 import com.orientechnologies.orient.core.metadata.schema.OClass
-import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 import com.tinkerpop.blueprints._
 import com.tinkerpop.blueprints.impls.orient._
 import org.ensime.indexer.graph.GraphService.{ IsParent, UsedIn, EnclosingClass }
@@ -63,17 +59,14 @@ package api {
 
   trait Indexable[T <: Element] {
     def aClass: Class[T]
-    def getType(graph: OrientExtendedGraph, iName: String): OrientElementType
   }
 
   object Indexable {
     implicit object VertexIndexable extends Indexable[Vertex] {
       override def aClass: Class[Vertex] = classOf[Vertex]
-      override def getType(graph: OrientExtendedGraph, iName: String): OrientVertexType = graph.getVertexType(iName)
     }
     implicit object EdgeIndexable extends Indexable[Edge] {
       override def aClass: Class[Edge] = classOf[Edge]
-      override def getType(graph: OrientExtendedGraph, iName: String): OrientEdgeType = graph.getEdgeType(iName)
     }
   }
 }
@@ -92,7 +85,6 @@ package object syntax {
     ): RichOrientGraph = {
       val label = tpe.describe.replace(".type", "")
       graph.createKeyIndex(id.key, tag.aClass, "type" -> idx.orientKey, "class" -> label)
-      tag.getType(graph, label).getIndexes.asScala.foreach(_.getDefinition.setNullValuesIgnored(true))
       this
     }
 
@@ -171,19 +163,6 @@ package object syntax {
     ec: ExecutionContext
   ): Future[T] = Future { blocking { withGraph(f) } }
 
-  @tailrec
-  def optimisticConcurrencyRetry[T](
-    f: => T
-  ): T = {
-    Try { f } match {
-      case Success(res) => res
-      case Failure(e: OConcurrentModificationException) =>
-        Thread.sleep(100)
-        optimisticConcurrencyRetry(f)
-      case Failure(e) => throw e
-    }
-  }
-
   // the presentation complier doesn't like it if we pimp the Graph,
   // so do it this way instead
   object RichGraph extends SLF4JLogging {
@@ -236,22 +215,20 @@ package object syntax {
       u: BigDataFormatId[T, P],
       p: SPrimitive[P]
     ): VertexT[T] = {
-      optimisticConcurrencyRetry {
-        readUniqueV(u.value(t)) match {
-          case None => insertV(t)
-          case Some(existing) =>
-            val v = existing.underlying
-            val old = v.getPropertyMap.asScala
-            val updates = t.toProperties.asScala
+      readUniqueV(u.value(t)) match {
+        case None => insertV(t)
+        case Some(existing) =>
+          val v = existing.underlying
+          val old = v.getPropertyMap.asScala
+          val updates = t.toProperties.asScala
 
-            updates.foreach {
-              case (key, value) =>
-                if (!old.contains(key) || old(key) != value)
-                  v.setProperty(key, value)
-            }
+          updates.foreach {
+            case (key, value) =>
+              if (!old.contains(key) || old(key) != value)
+                v.setProperty(key, value)
+          }
 
-            existing
-        }
+          existing
       }
     }
 
@@ -264,15 +241,9 @@ package object syntax {
       u: BigDataFormatId[T, P],
       p: SPrimitive[P]
     ): VertexT[T] = {
-      try {
-        readUniqueV(u.value(t)) match {
-          case None => insertV(t)
-          case Some(existing) => existing
-        }
-      } catch {
-        case e: ORecordDuplicatedException =>
-          //another thread created a vertex in the meantime
-          readUniqueV(u.value(t)).get
+      readUniqueV(u.value(t)) match {
+        case None => insertV(t)
+        case Some(existing) => existing
       }
     }
 
