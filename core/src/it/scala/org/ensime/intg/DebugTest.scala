@@ -43,17 +43,19 @@ class DebugTest extends EnsimeSpec
         ) { (threadId, breakpointsFile) =>
             import testkit._
 
-            // Should be able to step over a method call
-            project ! DebugNextReq(threadId)
-            expectMsg(remaining, "Failed to step over line!", TrueResponse)
+            within(10.minutes) {
+              // Should be able to step over a method call
+              project ! DebugNextReq(threadId)
+              expectMsg(remaining, "Failed to step over line!", TrueResponse)
 
-            // Should be able to step into a method call
-            project ! DebugStepReq(threadId)
-            expectMsg(remaining, "Failed to step into method call!", TrueResponse)
+              // Should be able to step into a method call
+              project ! DebugStepReq(threadId)
+              expectMsg(remaining, "Failed to step into method call!", TrueResponse)
 
-            // Should be able to step out of a method call
-            project ! DebugStepOutReq(threadId)
-            expectMsg(remaining, "Failed to step out of method call!", TrueResponse)
+              // Should be able to step out of a method call
+              project ! DebugStepOutReq(threadId)
+              expectMsg(remaining, "Failed to step out of method call!", TrueResponse)
+            }
           }
       }
     }
@@ -69,20 +71,20 @@ class DebugTest extends EnsimeSpec
           32
         ) { (threadId, breakpointsFile) =>
             import testkit._
-
+            val ensimeBreakPointsFile = RawFile(breakpointsFile.toPath)
             // NOTE: Can encounter scala/Predef.scala if picking stack trace
             //       at arbitrary point
             project ! DebugBacktraceReq(threadId, 0, 3)
             expectMsgType[DebugBacktrace] should matchPattern {
               case DebugBacktrace(List(
                 DebugStackFrame(0, Nil, 0, "breakpoints.Breakpoints", "mainTest",
-                  LineSourcePosition(`breakpointsFile`, 32), _),
+                  LineSourcePosition(`ensimeBreakPointsFile`, 32), _),
                 DebugStackFrame(1, List(
                   DebugStackLocal(0, "args", "Array(length = 0)[<EMPTY>]", "java.lang.String[]")
                   ), 1, "breakpoints.Breakpoints$", "main",
-                  LineSourcePosition(`breakpointsFile`, 42), _),
+                  LineSourcePosition(`ensimeBreakPointsFile`, 42), _),
                 DebugStackFrame(2, Nil, 1, "breakpoints.Breakpoints", "main",
-                  LineSourcePosition(`breakpointsFile`, _), _)
+                  LineSourcePosition(`ensimeBreakPointsFile`, _), _)
                 ), `threadId`, "main") =>
             }
 
@@ -95,12 +97,12 @@ class DebugTest extends EnsimeSpec
             project ! DebugContinueReq(threadId)
             expectMsg(TrueResponse)
 
-            asyncHelper.expectMsg(DebugBreakEvent(threadId, "main", breakpointsFile, 11))
+            asyncHelper.expectMsg(DebugBreakEvent(threadId, "main", ensimeBreakPointsFile, 11))
 
             project ! DebugContinueReq(threadId)
             expectMsg(TrueResponse)
 
-            asyncHelper.expectMsg(DebugBreakEvent(threadId, "main", breakpointsFile, 13))
+            asyncHelper.expectMsg(DebugBreakEvent(threadId, "main", RawFile(breakpointsFile.toPath), 13))
 
             project ! DebugClearBreakReq(breakpointsFile, 11)
             expectMsg(TrueResponse)
@@ -108,7 +110,7 @@ class DebugTest extends EnsimeSpec
             project ! DebugContinueReq(threadId)
             expectMsg(TrueResponse)
 
-            asyncHelper.expectMsg(DebugBreakEvent(threadId, "main", breakpointsFile, 13))
+            asyncHelper.expectMsg(DebugBreakEvent(threadId, "main", RawFile(breakpointsFile.toPath), 13))
 
             project ! DebugSetBreakReq(breakpointsFile, 11)
             expectMsg(TrueResponse)
@@ -119,12 +121,12 @@ class DebugTest extends EnsimeSpec
             project ! DebugContinueReq(threadId)
             expectMsg(TrueResponse)
 
-            asyncHelper.expectMsg(DebugBreakEvent(threadId, "main", breakpointsFile, 11))
+            asyncHelper.expectMsg(DebugBreakEvent(threadId, "main", RawFile(breakpointsFile.toPath), 11))
 
             project ! DebugContinueReq(threadId)
             expectMsg(TrueResponse)
 
-            asyncHelper.expectMsg(DebugBreakEvent(threadId, "main", breakpointsFile, 11))
+            asyncHelper.expectMsg(DebugBreakEvent(threadId, "main", RawFile(breakpointsFile.toPath), 11))
 
             project ! DebugContinueReq(threadId)
             expectMsg(TrueResponse)
@@ -345,7 +347,7 @@ class DebugTest extends EnsimeSpec
         ) { (threadId, variablesFile) =>
             import testkit._
 
-            /* boolean local */ {
+            /* boolean local */ within(10.minutes) {
               val n = "a"
 
               project ! DebugLocateNameReq(threadId, n)
@@ -359,7 +361,7 @@ class DebugTest extends EnsimeSpec
               }
             }
 
-            /* char local */ {
+            /* char local */ within(10.minutes) {
               val n = "b"
 
               project ! DebugLocateNameReq(threadId, n)
@@ -373,7 +375,7 @@ class DebugTest extends EnsimeSpec
               }
             }
 
-            /* short local */ {
+            /* short local */ within(10.minutes) {
               val n = "c"
 
               project ! DebugLocateNameReq(threadId, n)
@@ -387,7 +389,7 @@ class DebugTest extends EnsimeSpec
               }
             }
 
-            /* int local */ {
+            /* int local */ within(10.minutes) {
               val n = "d"
 
               project ! DebugLocateNameReq(threadId, n)
@@ -401,7 +403,7 @@ class DebugTest extends EnsimeSpec
               }
             }
 
-            /* long local */ {
+            /* long local */ within(10.minutes) {
               val n = "e"
 
               project ! DebugLocateNameReq(threadId, n)
@@ -415,7 +417,7 @@ class DebugTest extends EnsimeSpec
               }
             }
 
-            /* float local */ {
+            /* float local */ within(10.minutes) {
               val n = "f"
 
               project ! DebugLocateNameReq(threadId, n)
@@ -429,7 +431,7 @@ class DebugTest extends EnsimeSpec
               }
             }
 
-            /* double local */ {
+            /* double local */ within(10.minutes) {
               val n = "g"
 
               project ! DebugLocateNameReq(threadId, n)
@@ -443,7 +445,7 @@ class DebugTest extends EnsimeSpec
               }
             }
 
-            /* string local */ {
+            /* string local */ within(10.minutes) {
               val n = "h"
 
               project ! DebugLocateNameReq(threadId, n)
@@ -475,7 +477,7 @@ class DebugTest extends EnsimeSpec
             val backTrace = expectMsgType[DebugBacktrace]
             // just some sanity assertions
             assert(backTrace.frames.forall(_.className.startsWith("debug.Backtrace")))
-            assert(backTrace.frames.forall(_.pcLocation.file.toString.endsWith("Backtrace.scala")))
+            assert(backTrace.frames.forall(_.pcLocation.file.toString.contains("Backtrace.scala")))
           }
       }
     }
@@ -532,8 +534,9 @@ trait DebugTestUtils {
       // but it doesn't always come through
 
       val allEvents = gotOnStartup +: additionalOnStartup
+      val ensimeResolvedFile = RawFile(resolvedFile.toPath)
       val threadId = allEvents.flatMap {
-        case DebugBreakEvent(foundThreadId, "main", `resolvedFile`, `breakLine`) =>
+        case DebugBreakEvent(foundThreadId, "main", `ensimeResolvedFile`, `breakLine`) =>
           List(foundThreadId)
         case _ =>
           Nil

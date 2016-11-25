@@ -27,11 +27,11 @@ object ProjectPlugin extends AutoPlugin {
 
 object EnsimeBuild {
   lazy val commonSettings = Sensible.settings ++ Seq(
-    libraryDependencies ++= Sensible.testLibs() ++ Sensible.logback,
+    libraryDependencies ++= Sensible.testLibs().value ++ Sensible.logback,
 
     dependencyOverrides ++= Set(
-       "com.typesafe.akka" %% "akka-actor" % Sensible.akkaVersion,
-       "com.typesafe.akka" %% "akka-testkit" % Sensible.akkaVersion,
+       "com.typesafe.akka" %% "akka-actor" % Sensible.akkaVersion.value,
+       "com.typesafe.akka" %% "akka-testkit" % Sensible.akkaVersion.value,
        "io.spray" %% "spray-json" % "1.3.2"
     ),
 
@@ -71,9 +71,6 @@ object EnsimeBuild {
   )
 
   lazy val api = Project("api", file("api")) settings (commonSettings) settings (
-    libraryDependencies ++= Seq(
-      "org.scalariform" %% "scalariform" % "0.1.8"
-    ),
     licenses := Seq(Apache2),
     HeaderKey.headers := Copyright.ApacheMap
   )
@@ -82,6 +79,7 @@ object EnsimeBuild {
     api
   ) settings (
     libraryDependencies ++= List(
+      "com.typesafe.akka" %% "akka-actor" % Sensible.akkaVersion.value,
       "org.scala-lang" % "scala-compiler" % scalaVersion.value,
       "org.apache.commons" % "commons-vfs2" % "2.1" exclude ("commons-logging", "commons-logging")
     ) ++ Sensible.guava
@@ -91,13 +89,13 @@ object EnsimeBuild {
     util, api
   ) settings (
       libraryDependencies += "commons-io" % "commons-io" % "2.5",
-      libraryDependencies ++= Sensible.testLibs("compile")
+      libraryDependencies ++= Sensible.testLibs("compile").value
     )
 
   lazy val s_express = Project("s-express", file("s-express")) settings (commonSettings) settings (
       HeaderKey.headers := Copyright.LgplMap,
       libraryDependencies ++= Seq(
-        "org.parboiled" %% "parboiled" % "2.1.2" // 2.1.3 doesn't have a _2.10
+        "org.parboiled" %% "parboiled" % "2.1.3"
       ) ++ Sensible.shapeless(scalaVersion.value)
     )
 
@@ -110,7 +108,7 @@ object EnsimeBuild {
   ) settings (
       libraryDependencies ++= Seq(
         "com.github.fommil" %% "spray-json-shapeless" % "1.3.0",
-        "com.typesafe.akka" %% "akka-slf4j" % Sensible.akkaVersion
+        "com.typesafe.akka" %% "akka-slf4j" % Sensible.akkaVersion.value
       ) ++ Sensible.shapeless(scalaVersion.value)
     )
 
@@ -121,7 +119,7 @@ object EnsimeBuild {
     api % "test->test" // for the test data
   ) settings (
       libraryDependencies ++= Seq(
-        "com.typesafe.akka" %% "akka-slf4j" % Sensible.akkaVersion
+        "com.typesafe.akka" %% "akka-slf4j" % Sensible.akkaVersion.value
       ) ++ Sensible.shapeless(scalaVersion.value)
     )
 
@@ -144,7 +142,7 @@ object EnsimeBuild {
       commonSettings, commonItSettings
     ).settings(
       unmanagedJars in Compile += JavaTools,
-      ensimeUnmanagedSourceArchives += (baseDirectory in ThisBuild).value / "openjdk-langtools/openjdk7-langtools-src.zip",
+      ensimeUnmanagedSourceArchives += (baseDirectory in ThisBuild).value / "openjdk-langtools/openjdk8-langtools-src.zip",
       libraryDependencies ++= Seq(
         "com.orientechnologies" % "orientdb-graphdb" % Sensible.orientVersion
           exclude ("commons-collections", "commons-collections")
@@ -155,8 +153,8 @@ object EnsimeBuild {
         "org.ow2.asm" % "asm-commons" % "5.1",
         "org.ow2.asm" % "asm-util" % "5.1",
         "org.scala-lang" % "scalap" % scalaVersion.value,
-        "com.typesafe.akka" %% "akka-actor" % Sensible.akkaVersion,
-        "com.typesafe.akka" %% "akka-slf4j" % Sensible.akkaVersion,
+        "com.typesafe.akka" %% "akka-actor" % Sensible.akkaVersion.value,
+        "com.typesafe.akka" %% "akka-slf4j" % Sensible.akkaVersion.value,
         scalaBinaryVersion.value match {
           // see notes in https://github.com/ensime/ensime-server/pull/1446
           case "2.10" => "org.scala-refactoring" % "org.scala-refactoring.library_2.10.6" % "0.10.0"
@@ -165,7 +163,7 @@ object EnsimeBuild {
         "commons-lang" % "commons-lang" % "2.6",
         "com.googlecode.java-diff-utils" % "diffutils" % "1.3.0",
         "org.scala-debugger" %% "scala-debugger-api" % "1.1.0-M2"
-      ) ++ Sensible.testLibs("it,test") ++ Sensible.shapeless(scalaVersion.value)
+      ) ++ Sensible.testLibs("it,test").value ++ Sensible.shapeless(scalaVersion.value)
     ) enablePlugins BuildInfoPlugin settings (
         buildInfoPackage := organization.value,
         buildInfoKeys += BuildInfoKey.action("gitSha")(Try("git rev-parse --verify HEAD".!! dropRight 1) getOrElse "n/a"),
@@ -178,7 +176,7 @@ object EnsimeBuild {
     dtf.format(new java.util.Date())
   }
 
-  val luceneVersion = "5.5.2"
+  val luceneVersion = "6.2.1"
   val nettyVersion = "4.1.6.Final"
   lazy val server = Project("server", file("server")).dependsOn(
     core, swanky, jerky,
@@ -195,9 +193,8 @@ object EnsimeBuild {
         libraryDependencies ++= Seq(
           "io.netty"    %  "netty-transport"  % nettyVersion,
           "io.netty"    %  "netty-handler"    % nettyVersion,
-          "io.netty"    %  "netty-codec-http" % nettyVersion,
-          "com.lihaoyi" %% "scalatags"        % "0.6.0"
-        ) ++ Sensible.testLibs("it,test") ++ Sensible.shapeless(scalaVersion.value)
+          "io.netty"    %  "netty-codec-http" % nettyVersion
+        ) ++ Sensible.testLibs("it,test").value ++ Sensible.shapeless(scalaVersion.value)
       )
 
   // testing modules
@@ -266,7 +263,8 @@ object EnsimeBuild {
         case PathList("META-INF", "io.netty.versions.properties") => MergeStrategy.concat // assumes our classpath is setup correctly
         case other => MergeStrategy.defaultMergeStrategy(other)
       },
-      assemblyExcludedJars in assembly <<= (fullClasspath in assembly).map { everything =>
+      assemblyExcludedJars in assembly := {
+        val everything = (fullClasspath in assembly).value
         everything.filter { attr =>
           val n = attr.data.getName
           n.startsWith("scala-library") | n.startsWith("scala-compiler") |

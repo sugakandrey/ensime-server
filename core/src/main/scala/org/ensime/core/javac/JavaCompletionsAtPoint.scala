@@ -2,8 +2,6 @@
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 package org.ensime.core.javac
 
-import java.nio.charset.Charset
-
 import scala.collection.JavaConverters._
 import scala.collection.breakOut
 import scala.collection.mutable.ArrayBuffer
@@ -18,8 +16,6 @@ import javax.lang.model.util.ElementFilter
 import org.ensime.api.{ BasicTypeInfo => _, _ }
 import org.ensime.core.CompletionUtil
 import org.ensime.model.BasicTypeInfo
-import org.ensime.util.ensimefile.Implicits.DefaultCharset
-import org.ensime.util.file._
 
 trait JavaCompletionsAtPoint { requires: JavaCompiler =>
 
@@ -27,7 +23,7 @@ trait JavaCompletionsAtPoint { requires: JavaCompiler =>
 
   def askCompletionsAtPoint(info: SourceFileInfo, offset: Int, maxResultsArg: Int, caseSens: Boolean): CompletionInfoList = {
     val maxResults = if (maxResultsArg == 0) Int.MaxValue else maxResultsArg
-    val s = contentsAsString(info, DefaultCharset)
+    val s = createJavaFileObject(info).getCharContent(false).toString
 
     val preceding = s.slice(Math.max(0, offset - 100), offset)
 
@@ -291,12 +287,6 @@ trait JavaCompletionsAtPoint { requires: JavaCompiler =>
     val s = tm.toString
     val (front, back) = s.split("\\.").partition { s => s.forall(Character.isLowerCase) }
     if (back.isEmpty) s else back.mkString(".")
-  }
-
-  private def contentsAsString(sf: SourceFileInfo, charset: Charset) = sf match {
-    case SourceFileInfo(f, None, None) => f.readString()
-    case SourceFileInfo(f, Some(contents), None) => contents
-    case SourceFileInfo(f, None, Some(contentsIn)) => contentsIn.readString()
   }
 
 }

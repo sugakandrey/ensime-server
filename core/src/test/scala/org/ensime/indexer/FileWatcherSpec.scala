@@ -6,10 +6,10 @@ import scala.concurrent.duration._
 
 import akka.testkit._
 import com.google.common.io.Files
+import java.nio.charset.Charset
 import org.apache.commons.vfs2._
 import org.ensime.fixture._
 import org.ensime.util._
-import org.ensime.util.ensimefile.Implicits.DefaultCharset
 import org.ensime.util.file._
 import org.ensime.util.fileobject._
 import org.ensime.vfs._
@@ -32,6 +32,8 @@ final case class BaseRegistered() extends FileWatcherMessage
 abstract class FileWatcherSpec extends EnsimeSpec
     with ParallelTestExecution
     with IsolatedTestKitFixture with IsolatedEnsimeVFSFixture {
+
+  implicit val DefaultCharset: Charset = Charset.defaultCharset()
 
   // variant that watches a jar file
   def createJarWatcher(jar: File)(implicit vfs: EnsimeVFS, tk: TestKit): Watcher =

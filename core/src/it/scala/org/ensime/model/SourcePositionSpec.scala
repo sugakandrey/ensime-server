@@ -20,36 +20,32 @@ class SourcePositionSpec extends EnsimeSpec
 
   "SourcePosition" should "resolve FqnSymbols for local files with no line number" in {
     withEnsimeConfig { implicit config =>
-      lookup(knownFile) match {
-        case Some(LineSourcePosition(name, 0)) if name.isFile =>
-        case o => fail(s"not resolved $o")
+      lookup(knownFile) should matchPattern {
+        case Some(LineSourcePosition(RawFile(_), 0)) =>
       }
     }
   }
 
   it should "resolve FqnSymbols for local with a line number" in {
     withEnsimeConfig { implicit config =>
-      lookup(knownFile, Some(100)) match {
-        case Some(LineSourcePosition(name, 100)) if name.isFile =>
-        case o => fail(s"not resolved $o")
+      lookup(knownFile, Some(100)) should matchPattern {
+        case Some(LineSourcePosition(RawFile(_), 100)) =>
       }
     }
   }
 
   it should "resolve FqnSymbols for archive entries with no line number" in {
     withEnsimeConfig { implicit config =>
-      lookup(knownJarEntry) match {
-        case Some(LineSourcePosition(name, 0)) if name.isFile =>
-        case o => fail(s"not resolved $o")
+      lookup(knownJarEntry) should matchPattern {
+        case Some(LineSourcePosition(ArchiveFile(_, _), 0)) =>
       }
     }
   }
 
   it should "resolve FqnSymbols for archive entries with a line number" in {
     withEnsimeConfig { implicit config =>
-      lookup(knownJarEntry, Some(100)) match {
-        case Some(LineSourcePosition(name, 100)) if name.isFile =>
-        case o => fail(s"not resolved $o")
+      lookup(knownJarEntry, Some(100)) should matchPattern {
+        case Some(LineSourcePosition(ArchiveFile(_, _), 100)) =>
       }
     }
   }

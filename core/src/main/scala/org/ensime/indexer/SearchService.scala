@@ -45,6 +45,7 @@ class SearchService(
 
   /**
    * Changelog:
+   * 2.3.3g - bump orientdb version to 2.2.13
    *
    * 2.3.2g - bump orientdb version to 2.2.11
    *
@@ -55,6 +56,8 @@ class SearchService(
    * 2.2g - persist scalap information (scala names, type sigs, etc)
    *
    * 2.1g - remodel OrientDB schema with new domain objects
+   *
+   * 2.0.2 - bump lucene and h2 versions
    *
    * 2.0.1 - change the lucene analyser
    *
@@ -76,7 +79,7 @@ class SearchService(
    *
    * 1.0 - initial schema
    */
-  private val version = "2.3.2"
+  private val version = "2.3.3"
 
   private val index = new IndexService((config.cacheDir / ("index-" + version)).toPath)
   private val db = new GraphService(config.cacheDir / ("graph-" + version))

@@ -29,7 +29,7 @@ trait JavaCompilerFixture {
       offset += ((m.end - m.start))
     }
     val f = new File(config.rootDir, "testing/simple/src/main/java/org/example/Test1.java")
-    val file = SourceFileInfo(f, Some(contents.replaceAll(re, "")), None)
+    val file = SourceFileInfo(RawFile(f.toPath), Some(contents.replaceAll(re, "")), None)
     cc.askTypecheckFiles(List(file))
     assert(points.nonEmpty)
     for (pt <- points) {

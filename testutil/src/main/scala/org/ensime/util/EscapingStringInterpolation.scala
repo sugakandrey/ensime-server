@@ -3,6 +3,7 @@
 package org.ensime.util
 
 import java.io.File
+import org.ensime.api.RawFile
 
 /**
  * String interpolation that automatically escapes known "bad" types
@@ -18,6 +19,7 @@ object EscapingStringInterpolation {
     def s(args: Any*): String = {
       val hijacked = args.map {
         case f: File => f.toString.replace("""\""", """\\""")
+        case RawFile(path) => path.toFile.toString.replace("""\""", """\\""")
         case other => other
       }
       delegate.s(hijacked: _*)

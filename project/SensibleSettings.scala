@@ -42,17 +42,17 @@ object Sensible {
         else Nil
       },
     javacOptions in (Compile, compile) ++= Seq(
-      "-source", "1.7", "-target", "1.7", "-Xlint:all", "-Werror",
+      "-Xlint:all", "-Werror",
       "-Xlint:-options", "-Xlint:-path", "-Xlint:-processing"
     ),
-    javacOptions in doc ++= Seq("-source", "1.7"),
 
-    javaOptions := Seq("-Xss2m", "-XX:MaxPermSize=256m", "-Xms512m", "-Xmx1g"),
-    javaOptions += "-Dfile.encoding=UTF8",
-    //this is needed by OrientDB versions 2.2.0+, 512g is recommended on their github wiki
-    //https://github.com/orientechnologies/orientdb-docs/blob/master/Release-2.2.0.md
+    javaOptions := Seq(
+      "-XX:MaxMetaspaceSize=256m",
+      "-Xss2m", "-Xms512m", "-Xmx512m",
+      "-Dfile.encoding=UTF8",
+      "-XX:+UseG1GC", "-XX:+UseStringDeduplication"
+    ),
     javaOptions += "-XX:MaxDirectMemorySize=4g",
-    javaOptions ++= Seq("-XX:+UseConcMarkSweepGC", "-XX:+CMSIncrementalMode"),
     javaOptions in run ++= yourkitAgent, // interferes with sockets
 
     maxErrors := 1,
@@ -81,32 +81,27 @@ object Sensible {
     // one JVM per test suite
     fork := true,
     testForkedParallel := true,
-    testGrouping <<= (
-      definedTests,
-      baseDirectory,
-      javaOptions,
-      outputStrategy,
-      envVars,
-      javaHome,
-      connectInput
-    ).map { (tests, base, options, strategy, env, javaHomeDir, connectIn) =>
-        val opts = ForkOptions(
-          bootJars = Nil,
-          javaHome = javaHomeDir,
-          connectInput = connectIn,
-          outputStrategy = strategy,
-          runJVMOptions = options,
-          workingDirectory = Some(base),
-          envVars = env
-        )
-        tests.map { test =>
-          Tests.Group(test.name, Seq(test), Tests.SubProcess(opts))
-        }
-      },
+    testGrouping := {
+      val opts = ForkOptions(
+        bootJars = Nil,
+        javaHome = javaHome.value,
+        connectInput = connectInput.value,
+        outputStrategy = outputStrategy.value,
+        runJVMOptions = javaOptions.value,
+        workingDirectory = Some(baseDirectory.value),
+        envVars = envVars.value
+      )
+      definedTests.value.map { test =>
+        Tests.Group(test.name, Seq(test), Tests.SubProcess(opts))
+      }
+    },
 
-    javaOptions <++= (baseDirectory in ThisBuild, configuration, name).map { (base, config, n) =>
+    javaOptions ++= {
       if (sys.env.get("GC_LOGGING").isEmpty) Nil
       else {
+        val base = (baseDirectory in ThisBuild).value
+        val config = configuration.value
+        val n = name.value
         val count = forkCount.incrementAndGet() // subject to task evaluation
         val out = { base / s"gc-$config-$n.log" }.getCanonicalPath
         Seq(
@@ -125,7 +120,15 @@ object Sensible {
   )
 
   val scalaModulesVersion = "1.0.4"
-  val akkaVersion = "2.3.15"
+  
+  def akkaVersion: Def.Initialize[String] = Def.setting {
+    CrossVersion.partialVersion(scalaVersion.value) match {
+      case Some((2, minor)) if minor >= 11 => "2.4.12"
+      case Some((2, minor)) => "2.3.16"
+      case _ => ???
+    }
+  }
+
   val scalatestVersion = "3.0.0"
   val logbackVersion = "1.7.21"
   val quasiquotesVersion = "2.0.1"
@@ -150,14 +153,15 @@ object Sensible {
     "com.google.code.findbugs" % "jsr305" % "3.0.1" % "provided"
   )
 
-  def testLibs(config: String = "test") = Seq(
+  def testLibs(config: String = "test") = Def.setting(Seq(
+    // janino 3.0.6 is not compatible and causes http://www.slf4j.org/codes.html#replay
     "org.codehaus.janino" % "janino" % "2.7.8" % config,
     "org.scalatest" %% "scalatest" % scalatestVersion % config,
-    "org.scalamock" %% "scalamock-scalatest-support" % "3.2.2" % config,
-    "org.scalacheck" %% "scalacheck" % "1.13.2" % config,
-    "com.typesafe.akka" %% "akka-testkit" % akkaVersion % config,
-    "com.typesafe.akka" %% "akka-slf4j" % akkaVersion % config
-  ) ++ logback.map(_ % config)
+    "org.scalamock" %% "scalamock-scalatest-support" % "3.3.0" % config,
+    "org.scalacheck" %% "scalacheck" % "1.13.4" % config,
+    "com.typesafe.akka" %% "akka-testkit" % akkaVersion.value % config,
+    "com.typesafe.akka" %% "akka-slf4j" % akkaVersion.value % config
+  ) ++ logback.map(_ % config))
 
   // e.g. YOURKIT_AGENT=/opt/yourkit/bin/linux-x86-64/libyjpagent.so
   val yourkitAgent = Properties.envOrNone("YOURKIT_AGENT").map { name =>
