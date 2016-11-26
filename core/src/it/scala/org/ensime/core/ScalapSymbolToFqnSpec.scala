@@ -3,13 +3,13 @@
 package org.ensime.core
 
 import org.ensime.api.{ DeclaredAs, EnsimeConfig }
-import org.ensime.fixture.{ EnsimeConfigFixture, IsolatedRichPresentationCompilerFixture }
+import org.ensime.fixture.{ EnsimeConfigFixture, SharedRichPresentationCompilerFixture }
 import org.ensime.indexer._
 import org.ensime.util.EnsimeSpec
 import org.ensime.vfs._
 
 class ScalapSymbolToFqnSpec extends EnsimeSpec
-    with IsolatedRichPresentationCompilerFixture
+    with SharedRichPresentationCompilerFixture
     with RichPresentationCompilerTestUtils
     with ReallyRichPresentationCompilerFixture {
 

@@ -9,6 +9,7 @@ import org.ensime.util.EnsimeSpec
 import org.ensime.util.ensimefile.Implicits.DefaultCharset
 import org.ensime.util.file._
 
+@ExcludeInTravis
 class ReverseLookupsSpec extends EnsimeSpec
     with IsolatedEnsimeConfigFixture
     with IsolatedTestKitFixture

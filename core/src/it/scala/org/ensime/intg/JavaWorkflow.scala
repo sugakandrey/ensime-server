@@ -9,6 +9,7 @@ import org.ensime.util.EnsimeSpec
 import org.ensime.util.file._
 
 // a pure java project, checking that how things behave without scala
+@ExcludeInTravis
 class JavaWorkflow extends EnsimeSpec
     with IsolatedEnsimeConfigFixture
     with IsolatedTestKitFixture

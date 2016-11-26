@@ -20,6 +20,7 @@ import org.ensime.util.file._
 import org.scalatest.Matchers
 
 // must be refreshing as the tests don't clean up after themselves properly
+@ExcludeInTravis
 class DebugTest extends EnsimeSpec
     with IsolatedEnsimeConfigFixture
     with IsolatedTestKitFixture

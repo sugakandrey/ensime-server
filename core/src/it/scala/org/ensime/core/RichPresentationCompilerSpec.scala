@@ -17,10 +17,12 @@ import org.ensime.api._
 import org.ensime.fixture._
 import org.ensime.indexer._
 import org.ensime.indexer.SearchServiceTestUtils._
+import org.ensime.intg.ExcludeInTravis
 import org.ensime.util.EnsimeSpec
 import org.ensime.util.file._
 import org.ensime.vfs.EnsimeVFS
 
+@ExcludeInTravis
 class RichPresentationCompilerThatNeedsJavaLibsSpec extends EnsimeSpec
     with IsolatedRichPresentationCompilerFixture
     with RichPresentationCompilerTestUtils

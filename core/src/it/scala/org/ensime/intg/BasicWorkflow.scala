@@ -409,15 +409,19 @@ class BasicWorkflow extends EnsimeSpec
 
           val bazFile = sourceRoot / "org/example2/Baz.scala"
           val toBeUnloaded = SourceFileInfo(EnsimeFile(sourceRoot / "org/example2/ToBeUnloaded.scala"))
+          val toBeUnloaded2 = SourceFileInfo(EnsimeFile(sourceRoot / "org/example/package.scala"))
 
           project ! TypecheckFilesReq(List(Left(bazFile), Right(toBeUnloaded)))
           expectMsg(VoidResponse)
+          asyncHelper.expectMsgType[NewScalaNotesEvent]
           asyncHelper.expectMsgType[NewScalaNotesEvent]
           asyncHelper.expectMsgType[FullTypeCheckCompleteEvent.type]
 
           project ! UnloadFileReq(toBeUnloaded)
           expectMsg(VoidResponse)
-          // file with deprecation warning has been unloaded
+          project ! UnloadFileReq(toBeUnloaded2)
+          expectMsg(VoidResponse)
+          // files with warning have been unloaded
           // `NewScalaNotesEvent` should now not appear when typechecking `bazFile`
 
           project ! TypecheckFilesReq(List(Left(bazFile)))
