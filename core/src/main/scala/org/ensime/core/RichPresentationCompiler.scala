@@ -232,7 +232,7 @@ trait RichCompilerControl extends CompilerControl with RefactoringControl with C
       val missingFilePaths = missingFiles.map { f => "\"" + f.file + "\"" }.mkString(",")
       EnsimeServerError(s"file(s): $missingFilePaths do not exist")
     } else {
-      val scalas = existing.collect { case SourceFileInfo(rf @ RawFile(path), _, _) if path.endsWith(".scala") => rf }
+      val scalas = existing.collect { case SourceFileInfo(rf @ RawFile(path), _, _) if path.toString.endsWith(".scala") => rf }
       val sourceFiles: List[SourceFile] = scalas.map(createSourceFile)(collection.breakOut)
       f(sourceFiles)
     }
@@ -275,7 +275,7 @@ trait RichCompilerControl extends CompilerControl with RefactoringControl with C
       val usages = Await.result(search.findUsages(fqn.fqnString), Duration.Inf)
       val files: collection.Set[RawFile] = usages.flatMap { usage =>
         val source = usage.source
-        source.map(s => RawFile(Paths.get(vfs.vres(s).getName.getPath)))
+        source.map(s => RawFile(Paths.get(vfs.vfile(s).getName.getPath)))
       }(collection.breakOut)
       files + RawFile(sym.sourceFile.file.toPath)
     }
