@@ -55,44 +55,44 @@ object EnsimeConfigFixture {
 
   // not completely empty, has a reference to the scala-library jar
   lazy val EmptyTestProject: EnsimeConfig = EnsimeTestProject.copy(
-    subprojects = EnsimeTestProject.subprojects.filter(_.name == "testingEmpty"),
+    subprojects = EnsimeTestProject.subprojects.filter(_.name == "testing_empty"),
     javaLibs = Nil
   )
   lazy val SimpleTestProject: EnsimeConfig = EnsimeTestProject.copy(
-    subprojects = EnsimeTestProject.subprojects.filter(_.name == "testingSimple")
+    subprojects = EnsimeTestProject.subprojects.filter(_.name == "testing_simple")
   )
   lazy val SimpleJarTestProject: EnsimeConfig = EnsimeTestProject.copy(
-    subprojects = EnsimeTestProject.subprojects.filter(_.name == "testingSimpleJar"),
+    subprojects = EnsimeTestProject.subprojects.filter(_.name == "testing_simpleJar"),
     javaLibs = Nil
   )
   lazy val ImplicitsTestProject: EnsimeConfig = EnsimeTestProject.copy(
-    subprojects = EnsimeTestProject.subprojects.filter(_.name == "testingImplicits"),
+    subprojects = EnsimeTestProject.subprojects.filter(_.name == "testing_implicits"),
     javaLibs = Nil
   )
   lazy val TimingTestProject: EnsimeConfig = EnsimeTestProject.copy(
-    subprojects = EnsimeTestProject.subprojects.filter(_.name == "testingTiming"),
+    subprojects = EnsimeTestProject.subprojects.filter(_.name == "testing_timing"),
     javaLibs = Nil
   )
   lazy val MacrosTestProject: EnsimeConfig = EnsimeTestProject.copy(
-    subprojects = EnsimeTestProject.subprojects.filter(_.name == "testingMacros"),
+    subprojects = EnsimeTestProject.subprojects.filter(_.name == "testing_macros"),
     javaLibs = Nil
   )
   lazy val ShapelessTestProject: EnsimeConfig = EnsimeTestProject.copy(
-    subprojects = EnsimeTestProject.subprojects.filter(_.name == "testingShapeless"),
+    subprojects = EnsimeTestProject.subprojects.filter(_.name == "testing_shapeless"),
     javaLibs = Nil
   )
   lazy val FqnsTestProject: EnsimeConfig = EnsimeTestProject.copy(
-    subprojects = EnsimeTestProject.subprojects.filter(_.name == "testingFqns"),
+    subprojects = EnsimeTestProject.subprojects.filter(_.name == "testing_fqns"),
     javaLibs = Nil
   )
   lazy val DebugTestProject: EnsimeConfig = EnsimeTestProject.copy(
-    subprojects = EnsimeTestProject.subprojects.filter(_.name == "testingDebug")
+    subprojects = EnsimeTestProject.subprojects.filter(_.name == "testing_debug")
   )
   lazy val DocsTestProject: EnsimeConfig = EnsimeTestProject.copy(
-    subprojects = EnsimeTestProject.subprojects.filter(_.name == "testingDocs")
+    subprojects = EnsimeTestProject.subprojects.filter(_.name == "testing_docs")
   )
   lazy val JavaTestProject: EnsimeConfig = EnsimeTestProject.copy(
-    subprojects = EnsimeTestProject.subprojects.filter(_.name == "testingJava")
+    subprojects = EnsimeTestProject.subprojects.filter(_.name == "testing_java")
   )
 
   // generates an empty single module project in a temporary directory

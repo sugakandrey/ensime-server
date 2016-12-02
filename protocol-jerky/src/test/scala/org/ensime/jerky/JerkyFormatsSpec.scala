@@ -484,17 +484,17 @@ class JerkyFormatsSpec extends EnsimeSpec with SprayJsonTestSupport with EnsimeT
 
     roundtrip(
       completionInfo: EnsimeServerMessage,
-      """{"name":"name","typeInfo":{"name":"type1","fullName":"FOO.type1","typehint":"BasicTypeInfo","typeParams":[],"typeArgs":[],"members":[],"declAs":{"typehint":"Method"}},"typehint":"CompletionInfo","relevance":90,"toInsert":"BAZ"}"""
+      """{"name":"name","typeInfo":{"name":"type1","fullName":"FOO.type1","typehint":"BasicTypeInfo","typeParams":[],"typeArgs":[],"members":[],"declAs":{"typehint":"Method"}},"typehint":"CompletionInfo","relevance":90,"isInfix":false,"toInsert":"BAZ"}"""
     )
 
     roundtrip(
       completionInfo2: EnsimeServerMessage,
-      """{"typehint":"CompletionInfo","name":"name2","relevance":91}"""
+      """{"typehint":"CompletionInfo","name":"nam","relevance":91,"isInfix":true}"""
     )
 
     roundtrip(
       CompletionInfoList("fooBar", List(completionInfo)): EnsimeServerMessage,
-      """{"typehint":"CompletionInfoList","prefix":"fooBar","completions":[{"typeInfo":{"name":"type1","fullName":"FOO.type1","typehint":"BasicTypeInfo","typeParams":[],"typeArgs":[],"members":[],"declAs":{"typehint":"Method"}},"name":"name","relevance":90,"toInsert":"BAZ"}]}"""
+      """{"typehint":"CompletionInfoList","prefix":"fooBar","completions":[{"typeInfo":{"name":"type1","fullName":"FOO.type1","typehint":"BasicTypeInfo","typeParams":[],"typeArgs":[],"members":[],"declAs":{"typehint":"Method"}},"name":"name","relevance":90,"isInfix":false,"toInsert":"BAZ"}]}"""
     )
 
     roundtrip(

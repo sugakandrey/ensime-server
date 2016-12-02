@@ -29,7 +29,7 @@ final case class BaseRegistered() extends FileWatcherMessage
  * fundamental problem is that file watching is impossible without
  * true OS and FS support, which is lacking on all major platforms.
  */
-abstract class FileWatcherSpec extends EnsimeSpec
+class FileWatcherSpec extends EnsimeSpec
     with ParallelTestExecution
     with IsolatedTestKitFixture with IsolatedEnsimeVFSFixture {
 

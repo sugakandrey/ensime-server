@@ -20,8 +20,5 @@
     <appender-ref ref="file" />
   </root>
   <logger name="org.ensime" level="DEBUG" />
-  <logger name="org.ensime.core.debug" level="DEBUG" />
-  <logger name="org.scaladebugger" level="DEBUG" />
-  <logger name="org.scaladebugger.api.lowlevel" level="TRACE" />
   <logger name="akka" level="DEBUG" />
 </configuration>

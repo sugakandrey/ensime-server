@@ -1,63 +1,64 @@
 import java.io._
 import scala.util.{ Properties, Try }
 
-import com.typesafe.sbt.SbtScalariform._
+import com.typesafe.sbt.SbtScalariform.autoImport._
+import com.typesafe.sbt.SbtScalariform
+import scalariform.formatter.preferences._
+
 import de.heikoseeberger.sbtheader.{ HeaderKey, HeaderPlugin }
 import sbt.Keys._
 import sbt.{ IntegrationTest => It, _ }
 import sbtassembly.AssemblyKeys._
 import sbtassembly.{ AssemblyKeys, MergeStrategy, PathList }
 import sbtbuildinfo.BuildInfoPlugin, BuildInfoPlugin.autoImport._
-import SonatypeSupport._
 
 import org.ensime.EnsimePlugin.JdkDir
 import org.ensime.EnsimeKeys._
 
-
+import fommil.SensibleSettings._
+import fommil.SonatypeKeys._
+ 
 object ProjectPlugin extends AutoPlugin {
-  override def requires = plugins.JvmPlugin
+  override def requires = fommil.SensiblePlugin
   override def trigger = allRequirements
 
   override def buildSettings = Seq(
     scalaVersion := "2.11.8",
     organization := "org.ensime",
-    version := "2.0.0-graph-SNAPSHOT"
+    version := "2.0.0-graph-SNAPSHOT",
+
+    sonatypeGithub := ("ensime", "ensime-server"),
+    licenses := Seq(GPL3),
+    startYear := Some(2010)
+  )
+
+  override def projectSettings = Seq(
+    scalariformPreferences := SbtScalariform.defaultPreferences
   )
 }
 
 object EnsimeBuild {
-  lazy val commonSettings = Sensible.settings ++ Seq(
-    libraryDependencies ++= Sensible.testLibs().value ++ Sensible.logback,
-
+  // common to the ensimeBuild, but not the testing projects
+  lazy val commonSettings = Seq(
     dependencyOverrides ++= Set(
-       "com.typesafe.akka" %% "akka-actor" % Sensible.akkaVersion.value,
-       "com.typesafe.akka" %% "akka-testkit" % Sensible.akkaVersion.value,
+       "com.typesafe.akka" %% "akka-actor" % akkaVersion.value,
+       "com.typesafe.akka" %% "akka-testkit" % akkaVersion.value,
        "io.spray" %% "spray-json" % "1.3.2"
     ),
 
-      // disabling shared memory gives a small performance boost to tests
+    // disabling shared memory gives a small performance boost to tests
     javaOptions ++= Seq("-XX:+PerfDisableSharedMem"),
-
-    javaOptions in Test ++= Seq(
-      "-Dlogback.configurationFile=../logback-test.xml"
-    ),
 
     dependencyOverrides ++= Set(
       "org.apache.lucene" % "lucene-core" % luceneVersion
     ),
 
-    HeaderKey.headers := Copyright.GplMap,
-
     updateOptions := updateOptions.value.withCachedResolution(true)
-  ) ++ sonatype("ensime", "ensime-server", GPL3)
+  )
 
   lazy val commonItSettings = inConfig(It)(
-    Defaults.testSettings ++ Sensible.testSettings
-  ) ++ scalariformSettingsWithIt ++ HeaderPlugin.settingsFor(It) ++ Seq(
-      javaOptions in It ++= Seq(
-        "-Dlogback.configurationFile=../logback-it.xml"
-      )
-    )
+    Defaults.testSettings ++ sensibleTestSettings
+  ) ++ SbtScalariform.scalariformSettingsWithIt ++ HeaderPlugin.settingsFor(It)
 
   lazy val JavaTools: File = JdkDir / "lib/tools.jar"
 
@@ -71,63 +72,69 @@ object EnsimeBuild {
   )
 
   lazy val api = Project("api", file("api")) settings (commonSettings) settings (
-    licenses := Seq(Apache2),
-    HeaderKey.headers := Copyright.ApacheMap
+    licenses := Seq(Apache2)
   )
 
   lazy val util = Project("util", file("util")) settings (commonSettings) dependsOn (
     api
   ) settings (
     libraryDependencies ++= List(
-      "com.typesafe.akka" %% "akka-actor" % Sensible.akkaVersion.value,
+      "com.typesafe.akka" %% "akka-actor" % akkaVersion.value,
       "org.scala-lang" % "scala-compiler" % scalaVersion.value,
-      "org.apache.commons" % "commons-vfs2" % "2.1" exclude ("commons-logging", "commons-logging")
-    ) ++ Sensible.guava
+      "org.apache.commons" % "commons-vfs2" % "2.1" exclude ("commons-logging", "commons-logging"),
+      "com.google.guava" % "guava" % "19.0",
+      "com.google.code.findbugs" % "jsr305" % "3.0.1" % "provided"
+    ) ++ logback
   )
 
   lazy val testutil = Project("testutil", file("testutil")) settings (commonSettings) dependsOn (
     util, api
   ) settings (
-      libraryDependencies += "commons-io" % "commons-io" % "2.5",
-      libraryDependencies ++= Sensible.testLibs("compile").value
+      libraryDependencies ++= Seq(
+        "commons-io" % "commons-io" % "2.5",
+        "com.typesafe.akka" %% "akka-testkit" % akkaVersion.value,
+        "com.typesafe.akka" %% "akka-slf4j" % akkaVersion.value
+      ) ++sensibleTestLibs(Compile)
     )
 
   lazy val s_express = Project("s-express", file("s-express")) settings (commonSettings) settings (
-      HeaderKey.headers := Copyright.LgplMap,
+      licenses := Seq(LGPL3),
       libraryDependencies ++= Seq(
-        "org.parboiled" %% "parboiled" % "2.1.3"
-      ) ++ Sensible.shapeless(scalaVersion.value)
+        "org.parboiled" %% "parboiled" % "2.1.3",
+        "org.scalacheck" %% "scalacheck" % "1.13.4" % Test
+      ) ++ shapeless.value ++ logback
     )
 
   // the JSON protocol
   lazy val jerky = Project("jerky", file("protocol-jerky")) settings (commonSettings) dependsOn (
     util,
     api,
-    testutil % "test",
+    testutil % Test,
     api % "test->test" // for the test data
   ) settings (
       libraryDependencies ++= Seq(
         "com.github.fommil" %% "spray-json-shapeless" % "1.3.0",
-        "com.typesafe.akka" %% "akka-slf4j" % Sensible.akkaVersion.value
-      ) ++ Sensible.shapeless(scalaVersion.value)
+        "com.typesafe.akka" %% "akka-slf4j" % akkaVersion.value
+      ) ++ shapeless.value
     )
 
   // the S-Exp protocol
   lazy val swanky = Project("swanky", file("protocol-swanky")) settings (commonSettings) dependsOn (
     api, s_express, util,
-    testutil % "test",
+    testutil % Test,
     api % "test->test" // for the test data
   ) settings (
       libraryDependencies ++= Seq(
-        "com.typesafe.akka" %% "akka-slf4j" % Sensible.akkaVersion.value
-      ) ++ Sensible.shapeless(scalaVersion.value)
+        "com.typesafe.akka" %% "akka-slf4j" % akkaVersion.value
+      ) ++ shapeless.value
     )
 
+  import EnsimeTestingBuild._
   lazy val core = Project("core", file("core")).dependsOn(
     api, s_express, monkeys, util,
     api % "test->test", // for the interpolator
     testutil % "test,it",
-    // depend on "it" dependencies in "test" or sbt adds them to the release deps!
+    // depend on "it" dependencies in Test or sbt adds them to the release deps!
     // https://github.com/sbt/sbt/issues/1888
     testingEmpty % "test,it",
     testingSimple % "test,it",
@@ -144,7 +151,7 @@ object EnsimeBuild {
       unmanagedJars in Compile += JavaTools,
       ensimeUnmanagedSourceArchives += (baseDirectory in ThisBuild).value / "openjdk-langtools/openjdk8-langtools-src.zip",
       libraryDependencies ++= Seq(
-        "com.orientechnologies" % "orientdb-graphdb" % Sensible.orientVersion
+        "com.orientechnologies" % "orientdb-graphdb" % orientVersion
           exclude ("commons-collections", "commons-collections")
           exclude ("commons-beanutils", "commons-beanutils")
           exclude ("commons-logging", "commons-logging"),
@@ -153,8 +160,8 @@ object EnsimeBuild {
         "org.ow2.asm" % "asm-commons" % "5.1",
         "org.ow2.asm" % "asm-util" % "5.1",
         "org.scala-lang" % "scalap" % scalaVersion.value,
-        "com.typesafe.akka" %% "akka-actor" % Sensible.akkaVersion.value,
-        "com.typesafe.akka" %% "akka-slf4j" % Sensible.akkaVersion.value,
+        "com.typesafe.akka" %% "akka-actor" % akkaVersion.value,
+        "com.typesafe.akka" %% "akka-slf4j" % akkaVersion.value,
         scalaBinaryVersion.value match {
           // see notes in https://github.com/ensime/ensime-server/pull/1446
           case "2.10" => "org.scala-refactoring" % "org.scala-refactoring.library_2.10.6" % "0.10.0"
@@ -162,8 +169,9 @@ object EnsimeBuild {
         },
         "commons-lang" % "commons-lang" % "2.6",
         "com.googlecode.java-diff-utils" % "diffutils" % "1.3.0",
-        "org.scala-debugger" %% "scala-debugger-api" % "1.1.0-M2"
-      ) ++ Sensible.testLibs("it,test").value ++ Sensible.shapeless(scalaVersion.value)
+        "org.scala-debugger" %% "scala-debugger-api" % "1.1.0-M2",
+        "org.scalamock" %% "scalamock-scalatest-support" % "3.3.0" % Test
+      ) ++ shapeless.value
     ) enablePlugins BuildInfoPlugin settings (
         buildInfoPackage := organization.value,
         buildInfoKeys += BuildInfoKey.action("gitSha")(Try("git rev-parse --verify HEAD".!! dropRight 1) getOrElse "n/a"),
@@ -176,13 +184,13 @@ object EnsimeBuild {
     dtf.format(new java.util.Date())
   }
 
-  val luceneVersion = "6.2.1"
+  val luceneVersion = "6.3.0"
   val nettyVersion = "4.1.6.Final"
   lazy val server = Project("server", file("server")).dependsOn(
     core, swanky, jerky,
     s_express % "test->test",
     swanky % "test->test",
-    // depend on "it" dependencies in "test" or sbt adds them to the release deps!
+    // depend on "it" dependencies in Test or sbt adds them to the release deps!
     // https://github.com/sbt/sbt/issues/1888
     core % "test->test",
     core % "it->it",
@@ -194,62 +202,8 @@ object EnsimeBuild {
           "io.netty"    %  "netty-transport"  % nettyVersion,
           "io.netty"    %  "netty-handler"    % nettyVersion,
           "io.netty"    %  "netty-codec-http" % nettyVersion
-        ) ++ Sensible.testLibs("it,test").value ++ Sensible.shapeless(scalaVersion.value)
+        ) ++ shapeless.value
       )
-
-  // testing modules
-  lazy val testingEmpty = Project("testingEmpty", file("testing/empty"))
-
-  lazy val testingSimple = Project("testingSimple", file("testing/simple")) settings (
-    scalacOptions in Compile := Seq(),
-    libraryDependencies += "org.scalatest" %% "scalatest" % Sensible.scalatestVersion % Test intransitive ()
-  )
-
-  lazy val testingSimpleJar = Project("testingSimpleJar", file("testing/simpleJar")).settings(
-    exportJars := true,
-    ensimeUseTarget in Compile := Some((artifactPath in (Compile, packageBin)).value),
-    ensimeUseTarget in Test := Some((artifactPath in (Test, packageBin)).value)
-  )
-
-  lazy val testingImplicits = Project("testingImplicits", file("testing/implicits")) settings (
-    libraryDependencies += "org.scalatest" %% "scalatest" % Sensible.scalatestVersion % "test" intransitive ()
-  )
-
-  lazy val testingTiming = Project("testingTiming", file("testing/timing"))
-
-  lazy val testingMacros = Project("testingMacros", file("testing/macros")) settings (
-    libraryDependencies += "org.scala-lang" % "scala-reflect" % scalaVersion.value
-  )
-
-  // just to have access to shapeless
-  lazy val testingShapeless = Project("testingShapeless", file("testing/shapeless")).settings (
-    libraryDependencies ++= Sensible.shapeless(scalaVersion.value)
-  )
-
-  lazy val testingFqns = Project("testingFqns", file("testing/fqns")).settings (
-    libraryDependencies ++= Sensible.shapeless(scalaVersion.value) ++ Seq(
-      "org.typelevel" %% "cats-core" % "0.6.1" intransitive(),
-      "org.spire-math" %% "spire" % "0.11.0" intransitive()
-    )
-  )
-
-  lazy val testingDebug = Project("testingDebug", file("testing/debug")).settings(
-    scalacOptions in Compile := Seq()
-  )
-
-  lazy val testingDocs = Project("testingDocs", file("testing/docs")).settings(
-    dependencyOverrides ++= Set("com.google.guava" % "guava" % "18.0"),
-    libraryDependencies ++= Seq(
-      "com.github.dvdme" % "ForecastIOLib" % "1.5.1" intransitive (),
-      "commons-io" % "commons-io" % "2.5" intransitive ()
-    ) ++ Sensible.guava
-  )
-
-  // java project with no scala-library
-  lazy val testingJava = Project("testingJava", file("testing/java")).settings(
-    crossPaths := false,
-    autoScalaLibrary := false
-  )
 
   // manual root project so we can exclude the testing projects from publication
   lazy val root = Project(id = "ensime", base = file(".")) settings (commonSettings) aggregate (
@@ -273,4 +227,71 @@ object EnsimeBuild {
       },
       assemblyJarName in assembly := s"ensime_${scalaBinaryVersion.value}-${version.value}-assembly.jar"
     )
+
+  private def akkaVersion: Def.Initialize[String] = Def.setting {
+    CrossVersion.partialVersion(scalaVersion.value) match {
+      case Some((2, minor)) if minor >= 11 => "2.4.14"
+      case _ => "2.3.16"
+    }
+  }
+  
+  private val orientVersion = "2.2.13"
+}
+
+// projects used in the integration tests, not published
+object EnsimeTestingBuild {
+  private def testingProject(dir: String) = Project(dir.replace("/", "_"), file(dir)).settings(
+    scalacOptions := Nil,
+    libraryDependencies := Seq("org.scala-lang" % "scala-library" % scalaVersion.value)
+  )
+
+  lazy val testingEmpty = testingProject("testing/empty")
+
+  lazy val testingSimple = testingProject("testing/simple") settings (
+    libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.1" % Test intransitive ()
+  )
+
+  lazy val testingSimpleJar = testingProject("testing/simpleJar").settings(
+    exportJars := true,
+    ensimeUseTarget in Compile := Some((artifactPath in (Compile, packageBin)).value),
+    ensimeUseTarget in Test := Some((artifactPath in (Test, packageBin)).value)
+  )
+
+  lazy val testingImplicits = testingProject("testing/implicits")
+
+  lazy val testingTiming = testingProject("testing/timing")
+
+  lazy val testingMacros = testingProject("testing/macros") settings (
+    libraryDependencies += "org.scala-lang" % "scala-reflect" % scalaVersion.value
+  )
+
+  // just to have access to shapeless
+  lazy val testingShapeless = testingProject("testing/shapeless").settings (
+    libraryDependencies ++= shapeless.value
+  )
+
+  lazy val testingFqns = testingProject("testing/fqns").settings (
+    libraryDependencies ++= shapeless.value ++ Seq(
+      "org.typelevel" %% "cats" % "0.6.0" % Test intransitive(),
+      "org.spire-math" %% "spire" % "0.11.0" % Test intransitive()
+    )
+  )
+
+  lazy val testingDebug = testingProject("testing/debug")
+
+  lazy val testingDocs = testingProject("testing/docs").settings(
+    dependencyOverrides ++= Set("com.google.guava" % "guava" % "18.0"),
+    libraryDependencies ++= Seq(
+      "com.github.dvdme" % "ForecastIOLib" % "1.5.1" intransitive (),
+      "commons-io" % "commons-io" % "2.5" intransitive (),
+      "com.google.guava" % "guava" % "18.0"
+    )
+  )
+
+  // java project with no scala-library
+  lazy val testingJava = testingProject("testing/java").settings(
+    crossPaths := false,
+    autoScalaLibrary := false,
+    libraryDependencies := Nil
+  )
 }

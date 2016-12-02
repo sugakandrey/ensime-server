@@ -11,7 +11,6 @@ import scala.reflect.internal.util.{ BatchSourceFile, OffsetPosition }
 import scala.tools.nsc.Settings
 import scala.tools.nsc.reporters.StoreReporter
 import scala.util.Properties
-
 import ReallyRichPresentationCompilerFixture._
 import org.ensime.api._
 import org.ensime.fixture._
@@ -189,7 +188,10 @@ class RichPresentationCompilerSpec extends EnsimeSpec
     "object B { val x = A.@@ "
   ) { (p, cc) =>
       val result = cc.completionsAt(p, 10, caseSens = false)
-      forAtLeast(1, result.completions) { _.name shouldBe "aMethod" }
+      forAtLeast(1, result.completions) { x =>
+        x.name shouldBe "aMethod"
+        x.isInfix shouldBe false
+      }
     }
 
   it should "not try to complete the declaration containing point" in withPosInCompiledSource(
@@ -216,6 +218,86 @@ class RichPresentationCompilerSpec extends EnsimeSpec
   ) { (p, cc) =>
       val result = cc.completionsAt(p, 10, caseSens = false)
       forAtLeast(1, result.completions) { _.name shouldBe "Abc" }
+    }
+
+  it should "make infix a method with less than 4 letters/numbers name and one parameter" in withPosInCompiledSource(
+    "package com.example",
+    "object Abc { def or2(a: Int) = a }",
+    "object B { val x = Abc; x.@@ }"
+  ) { (p, cc) =>
+      val result = cc.completionsAt(p, 10, caseSens = false)
+      forAtLeast(1, result.completions) { x =>
+        x.name shouldBe "or2"
+        x.isInfix shouldBe true
+      }
+    }
+
+  it should "make infix a method with only symbols in the name and arity 1" in withPosInCompiledSource(
+    "package com.example",
+    "object Abc { def <+-+>(a: Int) = a }",
+    "object B { val x = Abc; x.@@ }"
+  ) { (p, cc) =>
+      val result = cc.completionsAt(p, 10, caseSens = false)
+      forAtLeast(1, result.completions) { x =>
+        x.name shouldBe "<+-+>"
+        x.isInfix shouldBe true
+      }
+    }
+
+  it should "make infix a method with two parameters set if the first is arity 1 and the second implicit" in withPosInCompiledSource(
+    "package com.example",
+    "object Abc { val a = List().@@ }"
+  ) { (p, cc) =>
+      val result = cc.completionsAt(p, 100, caseSens = false)
+      forAll(result.completions) { x =>
+        if (x.name == "++:") x.isInfix shouldBe true
+      }
+    }
+
+  it should "not make infix a method with more than one parameter set" in withPosInCompiledSource(
+    "package com.example",
+    "object Abc { def ~>(a: Int)(b: Int) = a }",
+    "object B { val x = Abc; x.@@ }"
+  ) { (p, cc) =>
+      val result = cc.completionsAt(p, 10, caseSens = false)
+      forExactly(1, result.completions) { x =>
+        x.name shouldBe "~>"
+        x.isInfix shouldBe false
+      }
+    }
+
+  it should "not make infix a method with less than 4 characters name and not exactly one parameter" in withPosInCompiledSource(
+    "package com.example",
+    "object Abc { def >~>(a: Int, b: Int) = a; def >~>() = 1 }",
+    "object B { val x = Abc; x.@@ }"
+  ) { (p, cc) =>
+      val result = cc.completionsAt(p, 10, caseSens = false)
+      forExactly(2, result.completions) { x =>
+        x.name shouldBe ">~>"
+        x.isInfix shouldBe false
+      }
+    }
+
+  it should "not make infix a method 'map'" in withPosInCompiledSource(
+    "package com.example",
+    "object Abc { val a = List().@@ }"
+  ) { (p, cc) =>
+      val result = cc.completionsAt(p, 100, caseSens = false)
+      forAll(result.completions) { x =>
+        if (x.name == "map") x.isInfix shouldBe false
+      }
+    }
+
+  it should "not make infix a method with a single implicit parameter" in withPosInCompiledSource(
+    "package com.example",
+    "object Abc { def ~>(implicit b: Int) = b }",
+    "object B { val x = Abc; x.@@ }"
+  ) { (p, cc) =>
+      val result = cc.completionsAt(p, 100, caseSens = false)
+      forExactly(1, result.completions) { x =>
+        x.name shouldBe "~>"
+        x.isInfix shouldBe false
+      }
     }
 
   it should "get members for infix method call" in withPosInCompiledSource(

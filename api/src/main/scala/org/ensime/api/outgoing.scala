@@ -309,7 +309,8 @@ final case class CompletionInfo(
   typeInfo: Option[TypeInfo],
   name: String,
   relevance: Int,
-  toInsert: Option[String]
+  toInsert: Option[String],
+  isInfix: Boolean = false
 ) extends RpcResponse
 
 final case class CompletionInfoList(

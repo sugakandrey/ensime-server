@@ -8,16 +8,16 @@ lazy val swanky = EnsimeBuild.swanky
 lazy val core = EnsimeBuild.core
 lazy val server = EnsimeBuild.server
 
-lazy val testingEmpty = EnsimeBuild.testingEmpty
-lazy val testingSimple = EnsimeBuild.testingSimple
-lazy val testingSimpleJar = EnsimeBuild.testingSimpleJar
-lazy val testingImplicits = EnsimeBuild.testingImplicits
-lazy val testingTiming = EnsimeBuild.testingTiming
-lazy val testingMacros = EnsimeBuild.testingMacros
-lazy val testingShapeless = EnsimeBuild.testingShapeless
-lazy val testingFqns = EnsimeBuild.testingFqns
-lazy val testingDebug = EnsimeBuild.testingDebug
-lazy val testingDocs = EnsimeBuild.testingDocs
-lazy val testingJava = EnsimeBuild.testingJava
+lazy val testingEmpty = EnsimeTestingBuild.testingEmpty
+lazy val testingSimple = EnsimeTestingBuild.testingSimple
+lazy val testingSimpleJar = EnsimeTestingBuild.testingSimpleJar
+lazy val testingImplicits = EnsimeTestingBuild.testingImplicits
+lazy val testingTiming = EnsimeTestingBuild.testingTiming
+lazy val testingMacros = EnsimeTestingBuild.testingMacros
+lazy val testingShapeless = EnsimeTestingBuild.testingShapeless
+lazy val testingFqns = EnsimeTestingBuild.testingFqns
+lazy val testingDebug = EnsimeTestingBuild.testingDebug
+lazy val testingDocs = EnsimeTestingBuild.testingDocs
+lazy val testingJava = EnsimeTestingBuild.testingJava
 
 lazy val root = EnsimeBuild.root

@@ -10,8 +10,9 @@ import org.ensime.indexer.SearchServiceTestUtils._
 import org.ensime.model.BasicTypeInfo
 import org.ensime.util.EnsimeSpec
 import org.ensime.indexer._
+import org.scalatest.OptionValues
 
-class JavaCompilerSpec extends EnsimeSpec
+class JavaCompilerSpec extends EnsimeSpec with OptionValues
     with IsolatedJavaCompilerFixture {
 
   val original = EnsimeConfigFixture.SimpleTestProject.copy(referenceSourceRoots = Nil)
@@ -275,9 +276,18 @@ class JavaCompilerSpec extends EnsimeSpec
             case "6" => forAtLeast(1, info.completions)(_.name shouldBe "Entry")
             case "7" => forAtLeast(1, info.completions)(_.name shouldBe "Entry")
             case "8" => forAtLeast(1, info.completions)(_.name shouldBe "File")
-            case "9" => forAtLeast(1, info.completions)(_.name shouldBe "foo")
-            case "10" => forAtLeast(1, info.completions)(_.name shouldBe "maxValue")
-            case "11" => forAtLeast(1, info.completions)(_.name shouldBe "MAX_VALUE")
+            case "9" => forAtLeast(1, info.completions) { c =>
+              c.name shouldBe "foo"
+              c.typeInfo.value.name shouldBe "String"
+            }
+            case "10" => forAtLeast(1, info.completions) { c =>
+              c.name shouldBe "maxValue"
+              c.typeInfo.value.name shouldBe "int"
+            }
+            case "11" => forAtLeast(1, info.completions) { c =>
+              c.name shouldBe "MAX_VALUE"
+              c.typeInfo.value.name shouldBe "int"
+            }
             case "12" => forAtLeast(1, info.completions)(_.name shouldBe "Integer")
 
             case "13" =>
@@ -286,7 +296,10 @@ class JavaCompilerSpec extends EnsimeSpec
               info.completions(1).name shouldBe "testinner"
 
             case "14" => forAtLeast(1, info.completions)(_.name shouldBe "println")
-            case "15" => forAtLeast(1, info.completions)(_.name shouldBe "privateValue")
+            case "15" => forAtLeast(1, info.completions) { c =>
+              c.name shouldBe "privateValue"
+              c.typeInfo.value.name shouldBe "int"
+            }
             case "16" => forAll(info.completions)(_.name shouldNot be("hash"))
           }
         }

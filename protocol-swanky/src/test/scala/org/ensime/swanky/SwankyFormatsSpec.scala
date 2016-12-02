@@ -492,7 +492,7 @@ class SwankyFormatsSpec extends EnsimeSpec with EnsimeTestData {
 
     roundtrip(
       completionInfo2: CompletionInfo,
-      """(:ensime-api-completion-info (:name "name2" :relevance 91))"""
+      """(:ensime-api-completion-info (:name "nam" :relevance 91 :is-infix t))"""
     )
 
     roundtrip(

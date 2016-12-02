@@ -239,14 +239,61 @@ trait ModelBuilders {
     def fromSymbol(sym: Symbol, relevance: Int): CompletionInfo =
       fromSymbolAndType(sym, sym.tpe, relevance)
 
-    def fromSymbolAndType(sym: Symbol, tpe: Type, relevance: Int): CompletionInfo =
+    def fromSymbolAndType(sym: Symbol, tpe: Type, relevance: Int): CompletionInfo = {
+      val typeInfo = TypeInfo(tpe)
       CompletionInfo(
-        Some(TypeInfo(tpe)),
+        Some(typeInfo),
         sym.nameString,
         relevance,
-        None
+        None,
+        isInfix(sym.nameString, typeInfo)
       )
+    }
 
+    private def isInfix(symName: String, typeInfo: TypeInfo): Boolean = {
+
+      def isEligibleForInfix(symName: String, paramSections: Iterable[ParamSectionInfo]) = {
+        import InfixChecker._
+
+        if (hasWrongParametersSet(paramSections)) false
+        else if (isSymbolString(symName)) true
+        else !(isSymbolNameTooLong(symName) || isExcluded(symName))
+      }
+
+      typeInfo match {
+        case ArrowTypeInfo(_, _, _, paramSections, _) => isEligibleForInfix(symName, paramSections)
+        case _ => false
+      }
+    }
+
+    /*
+     * The boolean logic in this object is reversed in order to do as few checks as possible
+     */
+    private object InfixChecker {
+      val MAX_NAME_LENGTH_FOR_INFIX = 3
+      val PARAMETER_SETS_NUM_FOR_INFIX = 1
+      val PARAMETER_SETS_NUM_FOR_INFIX_WITH_IMPLICIT = 2
+      val PARAMETER_LIST_SIZE_FOR_INFIX = 1
+      val EXCLUDED = Set("map")
+
+      def isSymbolString(s: String) = s.forall(isSymbol)
+      private def isSymbol(c: Char) = !Character.isLetterOrDigit(c)
+
+      def hasWrongParametersSet(paramSections: Iterable[ParamSectionInfo]) =
+        isWrongParametersSetNumber(paramSections) ||
+          isFirstParameterSetImplicit(paramSections) ||
+          hasWrongArity(paramSections)
+      private def isWrongParametersSetNumber(paramSections: Iterable[ParamSectionInfo]) =
+        !(paramSections.size == PARAMETER_SETS_NUM_FOR_INFIX
+          || (paramSections.size == PARAMETER_SETS_NUM_FOR_INFIX_WITH_IMPLICIT
+            && paramSections.tail.head.isImplicit))
+      private def isFirstParameterSetImplicit(paramSections: Iterable[ParamSectionInfo]) = paramSections.head.isImplicit
+      private def hasWrongArity(paramSections: Iterable[ParamSectionInfo]) = paramSections.head.params.size != PARAMETER_LIST_SIZE_FOR_INFIX
+
+      def isExcluded(symbolName: String) = EXCLUDED.contains(symbolName)
+
+      def isSymbolNameTooLong(symbolName: String) = symbolName.length > MAX_NAME_LENGTH_FOR_INFIX
+    }
   }
 
   object NamedTypeMemberInfo {

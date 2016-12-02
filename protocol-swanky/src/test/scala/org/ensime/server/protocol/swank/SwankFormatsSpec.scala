@@ -495,7 +495,7 @@ class SwankFormatsSpec extends EnsimeSpec with EnsimeTestData {
 
     marshal(
       completionInfo2: CompletionInfo,
-      """(:name "name2" :relevance 91)"""
+      """(:name "nam" :relevance 91 :is-infix t)"""
     )
 
     marshal(

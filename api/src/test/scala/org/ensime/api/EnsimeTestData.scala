@@ -114,7 +114,7 @@ trait EnsimeTestData {
 
   val completionInfo = CompletionInfo(Some(typeInfo), "name", 90, Some("BAZ"))
 
-  val completionInfo2 = CompletionInfo(None, "name2", 91, None)
+  val completionInfo2 = CompletionInfo(None, "nam", 91, None, true)
 
   val completionInfoList = List(completionInfo, completionInfo2)
 

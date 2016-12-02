@@ -35,7 +35,7 @@ class BasicWorkflow extends EnsimeSpec
 
           // typeCheck module
 
-          project ! TypecheckModule("testingSimple")
+          project ! TypecheckModule("testing_simple")
           expectMsg(VoidResponse)
           asyncHelper.expectMsgType[NewScalaNotesEvent]
           asyncHelper.expectMsgType[NewScalaNotesEvent]
@@ -44,7 +44,7 @@ class BasicWorkflow extends EnsimeSpec
           project ! TypeByNameReq("org.example.Bloo")
           expectMsgType[api.BasicTypeInfo]
 
-          project ! UnloadModuleReq("testingSimple")
+          project ! UnloadModuleReq("testing_simple")
           expectMsg(VoidResponse)
 
           project ! TypeByNameReq("org.example.Bloo")
