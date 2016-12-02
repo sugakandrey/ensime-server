@@ -47,7 +47,12 @@ object EnsimeBuild {
     ),
 
     // disabling shared memory gives a small performance boost to tests
-    javaOptions ++= Seq("-XX:+PerfDisableSharedMem"),
+    javaOptions ++= Seq("-XX:+PerfDisableSharedMem",
+      "-Xms512m",
+      "-Xmx512m",
+      "-XX:MaxDirectMemorySize=4g"
+    ),
+
 
     dependencyOverrides ++= Set(
       "org.apache.lucene" % "lucene-core" % luceneVersion
