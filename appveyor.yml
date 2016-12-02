@@ -25,7 +25,7 @@ install:
 build_script:
   - sbt ";ensimeConfig ;test:compile ;it:compile"
 test_script:
-  - sbt ";test ;it:test"
+  - sbt ";test ;it:test-only * -- -oD"
 cache:
   - C:\Program Files\Java\jdk1.8.0\src.zip
   - C:\sbt\sbt-launcher-packaging-0.13.13
