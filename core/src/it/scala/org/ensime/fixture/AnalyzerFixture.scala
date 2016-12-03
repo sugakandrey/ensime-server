@@ -8,7 +8,6 @@ import org.ensime.api._
 import org.ensime.core._
 import org.ensime.vfs._
 import org.ensime.indexer.SearchService
-import org.scalatest._
 
 trait AnalyzerFixture {
   def withAnalyzer(testCode: (EnsimeConfig, TestActorRef[Analyzer]) => Any): Any
@@ -45,8 +44,7 @@ trait IsolatedAnalyzerFixture
 trait SharedAnalyzerFixture
     extends AnalyzerFixture
     with SharedTestKitFixture
-    with SharedSearchServiceFixture
-    with BeforeAndAfterAll {
+    with SharedSearchServiceFixture {
 
   private[fixture] var analyzer: TestActorRef[Analyzer] = _
 

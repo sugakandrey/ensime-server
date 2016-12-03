@@ -28,7 +28,7 @@ build:
         sbt ++$SCALA_VERSION publishLocal ;
         git clone --depth 1 https://github.com/ensime/ensime-emacs.git ensime-emacs ;
         cd ensime-emacs ;
-        echo "1.8" > .java-version ;
+        cd test/example ; sbt ensimeConfig ; cd ../.. ;
         cask pkg-file ;
         cask install ;
         cask package ;

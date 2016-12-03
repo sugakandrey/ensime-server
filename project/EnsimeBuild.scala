@@ -32,8 +32,19 @@ object ProjectPlugin extends AutoPlugin {
     startYear := Some(2010)
   )
 
+  // WORKAROUND https://github.com/ensime/ensime-server/issues/1666
+  private val coursierWorkaround = file(sys.props("user.home")) / ".coursier/cache/v1/https/repo1.maven.org/maven2/org/scala-lang/scala-library/2.10.6/"
   override def projectSettings = Seq(
-    scalariformPreferences := SbtScalariform.defaultPreferences
+    scalariformPreferences := SbtScalariform.defaultPreferences,
+
+    ensimeUnmanagedSourceArchives := {
+      if (!scalaVersion.value.startsWith("2.10")) Nil
+      else Seq(coursierWorkaround / "scala-library-2.10.6-sources.jar")
+    },
+    ensimeUnmanagedJavadocArchives := {
+      if (!scalaVersion.value.startsWith("2.10")) Nil
+      else Seq(coursierWorkaround / "scala-library-2.10.6-javadoc.jar")
+    }
   )
 }
 
