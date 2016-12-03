@@ -49,7 +49,7 @@ trait EnsimeSpec extends FlatSpec
           case (thread, stacks) =>
             println(thread.getName)
             stacks.foreach { stack =>
-              println(s"\tat$stack")
+              println(s"\tat $stack")
             }
         }
       }
