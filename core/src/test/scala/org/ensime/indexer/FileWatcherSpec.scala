@@ -3,10 +3,10 @@
 package org.ensime.indexer
 
 import scala.concurrent.duration._
-
 import akka.testkit._
 import com.google.common.io.Files
 import java.nio.charset.Charset
+
 import org.apache.commons.vfs2._
 import org.ensime.fixture._
 import org.ensime.util._
@@ -15,6 +15,8 @@ import org.ensime.util.fileobject._
 import org.ensime.vfs._
 import org.scalatest._
 import org.scalatest.tagobjects.Retryable
+import org.scalatest.concurrent.TimeLimitedTests
+import org.scalatest.time.Span
 
 sealed trait FileWatcherMessage
 final case class Added(f: FileObject) extends FileWatcherMessage
@@ -31,7 +33,9 @@ final case class BaseRegistered() extends FileWatcherMessage
  */
 class FileWatcherSpec extends EnsimeSpec
     with ParallelTestExecution
-    with IsolatedTestKitFixture with IsolatedEnsimeVFSFixture {
+    with IsolatedTestKitFixture with IsolatedEnsimeVFSFixture with TimeLimitedTests {
+
+  override def timeLimit: Span = 1 minutes
 
   implicit val DefaultCharset: Charset = Charset.defaultCharset()
 
