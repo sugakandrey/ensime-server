@@ -144,11 +144,13 @@ trait RefactoringImpl { self: RichPresentationCompiler =>
         options = List(
           refactoring.SortImports,
           refactoring.SortImportSelectors,
-          refactoring.CollapseImports,
           refactoring.SimplifyWildcards,
-          refactoring.RemoveDuplicates,
-          refactoring.GroupImports(List("java", "scala"))
-        )
+          refactoring.RemoveDuplicates
+        ),
+        config = Some(OrganizeImports.OrganizeImportsConfig(
+          importsStrategy = Some(OrganizeImports.ImportsStrategy.CollapseImports),
+          groups = List("java", "scala")
+        ))
       ))
     }.result
 

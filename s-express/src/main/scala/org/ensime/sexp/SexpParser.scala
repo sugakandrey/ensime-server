@@ -2,9 +2,8 @@
 // License: http://www.gnu.org/licenses/lgpl-3.0.en.html
 package org.ensime.sexp
 
-import org.parboiled2._
-
-import scala.util.{ Failure, Success }
+//import org.parboiled2._
+import fastparse.all._
 
 /**
  * Parse Emacs Lisp into an `Sexp`. Other lisp variants may
@@ -13,15 +12,10 @@ import scala.util.{ Failure, Success }
 object SexpParser {
 
   def parse(desc: String): Sexp = {
-    val parser = new SexpParser(desc)
-    parser.SexpP.run() match {
-      case Success(d) =>
-        d
-      case Failure(error: ParseError) =>
-        val msg = parser.formatError(error, new ErrorFormatter(showTraces = true))
-        throw new Exception("Failed to parse sexp: " + msg)
-      case Failure(other) =>
-        throw new Exception("Failed to parse sexp: ", other)
+    SexpP.parse(desc) match {
+      case Parsed.Success(d, _) => d
+      case f: Parsed.Failure =>
+        throw new Exception("Failed to parse sexp: " + f.msg)
     }
   }
 
@@ -44,137 +38,107 @@ object SexpParser {
   )
 
   val SexpQuote = SexpSymbol("quote")
-  val SymbolsPredicate = CharPredicate("+-*/_~!@$%^&=:<>{}")
-  val NormalCharPredicate = CharPredicate.Printable -- "\"\\"
-  val WhiteSpacePredicate = CharPredicate(" \n\r\t\f")
-  val NotNewLinePredicate = CharPredicate.Printable -- '\n'
-  val SymbolStartCharPredicate = CharPredicate.AlphaNum ++ SymbolsPredicate
-  val SymbolBodyCharPredicate = SymbolStartCharPredicate ++ "."
-  val PlusMinusPredicate = CharPredicate("+-")
-  val ExpPredicate = CharPredicate("eE")
 
-  val QuoteBackslash = CharPredicate("\"\\")
-  val QuoteSlashBackSlash = QuoteBackslash ++ "/"
-  val NCCharPredicate = CharPredicate.All -- "\"\\"
+  val PrintableRange = '\u0021' to '\u007e'
+  val Symbols = "+-*/_~!@$%^&=:<>{}"
+  val SymbolStartChar = Seq[Seq[Char]]('0' to '9', 'a' to 'z', 'A' to 'Z', Symbols)
 
-}
+  val NormalCharPredicate = CharPred(c => PrintableRange.contains(c) && "\"\\".forall(_ != c))
+  val WhiteSpacePredicate = CharIn(" \n\r\t\f")
+  val NotNewLinePredicate = CharPred(c => PrintableRange.contains(c) && c != '\n')
+  val SymbolStartCharPredicate = CharIn(SymbolStartChar: _*)
+  val SymbolBodyCharPredicate = CharIn(SymbolStartChar :+ ".".toSeq: _*)
+  val PlusMinusPredicate = CharIn("+-")
+  val ExpPredicate = CharIn("eE")
+  val QuoteSlashBackSlash = CharIn("\"\\/")
+  val NCCharPredicate = CharPred(c => "\"\\".forall(_ != c))
 
-/**
- * Parse Emacs Lisp into an `Sexp`. Other lisp variants may
- * require tweaking, e.g. Scheme's nil, infinity, NaN, etc.
- */
-class SexpParser(val input: ParserInput) extends Parser with StringBuilding {
+  private val SexpP: Parser[Sexp] =
+    P(SexpAtomP | SexpListP | SexpEmptyList | SexpConsP | SexpQuotedP)
 
-  import SexpParser._
-  private def SexpP: Rule1[Sexp] = rule {
-    SexpAtomP | SexpListP | SexpEmptyList | SexpConsP | SexpQuotedP
-  }
+  private val SexpConsP: Parser[SexpCons] =
+    P(LeftBrace ~ SexpP ~ Whitespace ~ "." ~ Whitespace ~ SexpP ~ RightBrace)
+      .map(SexpCons.tupled)
 
-  private def SexpConsP: Rule1[SexpCons] = rule {
-    LeftBrace ~ SexpP ~ Whitespace ~ '.' ~ Whitespace ~ SexpP ~ RightBrace ~> {
-      (x: Sexp, y: Sexp) => SexpCons(x, y)
+  private val SexpListP: Parser[Sexp] =
+    P(LeftBrace ~ SexpP ~ (Whitespace ~ SexpP).rep ~ RightBrace).map {
+      case (head, tail) => SexpList(head :: tail.toList)
     }
-  }
 
-  private def SexpListP: Rule1[Sexp] = rule {
-    LeftBrace ~ SexpP ~ zeroOrMore(Whitespace ~ SexpP) ~ RightBrace ~> {
-      (head: Sexp, tail: Seq[Sexp]) => { SexpList(head :: tail.toList) }
-    }
-  }
+  private val SexpAtomP: Parser[SexpAtom] =
+    P(SexpCharP | SexpStringP | SexpNaNP | SexpNumberP | SexpSymbolP)
 
-  private def SexpAtomP: Rule1[SexpAtom] = rule {
-    SexpCharP | SexpStringP | SexpNaNP | SexpNumberP | SexpSymbolP
-  }
+  private val SexpCharP: Parser[SexpChar] =
+    P("?" ~ NormalChar).map(SexpChar)
 
-  private def SexpCharP: Rule1[SexpChar] = rule {
-    '?' ~ NormalChar ~> { SexpChar }
-  }
+  val SexpStringP: Parser[SexpString] = P("\"" ~ Characters ~ "\"").map(SexpString)
 
-  def SexpStringP = rule { '"' ~ clearSB() ~ CharactersSB ~ '"' ~ push(SexpString(sb.toString)) }
+  val Characters: Parser[String] = P((NormalCharS | EscapedCharS).rep
+    .map(chars => chars.mkString))
 
-  def CharactersSB = rule { zeroOrMore(NormalCharSB | '\\' ~ EscapedCharSB) }
+  val NormalCharS: P[String] = P(NCCharPredicate.!)
 
-  def NormalCharSB = rule { NCCharPredicate ~ appendSB() }
+  val EscapedCharS: P[String] =
+    P("\\" ~
+      (QuoteSlashBackSlash.!
+        | CharIn("\"").map(_ => "\"")
+        | CharIn("b").map(_ => "\b")
+        | CharIn("s").map(_ => " ")
+        | CharIn("f").map(_ => "\f")
+        | CharIn("n").map(_ => "\n")
+        | CharIn("r").map(_ => "\r")
+        | CharIn("t").map(_ => "\t")
+        | CharIn(" \n").map(_ => "") // special emacs magic for comments \<space< and \<newline> are removed
+        | CharIn("a").map(_ => "\u0007") // bell
+        | CharIn("v").map(_ => "\u000b") // vertical tab
+        | CharIn("e").map(_ => "\u001b") // escape
+        | CharIn("d").map(_ => "\u007f")) // DEL
+    )
 
-  def EscapedCharSB = rule(
-    QuoteSlashBackSlash ~ appendSB()
-      | '\"' ~ appendSB('\"')
-      | 'b' ~ appendSB('\b')
-      | 's' ~ appendSB(' ')
-      | 'f' ~ appendSB('\f')
-      | 'n' ~ appendSB('\n')
-      | 'r' ~ appendSB('\r')
-      | 't' ~ appendSB('\t')
-      | ' ' ~ appendSB("") // special emacs magic for comments \<space< and \<newline> are removed
-      | '\n' ~ appendSB("")
-      | 'a' ~ appendSB('\u0007') // bell
-      | 'v' ~ appendSB('\u000b') // vertical tab
-      | 'e' ~ appendSB('\u001b') // escape
-      | 'd' ~ appendSB('\u007f') // DEL
-  )
+  val SexpNumberP = P((Integer ~ Frac.? ~ Exp.?).!)
+    .map(num => SexpNumber(BigDecimal(num)))
 
-  def SexpNumberP = rule {
-    capture(Integer ~ optional(Frac) ~ optional(Exp)) ~> { s: String => SexpNumber(BigDecimal(s)) }
-  }
+  val Integer = P("-".? ~ ((CharIn('1' to '9') ~ Digits) | CharIn('0' to '9')))
 
-  import CharPredicate.{ Digit, Digit19 }
+  val Digits = P(CharIn('0' to '9').rep(1))
 
-  def Integer = rule {
-    optional('-') ~ (Digit19 ~ Digits | Digit)
-  }
+  val Frac = P("." ~ Digits)
 
-  def Digits = rule {
-    oneOrMore(Digit)
-  }
+  val Exp = P(ExpPredicate ~ PlusMinusPredicate.? ~ Digits)
 
-  def Frac = rule {
-    '.' ~ Digits
-  }
+  private val SexpNaNP: Parser[SexpAtom] =
+    P(StringIn("-1.0e+INF").map(_ => SexpNegInf) |
+      StringIn("1.0e+INF").map(_ => SexpPosInf) |
+      ("-".? ~ "0.0e+NaN").map(_ => SexpNaN))
 
-  def Exp = rule {
-    ExpPredicate ~ optional(PlusMinusPredicate) ~ Digits
-  }
+  private val SexpQuotedP: Parser[Sexp] =
+    P("\'" ~ SexpP).map(SexpCons(SexpQuote, _))
 
-  private def SexpNaNP: Rule1[SexpAtom] = rule {
-    "-1.0e+INF" ~ push(SexpNegInf) |
-      "1.0e+INF" ~ push(SexpPosInf) |
-      optional('-') ~ "0.0e+NaN" ~ push(SexpNaN)
-  }
-
-  private def SexpQuotedP: Rule1[Sexp] = rule {
-    '\'' ~ SexpP ~> { v: Sexp => SexpCons(SexpQuote, v) }
-  }
-
-  private def SexpSymbolP: Rule1[SexpAtom] = rule {
+  private val SexpSymbolP: Parser[SexpAtom] =
     // ? allowed at the end of symbol names
-    capture(oneOrMore(SymbolStartCharPredicate) ~ zeroOrMore(SymbolBodyCharPredicate) ~ optional('?')) ~> { sym: String =>
-      if (sym == "nil") SexpNil
-      else SexpSymbol(sym)
+    P((SymbolStartCharPredicate.rep(1) ~ SymbolBodyCharPredicate.rep ~ "?".?).!).map {
+      case "nil" => SexpNil
+      case sym => SexpSymbol(sym)
     }
-  }
 
-  private def SexpEmptyList: Rule1[SexpNil.type] = rule {
-    LeftBrace ~ RightBrace ~ push(SexpNil)
-  }
+  private val SexpEmptyList: Parser[SexpNil.type] =
+    P(LeftBrace ~ RightBrace)
+      .map(_ => SexpNil)
 
-  private def NormalChar: Rule1[Char] = rule {
-    NormalCharPredicate ~ push(lastChar)
-  }
+  private val NormalChar: Parser[Char] =
+    P(NormalCharPredicate.!)
+      .map(_(0))
 
-  private def Whitespace: Rule0 = rule {
-    zeroOrMore(Comment | WhiteSpacePredicate)
-  }
+  private val Whitespace: P0 =
+    P((Comment | WhiteSpacePredicate).rep)
 
-  private def Comment: Rule0 = rule {
-    ';' ~ zeroOrMore(NotNewLinePredicate) ~ ("\n" | EOI)
-  }
+  private val Comment: P0 =
+    P(";" ~ NotNewLinePredicate.rep ~ ("\n" | End))
 
-  private def LeftBrace: Rule0 = rule {
-    Whitespace ~ '(' ~ Whitespace
-  }
+  private val LeftBrace: P0 =
+    P(Whitespace ~ "(" ~ Whitespace)
 
-  private def RightBrace: Rule0 = rule {
-    Whitespace ~ ')' ~ Whitespace
-  }
+  private val RightBrace: P0 =
+    P(Whitespace ~ ")" ~ Whitespace)
 
 }

@@ -164,7 +164,7 @@ class RefactoringHandlerSpec extends EnsimeSpec
       val relevantExpectedPart = s"""|@@ -1,3 +1,2 @@
                                      |-import java.lang.Integer.{valueOf => vo}
                                      |-import java.lang.Integer.toBinaryString
-                                     |+import java.lang.Integer.{valueOf => vo, toBinaryString}
+                                     |+import java.lang.Integer.{toBinaryString, valueOf => vo}
                                      | import java.lang.String.valueOf
                                      |""".stripMargin
       val expectedContents = expectedDiffContent(file.path, relevantExpectedPart)

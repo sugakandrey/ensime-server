@@ -39,8 +39,8 @@ build:
       fi
     - if [ -z "$CI_PULL_REQUEST" ] ; then
         sbt ++$SCALA_VERSION publish ;
-        sbt ++$SCALA_VERSION ensime/assembly ;
       fi
+    - sbt ++$SCALA_VERSION ensime/assembly ;
 
 matrix:
   SCALA_VERSION:
