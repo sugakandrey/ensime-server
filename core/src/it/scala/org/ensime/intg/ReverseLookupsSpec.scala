@@ -8,8 +8,9 @@ import org.ensime.fixture._
 import org.ensime.util.EnsimeSpec
 import org.ensime.util.ensimefile.Implicits.DefaultCharset
 import org.ensime.util.file._
+import org.scalatest.tags.Slow
 
-@ExcludeInTravis
+@Slow
 class ReverseLookupsSpec extends EnsimeSpec
     with IsolatedEnsimeConfigFixture
     with IsolatedTestKitFixture

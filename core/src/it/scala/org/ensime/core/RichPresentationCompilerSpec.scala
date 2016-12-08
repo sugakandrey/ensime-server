@@ -16,12 +16,13 @@ import org.ensime.api._
 import org.ensime.fixture._
 import org.ensime.indexer._
 import org.ensime.indexer.SearchServiceTestUtils._
-import org.ensime.intg.ExcludeInTravis
 import org.ensime.util.EnsimeSpec
 import org.ensime.util.file._
 import org.ensime.vfs.EnsimeVFS
 
-@ExcludeInTravis
+import org.scalatest.tags.Slow
+
+@Slow
 class RichPresentationCompilerThatNeedsJavaLibsSpec extends EnsimeSpec
     with IsolatedRichPresentationCompilerFixture
     with RichPresentationCompilerTestUtils
@@ -523,7 +524,7 @@ class RichPresentationCompilerSpec extends EnsimeSpec
     )
 
     cc.search.refreshResolver()
-    Await.result(cc.search.refresh(), 180.seconds)
+    Await.result(cc.search.refresh(), 300.seconds)
 
     val scalaVersion = scala.util.Properties.versionNumberString
     val parts = scalaVersion.split("\\.").take(2).map { _.toInt }

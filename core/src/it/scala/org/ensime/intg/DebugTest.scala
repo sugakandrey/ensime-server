@@ -18,9 +18,10 @@ import org.ensime.fixture._
 import org.ensime.util._
 import org.ensime.util.file._
 import org.scalatest.Matchers
+import org.scalatest.tags.Slow
 
 // must be refreshing as the tests don't clean up after themselves properly
-@ExcludeInTravis
+@Slow
 class DebugTest extends EnsimeSpec
     with IsolatedEnsimeConfigFixture
     with IsolatedTestKitFixture
