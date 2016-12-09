@@ -12,10 +12,7 @@ import org.scalatest.tags.Slow
 
 @Slow
 class ReverseLookupsSpec extends EnsimeSpec
-    with IsolatedEnsimeConfigFixture
-    with IsolatedTestKitFixture
-    with IsolatedProjectFixture
-    with IsolatedAnalyzerFixture
+    with SharedProjectFixture
     with RefactoringHandlerTestUtils {
 
   override def original: EnsimeConfig = EnsimeConfigFixture.SimpleTestProject
