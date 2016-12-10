@@ -27,6 +27,9 @@ object ProjectPlugin extends AutoPlugin {
     organization := "org.ensime",
     version := "2.0.0-graph-SNAPSHOT",
 
+    // WORKAROUND: https://github.com/fommil/sbt-sensible/issues/6
+    crossPaths := true,
+
     sonatypeGithub := ("ensime", "ensime-server"),
     licenses := Seq(GPL3),
     startYear := Some(2010)
