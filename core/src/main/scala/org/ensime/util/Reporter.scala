@@ -51,7 +51,7 @@ class PresentationReporter(handler: ReportHandler) extends Reporter with Positio
             val crash = msg.contains("Presentation compiler crashed")
             val note = new Note(
               f,
-              formatMessage(msg),
+              msg,
               NoteSeverity(severity.id),
               pos.startOrCursor,
               // sometimes the compiler flags the entire file
@@ -66,13 +66,6 @@ class PresentationReporter(handler: ReportHandler) extends Reporter with Positio
     } catch {
       case ex: UnsupportedOperationException =>
         log.warn("Unsupported operation during reporting", ex)
-    }
-  }
-
-  def formatMessage(msg: String): String = {
-    augmentString(msg).map {
-      case '\n' | '\r' => ' '
-      case c => c
     }
   }
 }

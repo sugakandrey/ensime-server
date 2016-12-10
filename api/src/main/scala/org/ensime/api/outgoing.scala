@@ -98,7 +98,7 @@ final case class NewJavaNotesEvent(
 final case class DebugStepEvent(
   threadId: DebugThreadId,
   threadName: String,
-  file: File,
+  file: EnsimeFile,
   line: Int
 ) extends DebugEvent
 
@@ -106,7 +106,7 @@ final case class DebugStepEvent(
 final case class DebugBreakEvent(
   threadId: DebugThreadId,
   threadName: String,
-  file: File,
+  file: EnsimeFile,
   line: Int
 ) extends DebugEvent
 
@@ -121,7 +121,7 @@ final case class DebugExceptionEvent(
   exception: Long,
   threadId: DebugThreadId,
   threadName: String,
-  file: Option[File],
+  file: Option[EnsimeFile],
   line: Option[Int]
 ) extends DebugEvent
 
@@ -233,8 +233,8 @@ case object PosNeededYes extends PosNeeded
 
 sealed trait SourcePosition extends RpcResponse
 final case class EmptySourcePosition() extends SourcePosition
-final case class OffsetSourcePosition(file: File, offset: Int) extends SourcePosition
-final case class LineSourcePosition(file: File, line: Int) extends SourcePosition
+final case class OffsetSourcePosition(file: EnsimeFile, offset: Int) extends SourcePosition
+final case class LineSourcePosition(file: EnsimeFile, line: Int) extends SourcePosition
 
 final case class PackageInfo(
     name: String,
@@ -272,7 +272,7 @@ final case class ImportSuggestions(symLists: List[List[SymbolSearchResult]]) ext
 final case class SymbolSearchResults(syms: List[SymbolSearchResult]) extends RpcResponse
 
 final case class SymbolDesignations(
-  file: File,
+  file: EnsimeFile,
   syms: List[SymbolDesignation]
 ) extends RpcResponse
 
@@ -309,7 +309,8 @@ final case class CompletionInfo(
   typeInfo: Option[TypeInfo],
   name: String,
   relevance: Int,
-  toInsert: Option[String]
+  toInsert: Option[String],
+  isInfix: Boolean = false
 ) extends RpcResponse
 
 final case class CompletionInfoList(

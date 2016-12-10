@@ -2,6 +2,8 @@
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 package org.ensime.jerky
 
+import java.io.File
+
 import org.ensime.api._
 import org.ensime.util.{ EnsimeSpec, EscapingStringInterpolation }
 
@@ -41,6 +43,8 @@ class JerkyFormatsSpec extends EnsimeSpec with SprayJsonTestSupport with EnsimeT
     val enveloped = RpcResponseEnvelope(None, value)
     roundtrip(enveloped, s"""{"payload":$via}""")
   }
+
+  implicit def toFile(raw: RawFile): File = raw.file.toFile
 
   it should "roundtrip startup messages" in {
     roundtrip(
@@ -85,16 +89,6 @@ class JerkyFormatsSpec extends EnsimeSpec with SprayJsonTestSupport with EnsimeT
     roundtrip(
       TypecheckAllReq: RpcRequest,
       """{"typehint":"TypecheckAllReq"}"""
-    )
-
-    roundtrip(
-      FormatSourceReq(List(file1, file2)): RpcRequest,
-      s"""{"typehint":"FormatSourceReq","files":["$file1","$file2"]}"""
-    )
-
-    roundtrip(
-      FormatOneSourceReq(sourceFileInfo): RpcRequest,
-      s"""{"typehint":"FormatOneSourceReq","file":{"file":"$file1","contents":"{/* code here */}","contentsIn":"$file2"}}"""
     )
 
     roundtrip(
@@ -201,6 +195,11 @@ class JerkyFormatsSpec extends EnsimeSpec with SprayJsonTestSupport with EnsimeT
     roundtrip(
       AstAtPointReq(sourceFileInfo, OffsetRange(1, 100)): RpcRequest,
       s"""{"typehint":"AstAtPointReq","file":{"file":"$file1","contents":"{/* code here */}","contentsIn":"$file2"},"offset":{"from":1,"to":100}}"""
+    )
+
+    roundtrip(
+      UnloadFileReq(sourceFileInfo2): RpcRequest,
+      s"""{"typehint":"UnloadFileReq","fileInfo":{"file":"$file1"}}"""
     )
   }
 
@@ -485,17 +484,17 @@ class JerkyFormatsSpec extends EnsimeSpec with SprayJsonTestSupport with EnsimeT
 
     roundtrip(
       completionInfo: EnsimeServerMessage,
-      """{"name":"name","typeInfo":{"name":"type1","fullName":"FOO.type1","typehint":"BasicTypeInfo","typeParams":[],"typeArgs":[],"members":[],"declAs":{"typehint":"Method"}},"typehint":"CompletionInfo","relevance":90,"toInsert":"BAZ"}"""
+      """{"name":"name","typeInfo":{"name":"type1","fullName":"FOO.type1","typehint":"BasicTypeInfo","typeParams":[],"typeArgs":[],"members":[],"declAs":{"typehint":"Method"}},"typehint":"CompletionInfo","relevance":90,"isInfix":false,"toInsert":"BAZ"}"""
     )
 
     roundtrip(
       completionInfo2: EnsimeServerMessage,
-      """{"typehint":"CompletionInfo","name":"name2","relevance":91}"""
+      """{"typehint":"CompletionInfo","name":"nam","relevance":91,"isInfix":true}"""
     )
 
     roundtrip(
       CompletionInfoList("fooBar", List(completionInfo)): EnsimeServerMessage,
-      """{"typehint":"CompletionInfoList","prefix":"fooBar","completions":[{"typeInfo":{"name":"type1","fullName":"FOO.type1","typehint":"BasicTypeInfo","typeParams":[],"typeArgs":[],"members":[],"declAs":{"typehint":"Method"}},"name":"name","relevance":90,"toInsert":"BAZ"}]}"""
+      """{"typehint":"CompletionInfoList","prefix":"fooBar","completions":[{"typeInfo":{"name":"type1","fullName":"FOO.type1","typehint":"BasicTypeInfo","typeParams":[],"typeArgs":[],"members":[],"declAs":{"typehint":"Method"}},"name":"name","relevance":90,"isInfix":false,"toInsert":"BAZ"}]}"""
     )
 
     roundtrip(

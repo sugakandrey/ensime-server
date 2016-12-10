@@ -5,10 +5,9 @@ package org.ensime.jerky
 import spray.json._
 import fommil.sjs._
 import shapeless._
-
 import org.ensime.api._
-
 import org.ensime.util.file._
+import org.ensime.util.ensimefile._
 
 private object JerkyConversions extends DefaultJsonProtocol with FamilyFormats {
   // This part of the code is brought to you by the words "accidental"
@@ -29,7 +28,17 @@ private object JerkyConversions extends DefaultJsonProtocol with FamilyFormats {
     }
     def write(f: File): JsValue = JsString(f.getPath)
   }
-
+  // clients appreciate a simpler format for files
+  implicit object EnsimeFileFormat extends JsonFormat[EnsimeFile] {
+    def write(ef: EnsimeFile): JsValue = ef match {
+      case RawFile(path) => JsString(path.toString)
+      case a: ArchiveFile => JsString(a.uri.toASCIIString)
+    }
+    def read(js: JsValue): EnsimeFile = js match {
+      case JsString(uri) => EnsimeFile(uri)
+      case got => unexpectedJson[EnsimeFile](got)
+    }
+  }
   // keeps the JSON a little bit cleaner
   implicit object DebugThreadIdFormat extends JsonFormat[DebugThreadId] {
     def read(j: JsValue): DebugThreadId = j match {

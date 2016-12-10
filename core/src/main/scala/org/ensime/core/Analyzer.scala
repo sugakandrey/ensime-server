@@ -5,6 +5,7 @@ package org.ensime.core
 import java.io.{ File => JFile }
 import java.nio.charset.Charset
 
+import org.ensime.util.ensimefile._
 import akka.actor._
 import akka.event.LoggingReceive.withLabel
 import org.ensime.api._
@@ -13,15 +14,16 @@ import org.ensime.vfs._
 import org.ensime.indexer.SearchService
 import org.ensime.model._
 import org.ensime.util.{ PresentationReporter, ReportHandler, FileUtils }
-import org.ensime.util.sourcefile._
 import org.slf4j.LoggerFactory
 import org.ensime.util.file._
+import org.ensime.util.sourcefile._
 
 import scala.collection.breakOut
 import scala.reflect.internal.util.{ OffsetPosition, RangePosition, SourceFile }
 import scala.tools.nsc.Settings
 import scala.tools.nsc.interactive.Global
 import scala.util.Try
+import scala.util.Properties._
 
 final case class CompilerFatalError(e: Throwable)
 
@@ -96,7 +98,7 @@ class Analyzer(
     broadcaster ! SendBackgroundMessageEvent("Initializing Analyzer. Please wait...")
 
     scalaCompiler.askNotifyWhenReady()
-    if (config.sourceMode) scalaCompiler.askReloadAllFiles()
+    if (propOrFalse("ensime.sourceMode")) scalaCompiler.askReloadAllFiles()
   }
 
   protected def makeScalaCompiler() = new RichPresentationCompiler(
@@ -168,7 +170,7 @@ class Analyzer(
       scalaCompiler.askNotifyWhenReady()
       sender ! VoidResponse
     case UnloadAllReq =>
-      if (config.sourceMode) {
+      if (propOrFalse("ensime.sourceMode")) {
         log.info("in source mode, will reload all files")
         scalaCompiler.askRemoveAllDeleted()
         restartCompiler(keepLoaded = true)
@@ -181,7 +183,7 @@ class Analyzer(
       //consider the case of a project with no modules
       config.modules get (moduleName) foreach {
         module =>
-          val files: Set[SourceFileInfo] = module.scalaSourceFiles.map(SourceFileInfo(_, None, None))(breakOut)
+          val files: Set[SourceFileInfo] = module.scalaSourceFiles.map(s => SourceFileInfo(EnsimeFile(s), None, None))(breakOut)
           sender ! scalaCompiler.handleReloadFiles(files)
       }
     case UnloadModuleReq(moduleName) =>
@@ -266,12 +268,9 @@ class Analyzer(
         scalaCompiler.askImplicitInfoInRegion(p)
       }
     case ExpandSelectionReq(file, start: Int, stop: Int) =>
-      sender ! handleExpandselection(file, start, stop)
-    case FormatSourceReq(files: List[File]) =>
-      handleFormatFiles(files)
-      sender ! VoidResponse
-    case FormatOneSourceReq(fileInfo: SourceFileInfo) =>
-      sender ! StringResponse(handleFormatFile(fileInfo))
+      val p = new RangePosition(createSourceFile(file), start, start, stop)
+      val enclosingPos = scalaCompiler.askEnclosingTreePosition(p)
+      sender ! FileRange(file.getPath, enclosingPos.start, enclosingPos.end)
     case StructureViewReq(fileInfo: SourceFileInfo) =>
       sender ! withExisting(fileInfo) {
         val sourceFile = createSourceFile(fileInfo)
@@ -285,6 +284,9 @@ class Analyzer(
         val rawAst = scalaCompiler.askRaw(ast)
         AstInfo(rawAst)
       }
+    case UnloadFileReq(file) =>
+      scalaCompiler.askUnloadFile(file)
+      sender ! VoidResponse
   }
 
   def withExisting(x: SourceFileInfo)(f: => RpcResponse): RpcResponse =

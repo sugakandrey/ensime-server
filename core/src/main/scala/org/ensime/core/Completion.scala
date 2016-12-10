@@ -358,7 +358,7 @@ trait Completion { self: RichPresentationCompiler =>
 object CompletionUtil {
 
   val IdentRegexp = """([a-zA-Z0-9_#:<=>@!%&*+/?\\^|~-]*)\z""".r
-  val JavaIdentRegexp = """([a-zA-Z0-9_]*)\z""".r
+  val JavaIdentRegexp = """([a-zA-Z0-9_]+)\z""".r
   val ImportTopLevelRegexp = """import [^\.]*\z""".r
   val ImportRegexp = """import [a-zA-Z0-9_\.]*\z""".r
   val ImportSubtypeRegexp = """import [a-z0-9_\.]*[A-Z][a-zA-Z0-9_]*\.[a-zA-Z0-9_\.]*\z""".r

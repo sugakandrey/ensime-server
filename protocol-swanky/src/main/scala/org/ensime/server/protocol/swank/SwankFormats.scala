@@ -2,13 +2,13 @@
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 package org.ensime.server.protocol.swank
 
-import shapeless.cachedImplicit
+import scala.util._
 
+import org.ensime.api._
 import org.ensime.sexp._
 import org.ensime.sexp.formats._
-import org.ensime.api._
-
-import scala.util.{ Failure, Success, Try }
+import org.ensime.util.ensimefile._
+import shapeless.cachedImplicit
 
 /*
  * WARNING: THERE BE DRAGONS
@@ -66,6 +66,17 @@ object SwankProtocolCommon {
       case x => deserializationError(x)
     }
     protected def read(hint: SexpSymbol, value: Sexp): T
+  }
+
+  implicit object EnsimeFileFormat extends SexpFormat[EnsimeFile] {
+    def write(ef: EnsimeFile): Sexp = ef match {
+      case RawFile(path) => SexpString(path.toString)
+      case a: ArchiveFile => SexpString(a.uri.toASCIIString)
+    }
+    def read(sexp: Sexp): EnsimeFile = sexp match {
+      case SexpString(uri) => EnsimeFile(uri)
+      case got => deserializationError(got)
+    }
   }
 
   implicit val SourceFileInfoFormat: SexpFormat[SourceFileInfo] = cachedImplicit
@@ -600,12 +611,11 @@ object SwankProtocolRequest {
   implicit val ConnectionInfoReqHint: TypeHint[ConnectionInfoReq.type] = TypeHint[ConnectionInfoReq.type](SexpSymbol("swank:connection-info"))
 
   implicit val RemoveFileReqHint: TypeHint[RemoveFileReq] = TypeHint[RemoveFileReq](SexpSymbol("swank:remove-file"))
+  implicit val UnloadFileReqHint: TypeHint[UnloadFileReq] = TypeHint[UnloadFileReq](SexpSymbol("swank:unload-file"))
   implicit val TypecheckFileReqHint: TypeHint[TypecheckFileReq] = TypeHint[TypecheckFileReq](SexpSymbol("swank:typecheck-file"))
   implicit val TypecheckFilesReqHint: TypeHint[TypecheckFilesReq] = TypeHint[TypecheckFilesReq](SexpSymbol("swank:typecheck-files"))
   implicit val UnloadAllReqHint: TypeHint[UnloadAllReq.type] = TypeHint[UnloadAllReq.type](SexpSymbol("swank:unload-all"))
   implicit val TypecheckAllReqHint: TypeHint[TypecheckAllReq.type] = TypeHint[TypecheckAllReq.type](SexpSymbol("swank:typecheck-all"))
-  implicit val FormatSourceReqHint: TypeHint[FormatSourceReq] = TypeHint[FormatSourceReq](SexpSymbol("swank:format-source"))
-  implicit val FormatOneSourceReqHint: TypeHint[FormatOneSourceReq] = TypeHint[FormatOneSourceReq](SexpSymbol("swank:format-one-source"))
   implicit val PublicSymbolSearchReqHint: TypeHint[PublicSymbolSearchReq] = TypeHint[PublicSymbolSearchReq](SexpSymbol("swank:public-symbol-search"))
   implicit val ImportSuggestionsReqHint: TypeHint[ImportSuggestionsReq] = TypeHint[ImportSuggestionsReq](SexpSymbol("swank:import-suggestions"))
   implicit val DocUriAtPointReqHint: TypeHint[DocUriAtPointReq] = TypeHint[DocUriAtPointReq](SexpSymbol("swank:doc-uri-at-point"))
@@ -748,10 +758,9 @@ object SwankProtocolRequest {
 
   // incoming messages
   implicit def RemoveFileReqFormat: SexpFormat[RemoveFileReq] = { def RemoveFileReqFormat = ???; implicitly[SexpFormat[RemoveFileReq]] }
+  implicit def UnloadFileReqFormat: SexpFormat[UnloadFileReq] = { def UnloadFileReqFormat = ???; implicitly[SexpFormat[UnloadFileReq]] }
   implicit def TypecheckFileReqFormat: SexpFormat[TypecheckFileReq] = { def TypecheckFileReqFormat = ???; implicitly[SexpFormat[TypecheckFileReq]] }
   implicit def TypecheckFilesReqFormat: SexpFormat[TypecheckFilesReq] = { def TypecheckFilesReqFormat = ???; implicitly[SexpFormat[TypecheckFilesReq]] }
-  implicit def FormatSourceReqFormat: SexpFormat[FormatSourceReq] = { def FormatSourceReqFormat = ???; implicitly[SexpFormat[FormatSourceReq]] }
-  implicit def FormatOneSourceReqFormat: SexpFormat[FormatOneSourceReq] = { def FormatOneSourceReqFormat = ???; implicitly[SexpFormat[FormatOneSourceReq]] }
   implicit def PublicSymbolSearchHint: SexpFormat[PublicSymbolSearchReq] = { def PublicSymbolSearchHint = ???; implicitly[SexpFormat[PublicSymbolSearchReq]] }
   implicit def ImportSuggestionsReqFormat: SexpFormat[ImportSuggestionsReq] = { def ImportSuggestionsReqFormat = ???; implicitly[SexpFormat[ImportSuggestionsReq]] }
   implicit def DocUriAtPointReqFormat: SexpFormat[DocUriAtPointReq] = { def DocUriAtPointReqFormat = ???; implicitly[SexpFormat[DocUriAtPointReq]] }
@@ -794,12 +803,11 @@ object SwankProtocolRequest {
         kind match {
           case s if s == ConnectionInfoReqHint.hint => ConnectionInfoReq
           case s if s == RemoveFileReqHint.hint => value.convertTo[RemoveFileReq]
+          case s if s == UnloadFileReqHint.hint => value.convertTo[UnloadFileReq]
           case s if s == TypecheckFileReqHint.hint => value.convertTo[TypecheckFileReq]
           case s if s == TypecheckFilesReqHint.hint => value.convertTo[TypecheckFilesReq]
           case s if s == UnloadAllReqHint.hint => UnloadAllReq
           case s if s == TypecheckAllReqHint.hint => TypecheckAllReq
-          case s if s == FormatSourceReqHint.hint => value.convertTo[FormatSourceReq]
-          case s if s == FormatOneSourceReqHint.hint => value.convertTo[FormatOneSourceReq]
           case s if s == PublicSymbolSearchReqHint.hint => value.convertTo[PublicSymbolSearchReq]
           case s if s == ImportSuggestionsReqHint.hint => value.convertTo[ImportSuggestionsReq]
           case s if s == DocUriAtPointReqHint.hint => value.convertTo[DocUriAtPointReq]

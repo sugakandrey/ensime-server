@@ -4,16 +4,15 @@ package org.ensime.intg
 
 import org.ensime.api._
 import org.ensime.core.RefactoringHandlerTestUtils
-import org.ensime.fixture.{ IsolatedEnsimeConfigFixture, _ }
+import org.ensime.fixture._
 import org.ensime.util.EnsimeSpec
 import org.ensime.util.ensimefile.Implicits.DefaultCharset
 import org.ensime.util.file._
+import org.scalatest.tags.Slow
 
+@Slow
 class ReverseLookupsSpec extends EnsimeSpec
-    with IsolatedEnsimeConfigFixture
-    with IsolatedTestKitFixture
-    with IsolatedProjectFixture
-    with IsolatedAnalyzerFixture
+    with SharedProjectFixture
     with RefactoringHandlerTestUtils {
 
   override def original: EnsimeConfig = EnsimeConfigFixture.SimpleTestProject

@@ -2,9 +2,11 @@
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 package org.ensime.server.protocol.swank
 
+import java.io.File
 import org.ensime.sexp._
 import org.ensime.api._
 import org.ensime.util.{ EnsimeSpec, EscapingStringInterpolation }
+import org.scalactic.source.Position
 
 class SwankFormatsSpec extends EnsimeSpec with EnsimeTestData {
   import SwankFormats._
@@ -12,7 +14,7 @@ class SwankFormatsSpec extends EnsimeSpec with EnsimeTestData {
 
   import EscapingStringInterpolation._
 
-  def marshal(value: EnsimeServerMessage, via: Option[String]): Unit = {
+  def marshal(value: EnsimeServerMessage, via: Option[String])(implicit p: Position): Unit = {
     val envelope = value match {
       case r: RpcResponse => RpcResponseEnvelope(Some(666), value)
       case e: EnsimeEvent => RpcResponseEnvelope(None, value)
@@ -31,13 +33,15 @@ class SwankFormatsSpec extends EnsimeSpec with EnsimeTestData {
       case Some(expected) => sexp.compactPrint shouldBe expected
     }
   }
-  def marshal(value: EnsimeServerMessage, via: String): Unit = marshal(value, Some(via))
+  def marshal(value: EnsimeServerMessage, via: String)(implicit p: Position): Unit = marshal(value, Some(via))
 
-  def unmarshal(from: String, to: RpcRequest): Unit = {
+  def unmarshal(from: String, to: RpcRequest)(implicit p: Position): Unit = {
     val sexp = s"(:swank-rpc ${from} 666)"
     //println(sexp + " => " + sexp.parseSexp)
     sexp.parseSexp.convertTo[RpcRequestEnvelope].req shouldBe to
   }
+
+  implicit def toFile(raw: RawFile): File = raw.file.toFile
 
   "SWANK Formats" should "unmarshal startup messages" in {
     unmarshal(
@@ -87,16 +91,6 @@ class SwankFormatsSpec extends EnsimeSpec with EnsimeTestData {
     unmarshal(
       """(swank:typecheck-all)""",
       TypecheckAllReq: RpcRequest
-    )
-
-    unmarshal(
-      s"""(swank:format-source ("$file1" "$file2"))""",
-      FormatSourceReq(List(file1, file2)): RpcRequest
-    )
-
-    unmarshal(
-      s"""(swank:format-one-source (:file "$file1" :contents "{/* code here */}" :contents-in "$file2"))""",
-      FormatOneSourceReq(sourceFileInfo): RpcRequest
     )
 
     unmarshal(
@@ -208,6 +202,11 @@ class SwankFormatsSpec extends EnsimeSpec with EnsimeTestData {
     unmarshal(
       s"""(swank:ast-at-point (:file "$file1" :contents "{/* code here */}" :contents-in "$file2") (1 100))""",
       AstAtPointReq(sourceFileInfo, OffsetRange(1, 100)): RpcRequest
+    )
+
+    unmarshal(
+      s"""(swank:unload-file (:file "$file1"))""",
+      UnloadFileReq(sourceFileInfo2): RpcRequest
     )
   }
 
@@ -496,7 +495,7 @@ class SwankFormatsSpec extends EnsimeSpec with EnsimeTestData {
 
     marshal(
       completionInfo2: CompletionInfo,
-      """(:name "name2" :relevance 91)"""
+      """(:name "nam" :relevance 91 :is-infix t)"""
     )
 
     marshal(

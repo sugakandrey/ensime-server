@@ -2,6 +2,7 @@
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 package org.ensime.indexer
 
+import akka.actor._
 import akka.event.slf4j.SLF4JLogging
 import java.io.File
 import org.apache.commons.vfs2._
@@ -19,11 +20,14 @@ class SourceResolver(
     config: EnsimeConfig
 )(
     implicit
+    actorSystem: ActorSystem,
     vfs: EnsimeVFS
 ) extends FileChangeListener with SLF4JLogging {
 
-  def fileAdded(f: FileObject) = if (relevant(f)) update()
-  def fileRemoved(f: FileObject) = if (relevant(f)) update()
+  case object Process
+
+  def fileAdded(f: FileObject) = if (relevant(f)) debounceActor ! Process
+  def fileRemoved(f: FileObject) = fileAdded(f)
   def fileChanged(f: FileObject) = {}
 
   def relevant(f: FileObject): Boolean = f.getName.isFile && {
@@ -106,6 +110,8 @@ class SourceResolver(
 
   private var all = recalculate
 
+  val debounceActor = actorSystem.actorOf(Props(new ResolverDebounceActor(this)), "SourceResolver")
+
   private def infer(base: FileObject, file: FileObject): PackageName = {
     // getRelativeName feels the wrong way round, but this is correct
     val relative = base.getName.getRelativeName(file.getName)
@@ -113,4 +119,28 @@ class SourceResolver(
     PackageName((relative split "/").toList.init)
   }
 
+}
+
+class ResolverDebounceActor(sourceResolver: SourceResolver) extends Actor with ActorLogging {
+  import context.system
+
+  import scala.concurrent.duration._
+
+  case object ReCalculate
+
+  // debounce and give us a chance to batch (which is *much* faster)
+  var worker: Cancellable = _
+
+  private val advice = "If the problem persists, you may need to restart ensime."
+
+  private def debounce(): Unit = {
+    Option(worker).foreach(_.cancel())
+    import context.dispatcher
+    worker = system.scheduler.scheduleOnce(5 seconds, self, ReCalculate)
+  }
+
+  override def receive: Receive = {
+    case sourceResolver.Process ⇒ debounce()
+    case ReCalculate ⇒ sourceResolver.update()
+  }
 }

@@ -125,6 +125,24 @@ final class FileZipArchive(file: JFile) extends ZipArchive(file) {
   lazy val (root, allDirs) = {
     val root = new DirEntry("/")
     val dirs = mutable.HashMap[String, DirEntry]("/" -> root)
+
+    // NOTES on SI-9632
+    //
+    // The original scalac implementation of this class opens the zip
+    // file and retains the file handle, relying on the GC to call the
+    // finalizers (which reliably doesn't happen). On UNIX-like OS the
+    // file handle will refer to the file at the point when it was
+    // created (causing a huge PermGen memory leak), on Windows it is
+    // impossible for any process to delete the file.
+    //
+    // The changes here ensure that zip files are closed immediately
+    // after use: the live version of the file is always accessed.
+    // This can result in runtime exceptions if the file is mutated.
+    //
+    // There is an expected performance penalty, but it is not
+    // significant in practice for ENSIME users. An alternative would
+    // be to eagerly load the zip into memory, but that would have a
+    // significant cost to the heap.
     def openZipFile(): ZipFile = try {
       new ZipFile(file)
     } catch {
@@ -141,8 +159,15 @@ final class FileZipArchive(file: JFile) extends ZipArchive(file) {
         if (zipEntry.isDirectory) dir
         else {
           class FileEntry() extends Entry(zipEntry.getName) {
+            // WARNING: provides a newly created archive, which will
+            //          disagree with the FileZipArchive.iterator if
+            //          the file has been mutated. Note that calls to
+            //          this method can leak file handles.
             override def getArchive = openZipFile
             override def lastModified = zipEntry.getTime()
+            // WARNING: input will fail if the zip has been mutated
+            //          whereas the scalac implementation will provide
+            //          the old (stale) entry
             override def input = {
               val zipFile = getArchive
               val delegate = zipFile getInputStream zipEntry

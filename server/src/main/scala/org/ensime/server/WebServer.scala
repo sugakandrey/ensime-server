@@ -2,84 +2,75 @@
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 package org.ensime.server
 
-import java.io.File
+import scala.concurrent.{ Future, Promise }
 
-import akka.actor._
-import akka.http.scaladsl.marshallers.xml.ScalaXmlSupport
-import akka.http.scaladsl.model._
-import akka.http.scaladsl.server._
-import akka.stream._
-import akka.util.{ ByteString, Timeout }
-import com.google.common.io.Files
-import org.ensime.api._
-import org.ensime.jerky._
-import org.ensime.swanky._
+import io.netty.bootstrap.ServerBootstrap
+import io.netty.channel.nio.NioEventLoopGroup
+import io.netty.channel.socket.nio.NioServerSocketChannel
+import io.netty.channel.socket.SocketChannel
+import io.netty.channel.{ Channel, ChannelFuture, ChannelFutureListener, ChannelInitializer, EventLoopGroup, ChannelPipeline }
+import io.netty.handler.codec.http.websocketx.WebSocketServerProtocolHandler
+import io.netty.handler.codec.http.{ HttpObjectAggregator, HttpServerCodec }
+import io.netty.handler.logging.LoggingHandler;
 
-import scala.concurrent.Future
+import org.ensime.api.{ RpcRequestEnvelope, RpcResponseEnvelope }
+import org.ensime.core.DocJarReading
 
-trait WebServer {
-  implicit def system: ActorSystem
-  implicit def timeout: Timeout
-  implicit def mat: Materializer
+object WebServer {
 
-  def restHandler(in: RpcRequest): Future[EnsimeServerMessage]
+  type IncomingHandler = RpcRequestEnvelope => Unit
+  type OutgoingHandler = RpcResponseEnvelope => Unit
+  type HookHandlers = OutgoingHandler => IncomingHandler
 
-  def websocketHandler(target: ActorRef): ActorRef
-
-  /**
-   * @param filename of the javadoc archive
-   * @param entry of the file within the archive
-   * @return the contents of the entry in filename
-   */
-  def docJarContent(filename: String, entry: String): Option[ByteString]
-
-  /**
-   * @return all documentation jars that are available to be served.
-   */
-  def docJars(): Set[File]
-
-  import Directives._
-  import Route._
-  import ScalaXmlSupport._
-  import WebSocketBoilerplate._
-
-  val route = seal {
-    path("docs") {
-      complete {
-        <html>
-          <head></head>
-          <body>
-            <h1>ENSIME: Your Project's Documentation</h1>
-            <ul>{
-              docJars().toList.map(_.getName).sorted.map { f =>
-                <li><a href={ s"docs/$f/index.html" }>{ f }</a> </li>
-              }
-            }</ul>
-          </body>
-        </html>
-      }
-    } ~ path("docs" / """[^/]+\.jar""".r / Rest) { (filename, entry) =>
-      rejectEmptyResponse {
-        complete {
-          for {
-            media <- MediaTypes.forExtensionOption(Files.getFileExtension(entry))
-            content <- docJarContent(filename, entry)
-          } yield {
-            HttpResponse(entity = HttpEntity(ContentType(media, () => HttpCharsets.`UTF-8`), content))
-          }
-        }
-      }
-    } ~ path("jerky") {
-      get {
-        import JerkyFormats._
-        jsonWebsocket[RpcRequestEnvelope, RpcResponseEnvelope](websocketHandler)
-      }
-    } ~ path("swanky") {
-      get {
-        import SwankyFormats._
-        sexpWebsocket[RpcRequestEnvelope, RpcResponseEnvelope](websocketHandler)
-      }
-    }
+  private[server] def initPipeline(
+    pipeline: ChannelPipeline,
+    docs: DocJarReading,
+    hookHandlers: HookHandlers
+  ): Unit = {
+    pipeline.addLast(new HttpServerCodec())
+    pipeline.addLast(new HttpObjectAggregator(65536))
+    pipeline.addLast(new WebSocketServerProtocolHandler("/websocket", "jerky, swanky"))
+    pipeline.addLast(new WebSocketFrameHandler(hookHandlers))
+    pipeline.addLast(new DocsHandler(docs))
   }
 
+  def start(docs: DocJarReading, port: Int, hookHandlers: HookHandlers): Future[Channel] = {
+
+    val bossGroup: EventLoopGroup = new NioEventLoopGroup(1)
+    val workerGroup: EventLoopGroup = new NioEventLoopGroup
+
+    val channelInitializer = new ChannelInitializer[SocketChannel]() {
+      override def initChannel(ch: SocketChannel): Unit = {
+        initPipeline(ch.pipeline(), docs, hookHandlers)
+      }
+    }
+
+    val b = new ServerBootstrap()
+    b.group(bossGroup, workerGroup)
+      .channel(classOf[NioServerSocketChannel])
+      .handler(new LoggingHandler())
+      .childHandler(channelInitializer)
+
+    val p = Promise[Channel]
+    b.bind("127.0.0.1", port).addListener(new ChannelFutureListener() {
+      def operationComplete(ftr: ChannelFuture): Unit = {
+        if (!ftr.isSuccess) {
+          p.failure(ftr.cause())
+          bossGroup.shutdownGracefully()
+          workerGroup.shutdownGracefully()
+        } else {
+          val ch = ftr.channel()
+          ch.closeFuture().addListener(new ChannelFutureListener() {
+            def operationComplete(ftr2: ChannelFuture): Unit = {
+              bossGroup.shutdownGracefully()
+              workerGroup.shutdownGracefully()
+            }
+          })
+          p.success(ch)
+        }
+      }
+    })
+
+    p.future
+  }
 }

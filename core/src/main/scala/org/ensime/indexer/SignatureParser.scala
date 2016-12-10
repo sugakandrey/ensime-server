@@ -2,130 +2,95 @@
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 package org.ensime.indexer
 
-import org.parboiled2._
+import fastparse.all._
 
-import scala.annotation.switch
-import scala.util.{ Failure, Success }
+object SignatureParser extends ClassParser {
 
-object SignatureParser {
+  protected val GenericClassSig: Parser[GenericClassName] =
+    P(GenericClassSigWithArgs | GenericClassSigWithoutArgs)
 
-  def parseGeneric(desc: String): GenericClass = {
-    val parser = new SignatureParser(desc)
+  protected val GenericClassSigWithArgs: Parser[GenericClassName] =
+    P(ClassNameSig ~ "<" ~ GenericArgs ~ ">" ~ InnerClassSig.rep ~ ";")
+      .map((GenericClassName.apply _).tupled)
 
-    parser.Generic.run() match {
-      case Success(sig) => sig
-      case Failure(error: ParseError) =>
-        val msg = parser.formatError(error, new ErrorFormatter(showTraces = true))
-        throw new Exception(s"Failed to parse generic: $msg")
-      case Failure(other) =>
-        throw new Exception("Failed to parse generic: ", other)
+  protected val GenericClassSigWithoutArgs: Parser[GenericClassName] =
+    P(ClassNameSig ~ InnerClassSig.rep ~ ";").map {
+      case (className, innerClass) => GenericClassName(className, Seq.empty, innerClass)
     }
-  }
 
-  val GenericNameCharPredicate = CharPredicate.All -- ":;/ "
-}
+  protected val InnerClassSig: Parser[InnerClassName] =
+    P(InnerClassSigWithArgs | InnerClassSigWithoutArgs)
 
-class SignatureParser(val input: ParserInput) extends ClassParser {
+  protected val InnerClassSigWithArgs: Parser[InnerClassName] =
+    P("." ~ Name ~ "<" ~ GenericArgs ~ ">")
+      .map((InnerClassName.apply _).tupled)
 
-  def Generic: Rule1[GenericClass] = rule {
-    run {
-      (cursorChar: @switch) match {
-        case 'L' => GenericSuper ~ EOI
-        case '<' => GenericWithParam ~ EOI
-        case _ => MISMATCH
-      }
-    }
-  }
+  protected val InnerClassSigWithoutArgs: Parser[InnerClassName] =
+    P("." ~ Name)
+      .map(InnerClassName(_, Seq.empty))
 
-  private def GenericWithParam: Rule1[GenericClass] = rule {
-    '<' ~ oneOrMore(GenericSigParam) ~ '>' ~ oneOrMore(GenericClassSig) ~> GenericClass.apply _
-  }
+  protected val PrimitiveClassSig: Parser[GenericClassName] =
+    P(PrimitiveClass)
+      .map(GenericClassName(_, Seq.empty))
 
-  private def GenericSuper: Rule1[GenericClass] = rule {
-    oneOrMore(GenericClassSig) ~> (GenericClass(Seq.empty, _: Seq[GenericClassName]))
-  }
+  private val GenericName: Parser[String] =
+    P(GenericNameCharPredicate.rep(1).!)
+
+  private val Generic: Parser[GenericClass] =
+    P((GenericWithParam | GenericSuper) ~ End)
+
+  private val GenericWithParam: Parser[GenericClass] =
+    P("<" ~ GenericSigParam.rep(1) ~ ">" ~ GenericClassSig.rep(1))
+      .map((GenericClass.apply _).tupled)
+
+  private val GenericSuper: Parser[GenericClass] =
+    P(GenericClassSig.rep(1))
+      .map(GenericClass(Seq.empty, _))
 
   // class SomeClass[T <: SomeTrait] will have two : in signature
-  private def GenericSigParam: Rule1[GenericParam] = rule {
-    GenericName ~ ':' ~ oneOrMore(optional(':') ~ FieldTypeSignature) ~> GenericParam.apply _
+  private val GenericSigParam: Parser[GenericParam] =
+    P(GenericName ~ ":" ~ (":".? ~ FieldTypeSignature).rep(1))
+      .map((GenericParam.apply _).tupled)
+
+  private val GenericArgs: Parser[Seq[GenericArg]] =
+    P((ExtendsObject | GenericArgWithSignature).rep(1))
+
+  private val ExtendsObject: Parser[GenericArg] =
+    P("*")
+      .map(_ => ExtendsObjectGenericArg)
+
+  private val GenericArgWithSignature: Parser[GenericArg] =
+    P((LowerBoundary | UpperBoundary).? ~ FieldTypeSignature)
+      .map((SpecifiedGenericArg.apply _).tupled)
+
+  private val LowerBoundary: Parser[BoundType] =
+    P("-")
+      .map(_ => LowerBound)
+
+  private val UpperBoundary: Parser[BoundType] =
+    P("+")
+      .map(_ => UpperBound)
+
+  private val FieldTypeSignature: Parser[RealTypeSignature] =
+    P(GenericClassSig | GenericArraySig | TypeVar)
+
+  private val GenericArraySig: Parser[GenericArray] =
+    P("[" ~ (PrimitiveClassSig | GenericClassSig | GenericArraySig | TypeVar))
+      .map(GenericArray)
+
+  private val TypeVar: Parser[GenericVar] =
+    P("T" ~ GenericNameCharPredicate.rep(1).! ~ ";").map(GenericVar)
+
+  def parseGeneric(desc: String): GenericClass = {
+    Generic.parse(desc) match {
+      case Parsed.Success(sig, _) => sig
+      case f: Parsed.Failure =>
+        throw new Exception(s"Failed to parse generic: ${f.msg}")
+    }
   }
 
-  private def GenericName: Rule1[String] = rule {
-    capture(oneOrMore(SignatureParser.GenericNameCharPredicate))
-  }
+  protected val GenericNameCharPredicate = CharPred(c => ":;/ ".forall(_ != c))
 
-  protected def GenericClassSig: Rule1[GenericClassName] = rule {
-    GenericClassSigWithArgs | GenericClassSigWithoutArgs
-  }
-
-  protected def GenericClassSigWithArgs: Rule1[GenericClassName] = rule {
-    ClassNameSig ~ '<' ~ GenericArgs ~ '>' ~ zeroOrMore(InnerClassSig) ~ ';' ~> GenericClassName.apply _
-  }
-
-  protected def GenericClassSigWithoutArgs: Rule1[GenericClassName] = rule {
-    ClassNameSig ~ zeroOrMore(InnerClassSig) ~ ';' ~> (GenericClassName(_: ClassName, Seq.empty, _: Seq[InnerClassName]))
-  }
-
-  protected def InnerClassSig: Rule1[InnerClassName] = rule {
-    InnerClassSigWithArgs | InnerClassSigWithoutArgs
-  }
-
-  protected def InnerClassSigWithArgs: Rule1[InnerClassName] = rule {
-    '.' ~ Name ~ '<' ~ GenericArgs ~ '>' ~> InnerClassName.apply _
-  }
-
-  protected def InnerClassSigWithoutArgs: Rule1[InnerClassName] = rule {
-    '.' ~ Name ~> (InnerClassName(_: String, Seq.empty))
-  }
-
-  protected def PrimitiveClassSig: Rule1[GenericClassName] = rule {
-    PrimitiveClass ~> (GenericClassName(_: ClassName, Seq.empty))
-  }
-
-  private def GenericArgs: Rule1[Seq[GenericArg]] = rule {
-    oneOrMore(ExtendsObject | GenericArgWithSignature)
-  }
-
-  private def ExtendsObject: Rule1[GenericArg] = rule {
-    ExtendsObjectStar ~> (() => ExtendsObjectGenericArg)
-  }
-
-  private def ExtendsObjectStar: Rule0 = rule {
-    '*'
-  }
-
-  private def GenericArgWithSignature: Rule1[GenericArg] = rule {
-    optional(LowerBoundary | UpperBoundary) ~ FieldTypeSignature ~> SpecifiedGenericArg.apply _
-  }
-
-  private def LowerBoundary: Rule1[BoundType] = rule {
-    LowerB ~> (() => LowerBound)
-  }
-
-  private def LowerB: Rule0 = rule {
-    '-'
-  }
-
-  private def UpperBoundary: Rule1[BoundType] = rule {
-    UpperB ~> (() => UpperBound)
-  }
-
-  private def UpperB: Rule0 = rule {
-    '+'
-  }
-
-  private def FieldTypeSignature: Rule1[RealTypeSignature] = rule {
-    GenericClassSig | GenericArraySig | TypeVar
-  }
-
-  private def GenericArraySig: Rule1[GenericArray] = rule {
-    '[' ~ (PrimitiveClassSig | GenericClassSig | GenericArraySig | TypeVar) ~> GenericArray.apply _
-  }
-
-  private def TypeVar: Rule1[GenericVar] = rule {
-    'T' ~ capture(oneOrMore(SignatureParser.GenericNameCharPredicate)) ~ ';' ~> GenericVar.apply _
-  }
-
-  override val PackageNamePredicate = CharPredicate.All -- "<;/ "
-  override val ClassNameCharPredicate = CharPredicate.All -- "<;/ "
+  override val PackageNamePredicate = CharPred(c => "<;/ ".forall(_ != c))
+  override val ClassNameCharPredicate = CharPred(c => "<;/ ".forall(_ != c))
 }

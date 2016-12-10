@@ -23,109 +23,9 @@ class RefactoringHandlerSpec extends EnsimeSpec
 
   // transitionary methods
   def ContentsSourceFileInfo(file: File, contents: String) =
-    SourceFileInfo(file, Some(contents))
+    SourceFileInfo(RawFile(file.toPath), Some(contents))
   def ContentsInSourceFileInfo(file: File, contentsIn: File) =
-    SourceFileInfo(file, contentsIn = Some(contentsIn))
-
-  "RefactoringHandler" should "format files and preserve encoding" in {
-    withAnalyzer { (config, analyzerRef) =>
-      val file = srcFile(config, "abc.scala", contents(
-        "package blah",
-        "   class Something {",
-        "def f(i:   Int) =1",
-        " val x = (1\u21922)",
-        "   }"
-      ), write = true, encoding = encoding)
-
-      val analyzer = analyzerRef.underlyingActor
-
-      analyzer.handleFormatFiles(List(new File(file.path)))
-      val fileContents = readSrcFile(file, encoding)
-
-      val expectedContents = contents(
-        "package blah",
-        "class Something {",
-        "  def f(i: Int) = 1",
-        "  val x = (1 \u2192 2)",
-        "}"
-      )
-      fileContents should ===(expectedContents)
-    }
-  }
-
-  it should "format files from ContentsSourceFileInfo with handleFormatFile" in {
-    withAnalyzer { (dir, analyzerRef) =>
-      val content = contents(
-        "package blah",
-        "   class  Something   {}"
-      )
-      val analyzer = analyzerRef.underlyingActor
-
-      val formatted = analyzer.handleFormatFile(ContentsSourceFileInfo(new File("abc.scala"), content))
-      val expectedContents = contents(
-        "package blah",
-        "class Something {}",
-        ""
-      )
-      formatted should ===(expectedContents)
-    }
-  }
-
-  it should "format files from ContentsInSourceFileInfo with handleFormatFile and handle encoding" in {
-    withAnalyzer { (dir, analyzerRef) =>
-      val file = srcFile(dir, "tmp-contents", contents(
-        "package blah",
-        "   class  Something   {}"
-      ), write = true, encoding = encoding)
-
-      val analyzer = analyzerRef.underlyingActor
-
-      val formatted = analyzer.handleFormatFile(ContentsInSourceFileInfo(new File("abc.scala"), new File(file.path)))
-      val expectedContents = contents(
-        "package blah",
-        "class Something {}",
-        ""
-      )
-      formatted should ===(expectedContents)
-    }
-  }
-
-  it should "format files from FileSourceFileInfo with handleFormatFile and handle encoding" in {
-    withAnalyzer { (dir, analyzerRef) =>
-      val file = srcFile(dir, "abc.scala", contents(
-        "package blah",
-        "   class  Something   {}"
-      ), write = true, encoding = encoding)
-
-      val analyzer = analyzerRef.underlyingActor
-
-      val formatted = analyzer.handleFormatFile(SourceFileInfo(new File(file.path)))
-      val expectedContents = contents(
-        "package blah",
-        "class Something {}",
-        ""
-      )
-      formatted === (expectedContents)
-    }
-  }
-
-  it should "not format invalid files" in withAnalyzer { (config, analyzerRef) =>
-    val file = srcFile(config, "abc.scala", contents(
-      "package blah",
-      "invalid scala syntax"
-    ), write = true, encoding = encoding)
-
-    val analyzer = analyzerRef.underlyingActor
-
-    analyzer.handleFormatFiles(List(new File(file.path)))
-    val fileContents = readSrcFile(file, encoding)
-
-    val expectedContents = contents(
-      "package blah",
-      "invalid scala syntax"
-    )
-    fileContents should ===(expectedContents)
-  }
+    SourceFileInfo(RawFile(file.toPath), contentsIn = Some(contentsIn))
 
   it should "add imports on the first line" in withAnalyzer { (dir, analyzerRef) =>
     import org.ensime.util.file._
@@ -264,7 +164,7 @@ class RefactoringHandlerSpec extends EnsimeSpec
       val relevantExpectedPart = s"""|@@ -1,3 +1,2 @@
                                      |-import java.lang.Integer.{valueOf => vo}
                                      |-import java.lang.Integer.toBinaryString
-                                     |+import java.lang.Integer.{valueOf => vo, toBinaryString}
+                                     |+import java.lang.Integer.{toBinaryString, valueOf => vo}
                                      | import java.lang.String.valueOf
                                      |""".stripMargin
       val expectedContents = expectedDiffContent(file.path, relevantExpectedPart)

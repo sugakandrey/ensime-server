@@ -10,11 +10,13 @@ import org.ensime.indexer.SearchServiceTestUtils._
 import org.ensime.model.BasicTypeInfo
 import org.ensime.util.EnsimeSpec
 import org.ensime.indexer._
+import org.scalatest.OptionValues
+import org.scalatest.tagobjects.Slow
 
-class JavaCompilerSpec extends EnsimeSpec
+class JavaCompilerSpec extends EnsimeSpec with OptionValues
     with IsolatedJavaCompilerFixture {
 
-  val original = EnsimeConfigFixture.SimpleTestProject
+  val original = EnsimeConfigFixture.SimpleTestProject.copy(referenceSourceRoots = Nil)
 
   "JavaCompiler" should "generate compilation notes" in {
     withJavaCompiler { (_, config, cc, store, search) =>
@@ -62,8 +64,8 @@ class JavaCompilerSpec extends EnsimeSpec
 
   it should "link symbols to their source positions" in {
     withJavaCompiler { (_, config, cc, store, _) =>
-      val test1 = SourceFileInfo(new File(config.rootDir, "testing/simple/src/main/java/org/example/Test1.java"))
-      val test2 = SourceFileInfo(new File(config.rootDir, "testing/simple/src/main/java/org/example/Test2.java"))
+      val test1 = SourceFileInfo(new RawFile(new File(config.rootDir, "testing/simple/src/main/java/org/example/Test1.java").toPath))
+      val test2 = SourceFileInfo(new RawFile(new File(config.rootDir, "testing/simple/src/main/java/org/example/Test2.java").toPath))
 
       cc.askLinkPos(ClassName(PackageName(List("org", "example")), "Test2"), test2) should matchPattern { case Some(OffsetSourcePosition(f, 22)) => }
       cc.askLinkPos(ClassName(PackageName(List("org", "example")), "Foo"), test2) should matchPattern { case None => }
@@ -73,7 +75,7 @@ class JavaCompilerSpec extends EnsimeSpec
     }
   }
 
-  it should "find symbol at point" in withJavaCompiler { (_, config, cc, store, search) =>
+  it should "find symbol at point" taggedAs Slow in withJavaCompiler { (_, config, cc, store, search) =>
     refresh()(search)
 
     runForPositionInCompiledSource(config, cc,
@@ -110,19 +112,25 @@ class JavaCompilerSpec extends EnsimeSpec
             info.localName shouldBe "foo"
             info.`type`.name shouldBe "int"
             info.`type` shouldBe a[api.BasicTypeInfo]
-            info.declPos should matchPattern { case Some(OffsetSourcePosition(f, 174)) if f.getName == "Test1.java" => }
+            info.declPos should matchPattern {
+              case Some(OffsetSourcePosition(RawFile(f), 174)) if f.endsWith("Test1.java") =>
+            }
           case "1" =>
             info.name shouldBe "args"
             info.localName shouldBe "args"
             info.`type`.name shouldBe "java.lang.String[]"
             info.`type` shouldBe a[api.BasicTypeInfo]
-            info.declPos should matchPattern { case Some(OffsetSourcePosition(f, 153)) if f.getName == "Test1.java" => }
+            info.declPos should matchPattern {
+              case Some(OffsetSourcePosition(RawFile(f), 153)) if f.endsWith("Test1.java") =>
+            }
           case "2" =>
             info.name shouldBe "org.example.Test1.Foo"
             info.localName shouldBe "Foo"
             info.`type`.name shouldBe "org.example.Test1.Foo"
             info.`type` shouldBe a[api.BasicTypeInfo]
-            info.declPos should matchPattern { case Some(OffsetSourcePosition(f, 58)) if f.getName == "Test1.java" => }
+            info.declPos should matchPattern {
+              case Some(OffsetSourcePosition(RawFile(f), 58)) if f.endsWith("Test1.java") =>
+            }
           case "3" =>
             info.name shouldBe "java.io.PrintStream.println(java.lang.Object)"
             info.localName shouldBe "println"
@@ -148,7 +156,9 @@ class JavaCompilerSpec extends EnsimeSpec
             info.localName shouldBe "Test2"
             info.`type`.name shouldBe "org.example.Test2"
             info.`type` shouldBe a[api.BasicTypeInfo]
-            info.declPos should matchPattern { case Some(OffsetSourcePosition(f, 22)) if f.getName == "Test2.java" => }
+            info.declPos should matchPattern {
+              case Some(OffsetSourcePosition(RawFile(f), 22)) if f.endsWith("Test2.java") =>
+            }
           case "6" =>
             info.name shouldBe "org.example.Test2.compute()"
             info.localName shouldBe "compute"
@@ -161,8 +171,8 @@ class JavaCompilerSpec extends EnsimeSpec
               ) :: Nil, Nil
             )
             info.declPos should matchPattern {
-              case Some(LineSourcePosition(f, 8)) if f.getName == "Test2.java" =>
-              case Some(OffsetSourcePosition(f, 48)) if f.getName == "Test2.java" =>
+              case Some(LineSourcePosition(RawFile(f), 8)) if f.endsWith("Test2.java") =>
+              case Some(OffsetSourcePosition(RawFile(f), 48)) if f.endsWith("Test2.java") =>
             }
           case "7" =>
             {}
@@ -186,26 +196,34 @@ class JavaCompilerSpec extends EnsimeSpec
               ) :: Nil, Nil
             )
             // "private static int compute(int a, int b)"
-            info.declPos should matchPattern { case Some(OffsetSourcePosition(f, 481)) if f.getName == "Test1.java" => }
+            info.declPos should matchPattern {
+              case Some(OffsetSourcePosition(RawFile(f), 481)) if f.endsWith("Test1.java") =>
+            }
           case "8" =>
             info.name shouldBe "org.example.Test1.CONST"
             info.localName shouldBe "CONST"
             info.`type`.name shouldBe "int"
             info.`type` shouldBe a[api.BasicTypeInfo]
-            info.declPos should matchPattern { case Some(OffsetSourcePosition(f, 98)) if f.getName == "Test1.java" => }
+            info.declPos should matchPattern {
+              case Some(OffsetSourcePosition(RawFile(f), 98)) if f.endsWith("Test1.java") =>
+            }
           case "9" =>
             info.name shouldBe "org.example.Test1.Day"
             info.localName shouldBe "Day"
             info.`type`.name shouldBe "org.example.Test1.Day"
             info.`type` shouldBe a[api.BasicTypeInfo]
-            info.declPos should matchPattern { case Some(OffsetSourcePosition(f, 653)) if f.getName == "Test1.java" => }
+            info.declPos should matchPattern {
+              case Some(OffsetSourcePosition(RawFile(f), 653)) if f.endsWith("Test1.java") =>
+            }
           case "10" =>
             info.name shouldBe "org.example.Test1.Day.MON"
             info.localName shouldBe "MON"
             info.`type`.name shouldBe "org.example.Test1.Day"
             info.`type` shouldBe a[api.BasicTypeInfo]
             // Don't specify offset pos here as Java 6 seems to have a problem locating enums
-            info.declPos should matchPattern { case Some(OffsetSourcePosition(f, i: Int)) if f.getName == "Test1.java" => }
+            info.declPos should matchPattern {
+              case Some(OffsetSourcePosition(RawFile(f), i: Int)) if f.endsWith("Test1.java") =>
+            }
           case "13" | "14" =>
             info.name shouldBe "k"
             info.`type`.name shouldBe "int"
@@ -259,9 +277,18 @@ class JavaCompilerSpec extends EnsimeSpec
             case "6" => forAtLeast(1, info.completions)(_.name shouldBe "Entry")
             case "7" => forAtLeast(1, info.completions)(_.name shouldBe "Entry")
             case "8" => forAtLeast(1, info.completions)(_.name shouldBe "File")
-            case "9" => forAtLeast(1, info.completions)(_.name shouldBe "foo")
-            case "10" => forAtLeast(1, info.completions)(_.name shouldBe "maxValue")
-            case "11" => forAtLeast(1, info.completions)(_.name shouldBe "MAX_VALUE")
+            case "9" => forAtLeast(1, info.completions) { c =>
+              c.name shouldBe "foo"
+              c.typeInfo.value.name shouldBe "String"
+            }
+            case "10" => forAtLeast(1, info.completions) { c =>
+              c.name shouldBe "maxValue"
+              c.typeInfo.value.name shouldBe "int"
+            }
+            case "11" => forAtLeast(1, info.completions) { c =>
+              c.name shouldBe "MAX_VALUE"
+              c.typeInfo.value.name shouldBe "int"
+            }
             case "12" => forAtLeast(1, info.completions)(_.name shouldBe "Integer")
 
             case "13" =>
@@ -270,7 +297,10 @@ class JavaCompilerSpec extends EnsimeSpec
               info.completions(1).name shouldBe "testinner"
 
             case "14" => forAtLeast(1, info.completions)(_.name shouldBe "println")
-            case "15" => forAtLeast(1, info.completions)(_.name shouldBe "privateValue")
+            case "15" => forAtLeast(1, info.completions) { c =>
+              c.name shouldBe "privateValue"
+              c.typeInfo.value.name shouldBe "int"
+            }
             case "16" => forAll(info.completions)(_.name shouldNot be("hash"))
           }
         }

@@ -7,4 +7,7 @@ class Baz {
   }
   object Wibble
 }
-object Baz
+
+object Baz {
+  new ToBeUnloaded().warning()
+}

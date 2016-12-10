@@ -14,10 +14,6 @@ import scala.tools.refactoring._
 import scala.tools.refactoring.analysis.GlobalIndexes
 import scala.tools.refactoring.common.{ Change, CompilerAccess, RenameSourceFileChange }
 import scala.tools.refactoring.implementations._
-import scala.util.{ Success, Try }
-import scalariform.astselect.AstSelector
-import scalariform.formatter.ScalaFormatter
-import scalariform.utils.Range
 
 abstract class RefactoringEnvironment(file: String, start: Int, end: Int) {
 
@@ -74,40 +70,6 @@ trait RefactoringHandler { self: Analyzer =>
       case Right(success) => success
       case Left(failure) => failure
     }
-
-  def handleExpandselection(file: File, start: Int, stop: Int): FileRange = {
-    readFile(file) match {
-      case Right(contents) =>
-        val selectionRange = Range(start, stop - start)
-        AstSelector.expandSelection(contents, selectionRange) match {
-          case Some(range) => FileRange(file.getPath, range.offset, range.offset + range.length)
-          case _ =>
-            FileRange(file.getPath, start, stop)
-        }
-      case Left(e) => throw e
-    }
-  }
-
-  def handleFormatFiles(files: List[File]): Unit = {
-    val changeList = files.map { f =>
-      readFile(f) match {
-        case Right(contents) =>
-          Try(ScalaFormatter.format(contents, config.formattingPrefs)).map((f, contents, _))
-        case Left(e) => throw e
-      }
-    }.collect {
-      case Success((f, contents, formatted)) =>
-        TextEdit(f, 0, contents.length, formatted)
-    }
-    writeChanges(changeList)
-  }
-
-  def handleFormatFile(fileInfo: SourceFileInfo): String = {
-    val sourceFile = createSourceFile(fileInfo)
-    val contents = sourceFile.content.mkString
-    ScalaFormatter.format(contents, config.formattingPrefs)
-  }
-
 }
 
 trait RefactoringControl { self: RichCompilerControl with RefactoringImpl =>
@@ -124,8 +86,6 @@ trait RefactoringControl { self: RichCompilerControl with RefactoringImpl =>
 trait RefactoringImpl { self: RichPresentationCompiler =>
 
   import org.ensime.util.FileUtils._
-
-  implicit def cs: Charset = charset
 
   protected def doRename(procId: Int, tpe: RefactorType, name: String, file: File, start: Int, end: Int, files: Set[String]) =
     new RefactoringEnvironment(file.getPath, start, end) {
@@ -184,11 +144,13 @@ trait RefactoringImpl { self: RichPresentationCompiler =>
         options = List(
           refactoring.SortImports,
           refactoring.SortImportSelectors,
-          refactoring.CollapseImports,
           refactoring.SimplifyWildcards,
-          refactoring.RemoveDuplicates,
-          refactoring.GroupImports(List("java", "scala"))
-        )
+          refactoring.RemoveDuplicates
+        ),
+        config = Some(OrganizeImports.OrganizeImportsConfig(
+          importsStrategy = Some(OrganizeImports.ImportsStrategy.CollapseImports),
+          groups = List("java", "scala")
+        ))
       ))
     }.result
 
@@ -228,7 +190,7 @@ trait RefactoringImpl { self: RichPresentationCompiler =>
           val files = (symbol match {
             case None => Nil
             case Some(sym) =>
-              usesOfSym(sym).map(f => createSourceFile(f.file.getPath))
+              usesOfSym(sym).map(rf => createSourceFile(rf))
           }).toSet - sourceFile
           askReloadFiles(files)
           files.foreach(askLoadedTyped)

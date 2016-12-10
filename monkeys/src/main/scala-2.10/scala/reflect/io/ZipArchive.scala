@@ -130,6 +130,9 @@ final class FileZipArchive(file: JFile) extends ZipArchive(file) {
   lazy val (root, allDirs) = {
     val root = new DirEntry("/")
     val dirs = mutable.HashMap[String, DirEntry]("/" -> root)
+
+    // NOTE: please read the ENSIME specific comments in the
+    //       scala-2.11 version of this file to address SI-9632
     def openZipFile(): ZipFile = try {
       new ZipFile(file)
     } catch {

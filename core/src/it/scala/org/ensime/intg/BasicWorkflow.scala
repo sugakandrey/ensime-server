@@ -3,11 +3,12 @@
 package org.ensime.intg
 
 import org.ensime.api
-import org.ensime.api.{ BasicTypeInfo => _, _ }
+import org.ensime.api.{ BasicTypeInfo => _, EnsimeFile => _, _ }
 import org.ensime.core._
 import org.ensime.fixture._
 import org.ensime.model.BasicTypeInfo
 import org.ensime.util.EnsimeSpec
+import org.ensime.util.ensimefile._
 import org.ensime.util.ensimefile.Implicits.DefaultCharset
 import org.ensime.util.file._
 
@@ -27,20 +28,23 @@ class BasicWorkflow extends EnsimeSpec
 
           val sourceRoot = scalaMain(config)
           val fooFile = sourceRoot / "org/example/Foo.scala"
+          val fooPath = fooFile.toPath
           val fooFilePath = fooFile.getAbsolutePath
           val barFile = sourceRoot / "org/example/Bar.scala"
+          val barPath = barFile.toPath
 
           // typeCheck module
 
-          project ! TypecheckModule("testingSimple")
+          project ! TypecheckModule("testing_simple")
           expectMsg(VoidResponse)
+          asyncHelper.expectMsgType[NewScalaNotesEvent]
           asyncHelper.expectMsgType[NewScalaNotesEvent]
           asyncHelper.expectMsgType[FullTypeCheckCompleteEvent.type]
 
           project ! TypeByNameReq("org.example.Bloo")
           expectMsgType[api.BasicTypeInfo]
 
-          project ! UnloadModuleReq("testingSimple")
+          project ! UnloadModuleReq("testing_simple")
           expectMsg(VoidResponse)
 
           project ! TypeByNameReq("org.example.Bloo")
@@ -57,13 +61,16 @@ class BasicWorkflow extends EnsimeSpec
           val missingFile = sourceRoot / "missing.scala"
           val missingFilePath = missingFile.getAbsolutePath
           project ! TypecheckFilesReq(List(Left(missingFile)))
-          expectMsg(EnsimeServerError(s"""file(s): "$missingFilePath" do not exist"""))
+          expectMsg(EnsimeServerError(s"""file(s): "${EnsimeFile(missingFilePath)}" do not exist"""))
 
           //-----------------------------------------------------------------------------------------------
           // semantic highlighting
           project ! SymbolDesignationsReq(Left(fooFile), -1, 299, SourceSymbol.allSymbols)
           val designations = expectMsgType[SymbolDesignations]
-          designations.file shouldBe fooFile
+          designations.file match {
+            case rf: RawFile => rf.file.toFile shouldBe fooFile
+            case af: ArchiveFile => ???
+          }
           designations.syms should contain(SymbolDesignation(12, 19, PackageSymbol))
           // expected Symbols
           // ((package 12 19) (package 8 11) (trait 40 43) (valField 69 70) (class 100 103) (param 125 126) (class 128 131) (param 133 134) (class 136 142) (operator 156 157) (param 154 155) (functionCall 160 166) (param 158 159) (valField 183 186) (class 193 199) (class 201 204) (valField 214 217) (class 224 227) (functionCall 232 239) (operator 250 251) (valField 256 257) (valField 252 255) (functionCall 261 268) (functionCall 273 283) (valField 269 272)))
@@ -141,7 +148,7 @@ class BasicWorkflow extends EnsimeSpec
             case SymbolInfo(
               "testMethod",
               "testMethod",
-              Some(OffsetSourcePosition(`fooFile`, 114)),
+              Some(OffsetSourcePosition(RawFile(`fooPath`), 114)),
               ArrowTypeInfo(
                 "(Int, String) => Int",
                 "(scala.Int, java.lang.String) => scala.Int",
@@ -164,7 +171,7 @@ class BasicWorkflow extends EnsimeSpec
 
           project ! SymbolAtPointReq(Left(fooFile), 343)
           expectMsgPF() {
-            case SymbolInfo("fn", "fn", Some(OffsetSourcePosition(`fooFile`, 304)),
+            case SymbolInfo("fn", "fn", Some(OffsetSourcePosition(RawFile(`fooPath`), 304)),
               api.BasicTypeInfo("(String) => Int", DeclaredAs.Trait, "(java.lang.String) => scala.Int",
                 List(
                   BasicTypeInfo("String", DeclaredAs.Class, "java.lang.String"),
@@ -174,7 +181,7 @@ class BasicWorkflow extends EnsimeSpec
 
           project ! SymbolAtPointReq(Left(barFile), 150)
           expectMsgPF() {
-            case SymbolInfo("apply", "apply", Some(OffsetSourcePosition(`barFile`, 59)),
+            case SymbolInfo("apply", "apply", Some(OffsetSourcePosition(RawFile(`barPath`), 59)),
               ArrowTypeInfo("(String, Int) => Foo", "(java.lang.String, scala.Int) => org.example.Bar.Foo",
                 BasicTypeInfo("Foo", DeclaredAs.Class, "org.example.Bar.Foo"),
                 List(ParamSectionInfo(
@@ -186,7 +193,7 @@ class BasicWorkflow extends EnsimeSpec
 
           project ! SymbolAtPointReq(Left(barFile), 193)
           expectMsgPF() {
-            case SymbolInfo("copy", "copy", Some(OffsetSourcePosition(`barFile`, 59)),
+            case SymbolInfo("copy", "copy", Some(OffsetSourcePosition(RawFile(`barPath`), 59)),
               ArrowTypeInfo("(String, Int) => Foo", "(java.lang.String, scala.Int) => org.example.Bar.Foo",
                 BasicTypeInfo("Foo", DeclaredAs.Class, "org.example.Bar.Foo"),
                 List(ParamSectionInfo(
@@ -198,7 +205,7 @@ class BasicWorkflow extends EnsimeSpec
 
           project ! SymbolAtPointReq(Left(fooFile), 600)
           expectMsgPF() {
-            case SymbolInfo("poly", "poly", Some(OffsetSourcePosition(`fooFile`, 548)),
+            case SymbolInfo("poly", "poly", Some(OffsetSourcePosition(RawFile(`fooPath`), 548)),
               ArrowTypeInfo("(A, B) => (A, B)", "(org.example.WithPolyMethod.A, org.example.WithPolyMethod.B) => (org.example.WithPolyMethod.A, org.example.WithPolyMethod.B)",
                 api.BasicTypeInfo(
                   "(A, B)", DeclaredAs.Class, "(org.example.WithPolyMethod.A, org.example.WithPolyMethod.B)",
@@ -249,7 +256,7 @@ class BasicWorkflow extends EnsimeSpec
             BasicTypeInfo("package", DeclaredAs.Object, "org.example.package")
           )
 
-          // expand selection around 'val foo'
+          // expand selection around "seven" in `foo.testMethod` call
           project ! ExpandSelectionReq(fooFile, 215, 215)
           val expandRange1 = expectMsgType[FileRange]
           expandRange1 shouldBe FileRange(fooFilePath, 214, 217)
@@ -271,7 +278,6 @@ class BasicWorkflow extends EnsimeSpec
                                              |+  println("Hello, " + bar.x)
                                              |+  println(bar.testMethod(7, "seven"))
                                              | \n""".stripMargin
-
               val diffContents = diff.canon.readString()
               val expectedContents = expectedDiffContent(fooFilePath, relevantExpectedPart)
 
@@ -304,7 +310,7 @@ class BasicWorkflow extends EnsimeSpec
                         |[9] ConstantType(Constant(2))
                         |[10] ConstantType(Constant(3))
                         |[1] compiler mirror""".stripMargin
-          project ! AstAtPointReq(SourceFileInfo(fooFile), OffsetRange(475, 496))
+          project ! AstAtPointReq(SourceFileInfo(RawFile(fooFile.toPath)), OffsetRange(475, 496))
           expectMsgPF() {
             case AstInfo(ast) if {
               val stripped = ast.replaceAll("[\n\r]", "")
@@ -335,7 +341,7 @@ class BasicWorkflow extends EnsimeSpec
                         |[17] TypeRef(SingleType(ThisType(scala#PKC%M1), scala.Predef#MOD%M1), TypeName("String")#TPE%M1, List())
                         |[18] SingleType(ThisType(<root>#PKC%M1), scala#PK%M1)
                         |[1] compiler mirror""".stripMargin
-          project ! AstAtPointReq(SourceFileInfo(fooFile), OffsetRange(189, 206))
+          project ! AstAtPointReq(SourceFileInfo(RawFile(fooFile.toPath)), OffsetRange(189, 206))
           expectMsgPF() {
             case AstInfo(ast) if {
               val stripped = ast.replaceAll("[\n\r]", "")
@@ -400,6 +406,27 @@ class BasicWorkflow extends EnsimeSpec
               val diffContent = diff.canon.readString()
               diffContent should ===(expectedDiff)
           }
+
+          val bazFile = sourceRoot / "org/example2/Baz.scala"
+          val toBeUnloaded = SourceFileInfo(EnsimeFile(sourceRoot / "org/example2/ToBeUnloaded.scala"))
+          val toBeUnloaded2 = SourceFileInfo(EnsimeFile(sourceRoot / "org/example/package.scala"))
+
+          project ! TypecheckFilesReq(List(Left(bazFile), Right(toBeUnloaded)))
+          expectMsg(VoidResponse)
+          asyncHelper.expectMsgType[NewScalaNotesEvent]
+          asyncHelper.expectMsgType[NewScalaNotesEvent]
+          asyncHelper.expectMsgType[FullTypeCheckCompleteEvent.type]
+
+          project ! UnloadFileReq(toBeUnloaded)
+          expectMsg(VoidResponse)
+          project ! UnloadFileReq(toBeUnloaded2)
+          expectMsg(VoidResponse)
+          // files with warning have been unloaded
+          // `NewScalaNotesEvent` should now not appear when typechecking `bazFile`
+
+          project ! TypecheckFilesReq(List(Left(bazFile)))
+          expectMsg(VoidResponse)
+          asyncHelper.expectMsg(FullTypeCheckCompleteEvent)
         }
       }
     }

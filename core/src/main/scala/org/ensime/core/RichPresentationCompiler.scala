@@ -39,23 +39,24 @@
 package org.ensime.core
 
 import java.nio.charset.Charset
+import java.nio.file.{ Path, Paths }
 
 import scala.collection.mutable
 import scala.reflect.internal.util.{ BatchSourceFile, RangePosition, SourceFile }
-import scala.reflect.io.PlainFile
+import scala.reflect.io.{ PlainFile, VirtualFile }
 import scala.tools.nsc.Settings
 import scala.tools.nsc.interactive.{ CompilerControl, Global }
 import scala.tools.nsc.io.AbstractFile
 import scala.tools.nsc.reporters.Reporter
 import scala.tools.nsc.util._
 import scala.tools.refactoring.analysis.GlobalIndexes
-
 import akka.actor.ActorRef
 import org.ensime.api._
 import org.ensime.config._
 import org.ensime.indexer._
 import org.ensime.model._
-import org.ensime.util.file.{ File, _ }
+import org.ensime.util.ensimefile._
+import org.ensime.util.file._
 import org.ensime.util.sourcefile._
 import org.ensime.vfs._
 import org.slf4j.LoggerFactory
@@ -63,7 +64,7 @@ import org.slf4j.LoggerFactory
 trait RichCompilerControl extends CompilerControl with RefactoringControl with CompletionControl with DocFinding {
   self: RichPresentationCompiler =>
 
-  def charset: Charset = Charset.forName(settings.encoding.value)
+  implicit def charset: Charset = Charset.forName(settings.encoding.value)
 
   def askOption[A](op: => A): Option[A] =
     try {
@@ -166,6 +167,11 @@ trait RichCompilerControl extends CompilerControl with RefactoringControl with C
 
   def askUnloadAllFiles(): Unit = askOption(unloadAllFiles())
 
+  def askUnloadFile(f: SourceFileInfo): Unit = {
+    val sourceFile = createSourceFile(f)
+    askOption(unloadFile(sourceFile))
+  }
+
   def askRemoveAllDeleted(): Option[Unit] = askOption(removeAllDeleted())
 
   def askRemoveDeleted(f: File) = askOption(removeDeleted(AbstractFile.getFile(f)))
@@ -208,25 +214,45 @@ trait RichCompilerControl extends CompilerControl with RefactoringControl with C
       case Some(sym) =>
         val source = pos.source
         val loadedFiles = loadUsesOfSym(sym)
-        val files = loadedFiles.map(_.getPath) + source.file.path
+        val files = loadedFiles.map(_.file) + source.file.file.toPath
         askUsesOfSym(sym, files)
     }
   }
 
-  def askUsesOfSym(sym: Symbol, files: collection.Set[String]): List[RangePosition] =
+  def askUsesOfSym(sym: Symbol, files: collection.Set[Path]): List[RangePosition] =
     askOption(usesOfSymbol(sym.pos, files).toList).getOrElse(List.empty)
 
-  def handleReloadFiles(files: collection.Set[SourceFileInfo]): RpcResponse = {
+  protected def withExistingScalaFiles(
+    files: collection.Set[SourceFileInfo]
+  )(
+    f: List[SourceFile] => RpcResponse
+  ): RpcResponse = {
     val (existing, missingFiles) = files.partition(_.exists())
     if (missingFiles.nonEmpty) {
       val missingFilePaths = missingFiles.map { f => "\"" + f.file + "\"" }.mkString(",")
       EnsimeServerError(s"file(s): $missingFilePaths do not exist")
     } else {
-      val (javas, scalas) = existing.partition(_.file.getName.endsWith(".java"))
+      val scalas = existing.collect { case sfi @ SourceFileInfo(RawFile(path), _, _) if path.toString.endsWith(".scala") => sfi }
+      val sourceFiles: List[SourceFile] = scalas.map(createSourceFile)(collection.breakOut)
+      f(sourceFiles)
+    }
+  }
+
+  def handleReloadFiles(files: collection.Set[SourceFileInfo]): RpcResponse = {
+    withExistingScalaFiles(files) { scalas =>
       if (scalas.nonEmpty) {
-        val sourceFiles = scalas.map(createSourceFile)
-        askReloadFiles(sourceFiles)
-        sourceFiles.foreach(askLoadedTyped)
+        askReloadFiles(scalas)
+        askNotifyWhenReady()
+      }
+      VoidResponse
+    }
+  }
+
+  def handleReloadAndRetypeFiles(files: collection.Set[SourceFileInfo]): RpcResponse = {
+    withExistingScalaFiles(files) { scalas =>
+      if (scalas.nonEmpty) {
+        askReloadFiles(scalas)
+        scalas.foreach(askLoadedTyped)
         askNotifyWhenReady()
       }
       VoidResponse
@@ -234,13 +260,14 @@ trait RichCompilerControl extends CompilerControl with RefactoringControl with C
   }
 
   import org.ensime.util.file.File
-  def loadUsesOfSym(sym: Symbol): collection.immutable.Set[File] = {
+  def loadUsesOfSym(sym: Symbol): collection.Set[RawFile] = {
     val files = usesOfSym(sym)
-    handleReloadFiles(files)
-    files.map(_.file)(collection.breakOut)
+    val sfis = files.map(rf => SourceFileInfo(rf))
+    handleReloadAndRetypeFiles(sfis)
+    files
   }
 
-  def usesOfSym(sym: Symbol): collection.Set[SourceFileInfo] = {
+  def usesOfSym(sym: Symbol): collection.Set[RawFile] = {
     import scala.concurrent.Await
     import scala.concurrent.duration.Duration
 
@@ -250,11 +277,11 @@ trait RichCompilerControl extends CompilerControl with RefactoringControl with C
     } else {
       val fqn = askSymbolFqn(sym)
       val usages = Await.result(search.findUsages(fqn.fqnString), Duration.Inf)
-      val files: collection.Set[SourceFileInfo] = usages.flatMap { usage =>
+      val files: collection.Set[RawFile] = usages.flatMap { usage =>
         val source = usage.source
-        source.map(s => SourceFileInfo(File(s.replaceFirst("file:", ""))))
+        source.map(s => RawFile(Paths.get(vfs.vfile(s).getName.getPath)))
       }(collection.breakOut)
-      files + SourceFileInfo(sym.sourceFile.file)
+      files + RawFile(sym.sourceFile.file.toPath)
     }
   }
 
@@ -262,7 +289,7 @@ trait RichCompilerControl extends CompilerControl with RefactoringControl with C
   def askSymbolDesignationsInRegion(p: RangePosition, tpes: List[SourceSymbol]): SymbolDesignations =
     askOption(
       new SemanticHighlighting(this).symbolDesignationsInRegion(p, tpes)
-    ).getOrElse(SymbolDesignations(new File("."), List.empty))
+    ).getOrElse(SymbolDesignations(RawFile(new File(".").toPath), List.empty))
 
   def askImplicitInfoInRegion(p: Position): ImplicitInfos =
     ImplicitInfos(
@@ -274,40 +301,43 @@ trait RichCompilerControl extends CompilerControl with RefactoringControl with C
   def askNotifyWhenReady(): Unit = ask(setNotifyWhenReady)
 
   // WARNING: be really careful when creating BatchSourceFiles. there
-  // are multiple constructers which do weird things, best to be very
+  // are multiple constructors which do weird things, best to be very
   // explicit about what we're doing and only use the primary
   // constructor. Note that scalac appears to have a bug in it whereby
   // it is unable to tell that a VirtualFile (i.e. in-memory) and a
   // non VirtualFile backed BatchSourceFile are actually referring to
   // the same compilation unit. see
   // https://github.com/ensime/ensime-server/issues/1160
+  def createSourceFile(file: EnsimeFile): BatchSourceFile =
+    createSourceFile(SourceFileInfo(file))
   def createSourceFile(file: File): BatchSourceFile =
-    createSourceFile(SourceFileInfo(file, None, None))
+    createSourceFile(EnsimeFile(file))
   def createSourceFile(path: String): BatchSourceFile =
-    createSourceFile(new File(path))
+    createSourceFile(EnsimeFile(path))
   def createSourceFile(file: AbstractFile): BatchSourceFile =
-    createSourceFile(file.file)
+    createSourceFile(file.path)
   def createSourceFile(file: SourceFileInfo): BatchSourceFile = file match {
-    case SourceFileInfo(f, None, None) =>
+    case SourceFileInfo(rf @ RawFile(f), None, None) => new BatchSourceFile(
+      new PlainFile(f.toFile), rf.readStringDirect().toCharArray
+    )
+    case SourceFileInfo(ac @ ArchiveFile(archive, entry), None, None) =>
       new BatchSourceFile(
-        new PlainFile(f.getPath),
-        f.readString()(charset).toCharArray
+        new VirtualFile(ac.fullPath), ac.readStringDirect().toCharArray
       )
+    case SourceFileInfo(rf @ RawFile(f), Some(contents), None) =>
+      new BatchSourceFile(new PlainFile(f.toFile), contents.toCharArray)
+    case SourceFileInfo(ac @ ArchiveFile(a, e), Some(contents), None) => new BatchSourceFile(
+      new VirtualFile(ac.fullPath), contents.toCharArray
+    )
+    case SourceFileInfo(rf @ RawFile(f), None, Some(contentsIn)) =>
+      new BatchSourceFile(new PlainFile(f.toFile), contentsIn.readString()(charset).toCharArray)
+    case SourceFileInfo(ac @ ArchiveFile(a, e), None, Some(contentsIn)) => new BatchSourceFile(
+      new VirtualFile(ac.fullPath), contentsIn.readString()(charset).toCharArray
+    )
 
-    case SourceFileInfo(f, Some(contents), None) =>
-      new BatchSourceFile(
-        new PlainFile(f.getPath),
-        contents.toCharArray
-      )
-
-    case SourceFileInfo(f, None, Some(contentsIn)) =>
-      new BatchSourceFile(
-        new PlainFile(f.getPath),
-        contentsIn.readString()(charset).toCharArray
-      )
   }
 
-  def askLinkPos(sym: Symbol, path: AbstractFile): Option[Position] =
+  def askLinkPos(sym: Symbol, path: EnsimeFile): Option[Position] =
     askOption(linkPos(sym, createSourceFile(path)))
 
   def askStructure(fileInfo: SourceFile): List[StructureViewMember] =
@@ -317,6 +347,11 @@ trait RichCompilerControl extends CompilerControl with RefactoringControl with C
   def askRaw(any: Any): String =
     showRaw(any, printTypes = true, printIds = false, printKinds = true, printMirrors = true)
 
+  /**
+   * Returns the smallest `Tree`, which position `properlyIncludes` `p`
+   */
+  def askEnclosingTreePosition(p: Position): Position =
+    new PositionLocator(this).enclosingTreePosition(p)
 }
 
 class RichPresentationCompiler(
@@ -362,6 +397,8 @@ class RichPresentationCompiler(
   def unloadAllFiles(): Unit = {
     allSources.foreach(removeUnitOf)
   }
+
+  def unloadFile(s: SourceFile): Unit = removeUnitOf(s)
 
   /**
    * Remove symbols defined by files that no longer exist.
@@ -565,14 +602,14 @@ class RichPresentationCompiler(
     wrapLinkPos(sym, source)
   }
 
-  protected def usesOfSymbol(pos: Position, files: collection.Set[String]): Iterable[RangePosition] = {
+  protected def usesOfSymbol(pos: Position, files: collection.Set[Path]): Iterable[RangePosition] = {
     symbolAt(pos) match {
       case Some(s) =>
         class CompilerGlobalIndexes extends GlobalIndexes {
           val global = RichPresentationCompiler.this
           val sym = s.asInstanceOf[global.Symbol]
           val cuIndexes = this.global.unitOfFile.collect {
-            case (file, unit) if search.noReverseLookups || files.contains(file.file.getPath) =>
+            case (file, unit) if search.noReverseLookups || files.contains(file.file.toPath) =>
               CompilationUnitIndex(unit.body)
           }
           val index = GlobalIndex(cuIndexes.toList)

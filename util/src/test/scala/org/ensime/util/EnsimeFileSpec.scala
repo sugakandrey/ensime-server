@@ -9,7 +9,9 @@ import java.nio.file._
 import scala.util.Properties.jdkHome
 
 import org.ensime.api._
+import org.ensime.util.LegacyArchiveExtraction
 import org.ensime.util.ensimefile.Implicits.DefaultCharset
+import org.ensime.util.file.withTempDir
 import org.ensime.util.path._
 import org.scalatest._
 
@@ -80,6 +82,17 @@ class EnsimeFileSpec extends FlatSpec with Matchers {
 
   it should "load entry contents with readStringDirect()" in {
     EnsimeFile(s"$src!/java/lang/String.java").readStringDirect().contains("-6849794470754667710L") shouldBe true
+  }
+
+  "LegacyArchiveExtraction" should "extract zips" in withTempDir { dir =>
+    val extractor = new LegacyArchiveExtraction(dir.toPath)
+    val extracted = dir.toPath / "dep-src/source-jars/java/lang/String.java"
+
+    extractor.write(EnsimeFile(s"$src!/java/lang/String.java")) shouldBe RawFile(extracted)
+
+    extracted.toFile should be a 'exists
+
+    assert(extracted.toFile.length > 0)
   }
 
 }

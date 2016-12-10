@@ -11,7 +11,6 @@ import scala.reflect.internal.util.{ BatchSourceFile, OffsetPosition }
 import scala.tools.nsc.Settings
 import scala.tools.nsc.reporters.StoreReporter
 import scala.util.Properties
-
 import ReallyRichPresentationCompilerFixture._
 import org.ensime.api._
 import org.ensime.fixture._
@@ -21,6 +20,9 @@ import org.ensime.util.EnsimeSpec
 import org.ensime.util.file._
 import org.ensime.vfs.EnsimeVFS
 
+import org.scalatest.tags.Slow
+
+@Slow
 class RichPresentationCompilerThatNeedsJavaLibsSpec extends EnsimeSpec
     with IsolatedRichPresentationCompilerFixture
     with RichPresentationCompilerTestUtils
@@ -41,7 +43,10 @@ class RichPresentationCompilerThatNeedsJavaLibsSpec extends EnsimeSpec
           val sym = cc.askSymbolInfoAt(p).get
           inside(sym.declPos) {
             case Some(LineSourcePosition(f, i)) =>
-              f.parts should contain("File.java")
+              f match {
+                case rf @ RawFile(_) => rf.file.toFile.parts should contain("File.java")
+                case af @ ArchiveFile(_, _) =>
+              }
               i should be > 0
           }
         }
@@ -85,7 +90,10 @@ class RichPresentationCompilerSpec extends EnsimeSpec
           val sym = cc.askSymbolInfoAt(p).get
           inside(sym.declPos) {
             case Some(OffsetSourcePosition(f, i)) =>
-              f.parts should contain("Int.scala")
+              f match {
+                case rf @ RawFile(_) => rf.file.toFile.parts should contain("Int.scala")
+                case af @ ArchiveFile(_, _) =>
+              }
               i should be > 0
           }
         }
@@ -181,7 +189,10 @@ class RichPresentationCompilerSpec extends EnsimeSpec
     "object B { val x = A.@@ "
   ) { (p, cc) =>
       val result = cc.completionsAt(p, 10, caseSens = false)
-      forAtLeast(1, result.completions) { _.name shouldBe "aMethod" }
+      forAtLeast(1, result.completions) { x =>
+        x.name shouldBe "aMethod"
+        x.isInfix shouldBe false
+      }
     }
 
   it should "not try to complete the declaration containing point" in withPosInCompiledSource(
@@ -208,6 +219,86 @@ class RichPresentationCompilerSpec extends EnsimeSpec
   ) { (p, cc) =>
       val result = cc.completionsAt(p, 10, caseSens = false)
       forAtLeast(1, result.completions) { _.name shouldBe "Abc" }
+    }
+
+  it should "make infix a method with less than 4 letters/numbers name and one parameter" in withPosInCompiledSource(
+    "package com.example",
+    "object Abc { def or2(a: Int) = a }",
+    "object B { val x = Abc; x.@@ }"
+  ) { (p, cc) =>
+      val result = cc.completionsAt(p, 10, caseSens = false)
+      forAtLeast(1, result.completions) { x =>
+        x.name shouldBe "or2"
+        x.isInfix shouldBe true
+      }
+    }
+
+  it should "make infix a method with only symbols in the name and arity 1" in withPosInCompiledSource(
+    "package com.example",
+    "object Abc { def <+-+>(a: Int) = a }",
+    "object B { val x = Abc; x.@@ }"
+  ) { (p, cc) =>
+      val result = cc.completionsAt(p, 10, caseSens = false)
+      forAtLeast(1, result.completions) { x =>
+        x.name shouldBe "<+-+>"
+        x.isInfix shouldBe true
+      }
+    }
+
+  it should "make infix a method with two parameters set if the first is arity 1 and the second implicit" in withPosInCompiledSource(
+    "package com.example",
+    "object Abc { val a = List().@@ }"
+  ) { (p, cc) =>
+      val result = cc.completionsAt(p, 100, caseSens = false)
+      forAll(result.completions) { x =>
+        if (x.name == "++:") x.isInfix shouldBe true
+      }
+    }
+
+  it should "not make infix a method with more than one parameter set" in withPosInCompiledSource(
+    "package com.example",
+    "object Abc { def ~>(a: Int)(b: Int) = a }",
+    "object B { val x = Abc; x.@@ }"
+  ) { (p, cc) =>
+      val result = cc.completionsAt(p, 10, caseSens = false)
+      forExactly(1, result.completions) { x =>
+        x.name shouldBe "~>"
+        x.isInfix shouldBe false
+      }
+    }
+
+  it should "not make infix a method with less than 4 characters name and not exactly one parameter" in withPosInCompiledSource(
+    "package com.example",
+    "object Abc { def >~>(a: Int, b: Int) = a; def >~>() = 1 }",
+    "object B { val x = Abc; x.@@ }"
+  ) { (p, cc) =>
+      val result = cc.completionsAt(p, 10, caseSens = false)
+      forExactly(2, result.completions) { x =>
+        x.name shouldBe ">~>"
+        x.isInfix shouldBe false
+      }
+    }
+
+  it should "not make infix a method 'map'" in withPosInCompiledSource(
+    "package com.example",
+    "object Abc { val a = List().@@ }"
+  ) { (p, cc) =>
+      val result = cc.completionsAt(p, 100, caseSens = false)
+      forAll(result.completions) { x =>
+        if (x.name == "map") x.isInfix shouldBe false
+      }
+    }
+
+  it should "not make infix a method with a single implicit parameter" in withPosInCompiledSource(
+    "package com.example",
+    "object Abc { def ~>(implicit b: Int) = b }",
+    "object B { val x = Abc; x.@@ }"
+  ) { (p, cc) =>
+      val result = cc.completionsAt(p, 100, caseSens = false)
+      forExactly(1, result.completions) { x =>
+        x.name shouldBe "~>"
+        x.isInfix shouldBe false
+      }
     }
 
   it should "get members for infix method call" in withPosInCompiledSource(
@@ -433,7 +524,7 @@ class RichPresentationCompilerSpec extends EnsimeSpec
     )
 
     cc.search.refreshResolver()
-    Await.result(cc.search.refresh(), 180.seconds)
+    Await.result(cc.search.refresh(), 300.seconds)
 
     val scalaVersion = scala.util.Properties.versionNumberString
     val parts = scalaVersion.split("\\.").take(2).map { _.toInt }

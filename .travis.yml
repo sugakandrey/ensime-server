@@ -9,7 +9,7 @@ script:
   - export JAVA_HOME=$(/usr/libexec/java_home)
   - curl https://raw.githubusercontent.com/paulp/sbt-extras/master/sbt -o sbt ; chmod 755 sbt
   - ./sbt ";ensimeConfig ;test:compile ;it:compile"
-  - ./sbt ";test ;it:test"
+  - ./sbt ";test ;it:test-only * -- -oD -l org.scalatest.tags.Slow -l org.scalatest.tagobjects.Slow"
   - rm -rf $HOME/.coursier/cache/v1/https/oss.sonatype.org
 cache:
   directories:

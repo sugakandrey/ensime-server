@@ -19,6 +19,6 @@
   <root level="INFO">
     <appender-ref ref="file" />
   </root>
-  <!-- <logger name="org.ensime" level="DEBUG" /> -->
-  <!-- <logger name="akka" level="DEBUG" /> -->
+  <logger name="org.ensime" level="DEBUG" />
+  <logger name="akka" level="DEBUG" />
 </configuration>

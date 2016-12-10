@@ -3,17 +3,17 @@
 package org.ensime.core.debug
 
 import java.io.File
-
-import org.ensime.util.EnsimeSpec
-import org.scalamock.scalatest.MockFactory
-import org.scalatest.OneInstancePerTest
 import java.io.File.{ separator => sep }
-
-import org.ensime.api.LineSourcePosition
-import org.scaladebugger.api.profiles.traits.info.LocationInfoProfile
 
 import scala.collection.mutable
 import scala.util.Success
+
+import org.ensime.api._
+import org.ensime.util.EnsimeSpec
+import org.ensime.util.ensimefile._
+import org.scaladebugger.api.profiles.traits.info.LocationInfoProfile
+import org.scalamock.scalatest.MockFactory
+import org.scalatest.OneInstancePerTest
 
 class SourceMapSpec extends EnsimeSpec with OneInstancePerTest with MockFactory {
   private val testRoots = Seq(
@@ -46,7 +46,7 @@ class SourceMapSpec extends EnsimeSpec with OneInstancePerTest with MockFactory 
     (mockLocationInfo.lineNumber _).expects().returning(lineNumber).once()
 
     sourceMap.newLineSourcePosition(mockLocationInfo) should
-      contain(LineSourcePosition(testSources.head, lineNumber))
+      contain(LineSourcePosition(EnsimeFile(testSources.head), lineNumber))
   }
 
   it should "use the source path of a location to find the associated local file" in {
@@ -55,7 +55,7 @@ class SourceMapSpec extends EnsimeSpec with OneInstancePerTest with MockFactory 
     (mockLocationInfo.trySourcePath _).expects()
       .returning(Success(testSources.head.getPath)).once()
 
-    sourceMap.findFileByLocation(mockLocationInfo) should contain(testSources.head)
+    sourceMap.findFileByLocation(mockLocationInfo) should contain(EnsimeFile(testSources.head))
   }
 
   it should "be able to return all matching sources whose file name match the provided" in {

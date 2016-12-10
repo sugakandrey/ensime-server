@@ -4,9 +4,10 @@ package org.ensime.core.javac
 
 import akka.event.slf4j.SLF4JLogging
 import com.sun.source.util.TreePath
-import java.io.File
 import javax.lang.model.element.Element
+
 import org.ensime.api._
+import org.ensime.util.ensimefile._
 import org.ensime.model.LineSourcePositionHelper
 import org.ensime.vfs._
 import org.ensime.indexer.SearchService
@@ -28,7 +29,7 @@ trait JavaSourceFinding extends Helpers with SLF4JLogging {
     // is easy
     Option(c.trees.getPath(el)).map { path =>
       OffsetSourcePosition(
-        new File(path.getCompilationUnit.getSourceFile.getName),
+        EnsimeFile(path.getCompilationUnit.getSourceFile.getName),
         c.trees.getSourcePositions
           .getStartPosition(path.getCompilationUnit, path.getLeaf).toInt
       )
@@ -46,7 +47,7 @@ trait JavaSourceFinding extends Helpers with SLF4JLogging {
     if (log.isTraceEnabled())
       log.trace(s"search: '$query' = $hit")
     hit.flatMap(LineSourcePositionHelper.fromFqnSymbol(_)(config, vfs)).flatMap { sourcePos =>
-      if (sourcePos.file.getName.endsWith(".java") && sourcePos.file.exists)
+      if (sourcePos.file.isJava && sourcePos.file.exists())
         javaFqn.flatMap(askLinkPos(_, SourceFileInfo(sourcePos.file, None, None))).orElse(Some(sourcePos))
       else
         Some(sourcePos)

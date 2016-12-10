@@ -14,8 +14,8 @@ import scala.collection.immutable.ListSet
 import scala.concurrent.duration._
 import scala.util.Properties._
 import scala.util._
-import org.ensime.util.file._
 import org.ensime.util.FileUtils
+import org.ensime.util.ensimefile._
 
 final case class ShutdownRequest(reason: String, isError: Boolean = false)
 
@@ -39,6 +39,9 @@ class Project(
   private var indexer: ActorRef = _
   private var docs: ActorRef = _
 
+  // LEGACY: holds messages until clients expect them
+  var delayedBroadcaster: ActorRef = _
+
   // vfs, resolver, search and watchers are considered "reliable" (hah!)
   private implicit val vfs: EnsimeVFS = EnsimeVFS()
   private val resolver = new SourceResolver(config)
@@ -55,22 +58,29 @@ class Project(
 
   def receive: Receive = awaitingConnectionInfoReq
 
+  // The original ensime protocol won't send any messages to the
+  // client until it has obliged a request for the connection info.
+  // Although this is irrelevant now, it is expected by clients and
+  // must be maintained. Ideally we'd remove this request and make
+  // the response be an async message.
   def awaitingConnectionInfoReq: Receive = withLabel("awaitingConnectionInfoReq") {
     case ConnectionInfoReq =>
       sender() ! ConnectionInfo()
       context.become(handleRequests)
-      init()
       unstashAll()
+      delayedBroadcaster ! FloodGate.Activate
     case other =>
       stash()
   }
 
-  private def init(): Unit = {
+  override def preStart(): Unit = {
+    delayedBroadcaster = system.actorOf(FloodGate(broadcaster), "delay")
+
     searchService.refresh().onComplete {
       case Success((deletes, inserts)) =>
         // legacy clients expect to see IndexerReady on connection.
         // we could also just blindly send this on each connection.
-        broadcaster ! Broadcaster.Persist(IndexerReadyEvent)
+        delayedBroadcaster ! Broadcaster.Persist(IndexerReadyEvent)
         log.debug(s"created $inserts and removed $deletes searchable rows")
         if (propOrFalse("ensime.exitAfterIndex"))
           context.parent ! ShutdownRequest("Index only run", isError = false)
@@ -78,6 +88,7 @@ class Project(
         log.warning(s"Refresh failed: ${problem.toString}")
         throw problem
     }(context.dispatcher)
+
     indexer = context.actorOf(Indexer(searchService), "indexer")
     if (config.scalaLibrary.isDefined || Set("scala", "dotty")(config.name)) {
 
@@ -87,9 +98,9 @@ class Project(
         var senders = ListSet.empty[ActorRef]
         def receive: Receive = {
           case Broadcaster.Persist(AnalyzerReadyEvent) if senders.size == 1 =>
-            broadcaster ! Broadcaster.Persist(AnalyzerReadyEvent)
+            delayedBroadcaster ! Broadcaster.Persist(AnalyzerReadyEvent)
           case Broadcaster.Persist(AnalyzerReadyEvent) => senders += sender()
-          case msg => broadcaster forward msg
+          case msg => delayedBroadcaster forward msg
         }
       }))
 
@@ -98,9 +109,9 @@ class Project(
     } else {
       log.warning("Detected a pure Java project. Scala queries are not available.")
       scalac = system.deadLetters
-      javac = context.actorOf(JavaAnalyzer(broadcaster, indexer, searchService), "javac")
+      javac = context.actorOf(JavaAnalyzer(delayedBroadcaster, indexer, searchService), "javac")
     }
-    debugger = context.actorOf(DebugActor.props(broadcaster), "debugging")
+    debugger = context.actorOf(DebugActor.props(delayedBroadcaster), "debugging")
     docs = context.actorOf(DocResolver(), "docs")
   }
 
