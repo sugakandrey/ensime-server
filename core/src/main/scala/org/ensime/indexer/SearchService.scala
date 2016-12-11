@@ -31,7 +31,7 @@ class SearchService(
 )(
     implicit
     actorSystem: ActorSystem,
-    vfs: EnsimeVFS
+    val vfs: EnsimeVFS
 ) extends FileChangeListener with SLF4JLogging {
   import SearchService._
 
@@ -40,8 +40,6 @@ class SearchService(
   private[indexer] def isUserFile(file: FileName): Boolean = allTargets.exists(file isAncestor _.getName)
 
   private val QUERY_TIMEOUT = 30 seconds
-
-  private[indexer] val ensimeVfs = vfs
 
   /**
    * Changelog:
@@ -461,8 +459,6 @@ class IndexingQueueActor(searchService: SearchService) extends Actor with ActorL
   // the URI because FileObject doesn't implement equals
   private val todo = new m.HashMap[FileName, m.Set[FileObject]] with m.MultiMap[FileName, FileObject]
 
-  private val vfs = searchService.ensimeVfs
-
   // debounce and give us a chance to batch (which is *much* faster)
   private var worker: Cancellable = _
 
@@ -508,7 +504,7 @@ class IndexingQueueActor(searchService: SearchService) extends Actor with ActorL
               searchService.semaphore.acquire() // nasty, but otherwise we leak
               outerClassFile -> Nil
             }
-          } else searchService.extractSymbolsFromClassOrJar(vfs.vfile(outerClassFile.getURI), batch).map(outerClassFile -> )
+          } else searchService.extractSymbolsFromClassOrJar(searchService.vfs.vfile(outerClassFile.getURI), batch).map(outerClassFile -> )
       }).onComplete {
         case Failure(t) =>
           searchService.semaphore.release()
