@@ -8,7 +8,6 @@ build:
     - AKKA_TEST_TIMEFACTOR=10
     - SBT_TASK_LIMIT=6
     - COURSIER_MODE=update-local-changing,missing
-    - ENSIME_JVM_TEST_FLAGS=-XX:MaxDirectMemorySize=4g
   commands:
     - if $(git grep -qE "TODO|FIXME" -- `git ls-files | grep -v .drone.yml`) ; then
         echo "Please remove TODO or FIXME. Create an issue at GitHub instead." ;
