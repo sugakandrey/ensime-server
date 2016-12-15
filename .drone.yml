@@ -4,7 +4,6 @@ build:
   environment:
     - SONATYPE_USERNAME=$$SONATYPE_USERNAME
     - SONATYPE_PASSWORD=$$SONATYPE_PASSWORD
-    - ENSIME_SERVER_VERSION=2.0.0-SNAPSHOT
     - AKKA_TEST_TIMEFACTOR=10
     - SBT_TASK_LIMIT=6
     - COURSIER_MODE=update-local-changing,missing
@@ -15,19 +14,18 @@ build:
       fi
     - git log | head -n 20
     - host `curl -s http://httpbin.org/ip | jq -r '.origin'` || true ;
-    - sbt ++$SCALA_VERSION ensimeConfig ;
-      sbt ++$SCALA_VERSION ";createHeaders ;test:createHeaders ;it:createHeaders ;test:compile ;it:compile ;doc";
+    - sbt ++$SCALA_VERSION ensimeConfig ";createHeaders ;test:createHeaders ;it:createHeaders ;test:compile ;it:compile ;doc ;ensime/assembly";
       if $(! git diff --exit-code --quiet) ; then
         echo "Code formatting does not meet the project's standards:" ;
         git --no-pager diff ;
         exit 1 ;
       fi
-    - sbt ++$SCALA_VERSION ";test ;it:test"
+    - sbt ++$SCALA_VERSION ";test ;it:test" ;
     - if [ "${SCALA_VERSION}" = "2.11.8" ] ; then
-        sbt ++$SCALA_VERSION publishLocal ;
         git clone --depth 1 https://github.com/ensime/ensime-emacs.git ensime-emacs ;
-        cd ensime-emacs ;
-        cd test/example ; sbt ensimeConfig ; cd ../.. ;
+        cd ensime-emacs/test/example ;
+        echo 'ensimeServerJars := List(file("../../../target/scala-2.11/ensime_2.11-2.0.0-SNAPSHOT-assembly.jar"))' > ensime.sbt ;
+        sbt ensimeConfig ; cd ../.. ;
         cask pkg-file ;
         cask install ;
         cask package ;
@@ -39,7 +37,6 @@ build:
     - if [ -z "$CI_PULL_REQUEST" ] ; then
         sbt ++$SCALA_VERSION publish ;
       fi
-    - sbt ++$SCALA_VERSION ensime/assembly ;
 
 matrix:
   SCALA_VERSION:

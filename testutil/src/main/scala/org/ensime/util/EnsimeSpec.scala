@@ -46,15 +46,21 @@ trait EnsimeSpec extends FlatSpec
       override def run(): Unit = {
         println(s"${self.getClass} is still running!")
         Thread.getAllStackTraces.asScala.foreach {
+          case (thread, stacks) if stacks == null || stacks.isEmpty =>
           case (thread, stacks) =>
-            println(thread.getName)
-            stacks.foreach { stack =>
-              println(s"\tat $stack")
+            val current = stacks(0).toString
+            if (thread.isAlive()
+              && !current.startsWith("sun.misc.Unsafe.park")
+              && !current.startsWith("java.lang.Object.wait")) {
+              println(thread)
+              stacks.foreach { stack =>
+                println(s"    at $stack")
+              }
             }
         }
       }
     },
-    600000L // 5 mins
+    600000L // 10 mins
   )
 
   private val akkaTimeout: Duration = ConfigFactory.load().getDuration("akka.test.default-timeout", TimeUnit.MILLISECONDS).milliseconds
