@@ -4,6 +4,7 @@ package org.ensime.indexer
 
 import org.ensime.api.DeclaredAs
 import scala.collection.immutable.Queue
+import scala.collection.Set
 
 import org.objectweb.asm.Opcodes._
 
