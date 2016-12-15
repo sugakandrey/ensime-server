@@ -25,7 +25,7 @@ object ProjectPlugin extends AutoPlugin {
   override def buildSettings = Seq(
     scalaVersion := "2.11.8",
     organization := "org.ensime",
-    version := "2.0.0-graph-SNAPSHOT",
+    version := "2.0.0-SNAPSHOT",
 
     // WORKAROUND: https://github.com/fommil/sbt-sensible/issues/6
     crossPaths := true,
