@@ -20,7 +20,7 @@ build:
         git --no-pager diff ;
         exit 1 ;
       fi
-    - sbt ++$SCALA_VERSION ";test ;it:test" ;
+    - sbt ++$SCALA_VERSION ";test-only * -- -l org.ensime.util.IgnoreOnDrone ;it:test-only * -- -l org.ensime.util.IgnoreOnDrone" ;
     - if [ "${SCALA_VERSION}" = "2.11.8" ] ; then
         git clone --depth 1 https://github.com/ensime/ensime-emacs.git ensime-emacs ;
         cd ensime-emacs/test/example ;

@@ -24,7 +24,7 @@ install:
 build_script:
   - sbt ";ensimeConfig ;test:compile ;it:compile"
 test_script:
-  - sbt ";test ;it:test"
+  - sbt ";test-only * -- -l org.ensime.util.IgnoreOnAppVeyor ;it:test-only * -- -l org.ensime.util.IgnoreOnAppVeyor"
 cache:
   - C:\Program Files\Java\jdk1.8.0\src.zip
   - C:\sbt\sbt-launcher-packaging-0.13.13
