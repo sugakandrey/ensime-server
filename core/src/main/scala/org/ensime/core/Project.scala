@@ -64,6 +64,7 @@ class Project(
   // must be maintained. Ideally we'd remove this request and make
   // the response be an async message.
   def awaitingConnectionInfoReq: Receive = withLabel("awaitingConnectionInfoReq") {
+    case ShutdownRequest => context.parent forward ShutdownRequest
     case ConnectionInfoReq =>
       sender() ! ConnectionInfo()
       context.become(handleRequests)
@@ -126,6 +127,7 @@ class Project(
   private var rechecking: Cancellable = _
 
   def handleRequests: Receive = withLabel("handleRequests") {
+    case ShutdownRequest => context.parent forward ShutdownRequest
     case AskReTypecheck =>
       Option(rechecking).foreach(_.cancel())
       rechecking = system.scheduler.scheduleOnce(

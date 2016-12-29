@@ -3,7 +3,7 @@
     <resetJUL>true</resetJUL>
   </contextListener>
   <appender name="file" class="ch.qos.logback.core.FileAppender">
-    <file>test.log</file>
+    <file>${sbt.sensible.root}/${sbt.sensible.name}-test.log</file>
     <if condition='isNull("CI")'>
       <then>
         <append>false</append>

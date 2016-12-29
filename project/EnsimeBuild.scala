@@ -27,6 +27,8 @@ object ProjectPlugin extends AutoPlugin {
     organization := "org.ensime",
     version := "2.0.0-SNAPSHOT",
 
+    ensimeIgnoreMissingDirectories := true,
+
     sonatypeGithub := ("ensime", "ensime-server"),
     licenses := Seq(GPL3),
     startYear := Some(2010)
@@ -170,8 +172,8 @@ object EnsimeBuild {
         "com.typesafe.akka" %% "akka-slf4j" % akkaVersion.value,
         scalaBinaryVersion.value match {
           // see notes in https://github.com/ensime/ensime-server/pull/1446
-          case "2.10" => "org.scala-refactoring" % "org.scala-refactoring.library_2.10.6" % "0.11.0-rc2"
-          case "2.11" => "org.scala-refactoring" % "org.scala-refactoring.library_2.11.8" % "0.11.0-rc2"
+          case "2.10" => "org.scala-refactoring" % "org.scala-refactoring.library_2.10.6" % "0.11.0"
+          case "2.11" => "org.scala-refactoring" % "org.scala-refactoring.library_2.11.8" % "0.11.0"
         },
         "commons-lang" % "commons-lang" % "2.6",
         "com.googlecode.java-diff-utils" % "diffutils" % "1.3.0",
@@ -239,7 +241,7 @@ object EnsimeBuild {
 
   private def akkaVersion: Def.Initialize[String] = Def.setting {
     CrossVersion.partialVersion(scalaVersion.value) match {
-      case Some((2, minor)) if minor >= 11 => "2.4.14"
+      case Some((2, minor)) if minor >= 11 => "2.4.16"
       case _ => "2.3.16"
     }
   }

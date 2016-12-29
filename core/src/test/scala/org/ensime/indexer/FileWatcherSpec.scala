@@ -2,21 +2,18 @@
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 package org.ensime.indexer
 
+import java.nio.charset.Charset
+
 import scala.concurrent.duration._
 import akka.testkit._
 import com.google.common.io.Files
-import java.nio.charset.Charset
-
 import org.apache.commons.vfs2._
 import org.ensime.fixture._
 import org.ensime.util._
 import org.ensime.util.file._
 import org.ensime.util.fileobject._
 import org.ensime.vfs._
-import org.scalatest._
 import org.scalatest.tagobjects.Retryable
-import org.scalatest.concurrent.TimeLimitedTests
-import org.scalatest.time.Span
 
 sealed trait FileWatcherMessage
 final case class Added(f: FileObject) extends FileWatcherMessage
@@ -30,12 +27,13 @@ final case class BaseRegistered() extends FileWatcherMessage
  * These tests are insanely flakey so everything is retryable. The
  * fundamental problem is that file watching is impossible without
  * true OS and FS support, which is lacking on all major platforms.
+ *
+ * NOTE: if you're making local edits to this file, try adding "with
+ *       ParallelTestExecution". It's not used by default, only to
+ *       reduce the load on the pathetic CI machines.
  */
 class FileWatcherSpec extends EnsimeSpec
-    with ParallelTestExecution
-    with IsolatedTestKitFixture with IsolatedEnsimeVFSFixture with TimeLimitedTests {
-
-  override def timeLimit: Span = 1 minutes
+    with IsolatedTestKitFixture with IsolatedEnsimeVFSFixture {
 
   implicit val DefaultCharset: Charset = Charset.defaultCharset()
 

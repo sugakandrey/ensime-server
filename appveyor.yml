@@ -24,7 +24,8 @@ install:
 build_script:
   - sbt ";ensimeConfig ;test:compile ;it:compile"
 test_script:
-  - sbt ";test ;it:test"
+  - sbt "testOnly -- -l IgnoreOnAppVeyor"
+  - sbt "it:testOnly -- -l IgnoreOnAppVeyor"
 cache:
   - C:\Program Files\Java\jdk1.8.0\src.zip
   - C:\sbt\sbt-launcher-packaging-0.13.13

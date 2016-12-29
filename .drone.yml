@@ -1,59 +1,37 @@
-build:
-  image: ensime/ensime:v2.x-cache
-  pull: true
-  environment:
-    - SONATYPE_USERNAME=$$SONATYPE_USERNAME
-    - SONATYPE_PASSWORD=$$SONATYPE_PASSWORD
-    - AKKA_TEST_TIMEFACTOR=10
-    - SBT_TASK_LIMIT=6
-    - COURSIER_MODE=update-local-changing,missing
-  commands:
-    - if $(git grep -qE "TODO|FIXME" -- `git ls-files | grep -v .drone.yml`) ; then
-        echo "Please remove TODO or FIXME. Create an issue at GitHub instead." ;
-        exit 1 ;
-      fi
-    - git log | head -n 20
-    - host `curl -s http://httpbin.org/ip | jq -r '.origin'` || true ;
-    - sbt ++$SCALA_VERSION ensimeConfig ";createHeaders ;test:createHeaders ;it:createHeaders ;test:compile ;it:compile ;doc ;ensime/assembly";
-      if $(! git diff --exit-code --quiet) ; then
-        echo "Code formatting does not meet the project's standards:" ;
-        git --no-pager diff ;
-        exit 1 ;
-      fi
-    - sbt ++$SCALA_VERSION ";test ;it:test" ;
-    - if [ "${SCALA_VERSION}" = "2.11.8" ] ; then
-        git clone --depth 1 https://github.com/ensime/ensime-emacs.git ensime-emacs ;
-        cd ensime-emacs/test/example ;
-        echo 'ensimeServerJars := List(file("../../../target/scala-2.11/ensime_2.11-2.0.0-SNAPSHOT-assembly.jar"))' > ensime.sbt ;
-        sbt ensimeConfig ; cd ../.. ;
-        cask pkg-file ;
-        cask install ;
-        cask package ;
-        export JVM_OPTS="-Xss2m -Xms500m -Xmx500m";
-        test/run_emacs_tests.sh || test/run_emacs_tests.sh;
-        cd $CI_BUILD_DIR ;
-        unset JVM_OPTS ;
-      fi
-    - if [ -z "$CI_PULL_REQUEST" ] ; then
-        sbt ++$SCALA_VERSION publish ;
-      fi
+pipeline:
+  build:
+    image: ensime/ensime:v2.x-cache
+    pull: true
+    environment:
+      - AKKA_TEST_TIMEFACTOR=10
+    commands:
+      - host `curl -s http://httpbin.org/ip | jq -r '.origin'` || true ;
+      - git log | head -n 20 ; git fetch -q --tags
+      - if $(git grep -qE "TODO|FIXME" *) ; then
+          echo "Please remove TODO or FIXME. Create an issue at GitHub instead." ;
+          exit 1 ;
+        fi
+      - sbt ++$SCALA_VERSION ensimeConfig ";createHeaders ;test:createHeaders ;it:createHeaders ;test:compile ;it:compile ;doc ;ensime/assembly";
+        if $(! git diff --exit-code --quiet) ; then
+          echo "Code formatting does not meet the project's standards:" ;
+          git --no-pager diff ;
+          exit 1 ;
+        fi
+      - sbt ++$SCALA_VERSION "testOnly -- -l IgnoreOnDrone" ;
+      - sbt ++$SCALA_VERSION "it:testOnly -- -l IgnoreOnDrone" ;
+      - if [ -z "$DRONE_PULL_REQUEST" ] ; then
+          sbt ++$SCALA_VERSION publish ;
+        fi
+      - if [ -z "$DRONE_PULL_REQUEST" ] ; then
+          mkdir ~/.ssh ; chmod 700 ~/.ssh ;
+          echo "$SSH_KEY" > ~/.ssh/id_rsa ; chmod 600 ~/.ssh/id_rsa ;
+          scp -o StrictHostKeyChecking=no target/*/*-assembly.jar typelevel@ensime.typelevel.org:ensime.typelevel.org/ ;
+        fi
+      - if [ -z "$DRONE_PULL_REQUEST" ] && [ "$SCALA_VERSION" = "2.11.8" ] ; then
+          curl -H 'Content-Type:application/json' --data '{"docker_tag":"v2.x-cache"}' -X POST "https://registry.hub.docker.com/u/ensime/ensime/trigger/${DOCKER_TRIGGER_TOKEN}/" ;
+        fi
 
 matrix:
   SCALA_VERSION:
     - 2.11.8
     - 2.10.6
-
-deploy:
-  dockerhub:
-    token: $$DOCKER_TRIGGER_TOKEN
-    repo: ensime/ensime
-    when:
-      matrix:
-        SCALA_VERSION: 2.11.8
-  sftp:
-    host: ensime.typelevel.org
-    username: typelevel
-    destination_path: ensime.typelevel.org/
-    files:
-      - target/scala-2.10/*-assembly.jar
-      - target/scala-2.11/*-assembly.jar

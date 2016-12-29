@@ -23,8 +23,12 @@ abstract class Watcher(val watcherId: UUID, val file: File, val listeners: Set[W
   def watch(): Unit =
     fileWatchService.watch(file, listeners, false)
 
-  def shutdown() =
+  def shutdown(): Unit = {
     fileWatchService.WatchKeyManager.removeObservers(watcherId)
+    fileWatchService.monitorThread.foreach { thread =>
+      thread.interrupt()
+    }
+  }
 }
 
 trait WatcherListener {
@@ -62,7 +66,7 @@ class FileWatchService { self =>
   /**
    * The low priority thread used for checking the files being monitored.
    */
-  @volatile private var monitorThread: Option[Thread] = None
+  @volatile private[filewatcher] var monitorThread: Option[Thread] = None
 
   /**
    * A flag used to determine if the monitor thread should be running.
@@ -96,13 +100,18 @@ class FileWatchService { self =>
     monitorThread match {
       case Some(t) => log.warn(s"monitoring thread is already started")
       case None => {
-        monitorThread =
-          Some(
-            new Thread(new Runnable {
-              override def run(): Unit = monitor()
-            })
-          )
-        monitorThread.get.start()
+        val thread = new Thread(
+          new Runnable {
+            override def run(): Unit =
+              try monitor()
+              catch {
+                case i: InterruptedException => // silently ignore
+              }
+          }
+        )
+        thread.setName("FileWatchService-monitor")
+        thread.start()
+        monitorThread = Some(thread)
       }
     }
   }

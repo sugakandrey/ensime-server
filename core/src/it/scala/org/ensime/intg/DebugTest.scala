@@ -32,7 +32,7 @@ class DebugTest extends EnsimeSpec
     javaLibs = Nil // no need to index the JRE
   )
 
-  "Debug - stepping" should "be able to step over/in/out" taggedAs Debugger in withEnsimeConfig { implicit config =>
+  "Debug - stepping" should "be able to step over/in/out" in withEnsimeConfig { implicit config =>
     withTestKit { implicit testkit =>
       withProject { (project, asyncHelper) =>
         implicit val p = (project, asyncHelper)
@@ -63,7 +63,7 @@ class DebugTest extends EnsimeSpec
     }
   }
 
-  "Breakpoints" should "trigger/continue" taggedAs Debugger in withEnsimeConfig { implicit config =>
+  "Breakpoints" should "trigger/continue" in withEnsimeConfig { implicit config =>
     withTestKit { implicit testkit =>
       withProject { (project, asyncHelper) =>
         implicit val p = (project, asyncHelper)
@@ -137,7 +137,7 @@ class DebugTest extends EnsimeSpec
     }
   }
 
-  it should "list/clear" taggedAs Debugger in withEnsimeConfig { implicit config =>
+  it should "list/clear" in withEnsimeConfig { implicit config =>
     withTestKit { implicit testkit =>
       withProject { (project, asyncHelper) =>
         implicit val p = (project, asyncHelper)
@@ -182,7 +182,7 @@ class DebugTest extends EnsimeSpec
     }
   }
 
-  "Debug variables" should "inspect variables" taggedAs Debugger in withEnsimeConfig { implicit config =>
+  "Debug variables" should "inspect variables" in withEnsimeConfig { implicit config =>
     withTestKit { implicit testkit =>
       withProject { (project, asyncHelper) =>
         implicit val p = (project, asyncHelper)
@@ -260,7 +260,7 @@ class DebugTest extends EnsimeSpec
     }
   }
 
-  they should "be able to convert variables to string representations" taggedAs Debugger in withEnsimeConfig { implicit config =>
+  they should "be able to convert variables to string representations" in withEnsimeConfig { implicit config =>
     withTestKit { implicit testkit =>
       withProject { (project, asyncHelper) =>
         implicit val p = (project, asyncHelper)
@@ -311,7 +311,7 @@ class DebugTest extends EnsimeSpec
     }
   }
 
-  they should "be retrievable for the BugFromGitter scenario" taggedAs Debugger in withEnsimeConfig { implicit config =>
+  they should "be retrievable for the BugFromGitter scenario" in withEnsimeConfig { implicit config =>
     withTestKit { implicit testkit =>
       withProject { (project, asyncHelper) =>
         implicit val p = (project, asyncHelper)
@@ -338,7 +338,7 @@ class DebugTest extends EnsimeSpec
     }
   }
 
-  they should "set variable values" taggedAs Debugger in withEnsimeConfig { implicit config =>
+  they should "set variable values" in withEnsimeConfig { implicit config =>
     withTestKit { implicit testkit =>
       withProject { (project, asyncHelper) =>
         implicit val p = (project, asyncHelper)
@@ -465,7 +465,7 @@ class DebugTest extends EnsimeSpec
     }
   }
 
-  "Debug backtrace" should "generate backtrace" taggedAs Debugger in withEnsimeConfig { implicit config =>
+  "Debug backtrace" should "generate backtrace" in withEnsimeConfig { implicit config =>
     withTestKit { implicit testkit =>
       withProject { (project, asyncHelper) =>
         implicit val p = (project, asyncHelper)

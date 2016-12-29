@@ -5,8 +5,8 @@ package org.ensime.util
 import java.util.{ Timer, TimerTask }
 import java.util.concurrent.TimeUnit
 
-import scala.concurrent.duration._
 import scala.collection.JavaConverters._
+import scala.concurrent.duration._
 
 import com.typesafe.config.ConfigFactory
 import org.scalactic.TypeCheckedTripleEquals
@@ -16,12 +16,12 @@ import org.scalatest.time._
 import org.slf4j.LoggerFactory
 import org.slf4j.bridge.SLF4JBridgeHandler
 
-/**
- * Indicates a test that requires launching a JVM under debug mode.
- *
- * These are typically very unstable on Windows.
- */
-object Debugger extends Tag("Debugger")
+/** Don't run this test on the AppVeyor CI (Windows) */
+object IgnoreOnAppVeyor extends Tag("IgnoreOnAppVeyor")
+/** Don't run this test on the Drone CI (GNU/Linux) */
+object IgnoreOnDrone extends Tag("IgnoreOnDrone")
+/** Don't run this test on the Travis CI (OS X) */
+object IgnoreOnTravis extends Tag("IgnoreOnTravis")
 
 /**
  * Boilerplate remover and preferred testing style in ENSIME.
@@ -46,7 +46,7 @@ trait EnsimeSpec extends FlatSpec
       override def run(): Unit = {
         println(s"${self.getClass} is still running!")
         Thread.getAllStackTraces.asScala.foreach {
-          case (thread, stacks) if stacks == null || stacks.isEmpty =>
+          case (thread, stacks) if stacks == null || stacks.isEmpty || thread == Thread.currentThread =>
           case (thread, stacks) =>
             val current = stacks(0).toString
             if (thread.isAlive()
