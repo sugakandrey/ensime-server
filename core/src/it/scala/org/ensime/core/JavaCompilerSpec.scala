@@ -8,10 +8,9 @@ import org.ensime.api, api.{ BasicTypeInfo => _, _ }
 import org.ensime.fixture._
 import org.ensime.indexer.SearchServiceTestUtils._
 import org.ensime.model.BasicTypeInfo
-import org.ensime.util.EnsimeSpec
+import org.ensime.util.{ EnsimeSpec, IgnoreOnTravis }
 import org.ensime.indexer._
 import org.scalatest.OptionValues
-import org.scalatest.tagobjects.Slow
 
 class JavaCompilerSpec extends EnsimeSpec with OptionValues
     with IsolatedJavaCompilerFixture {
@@ -75,7 +74,7 @@ class JavaCompilerSpec extends EnsimeSpec with OptionValues
     }
   }
 
-  it should "find symbol at point" taggedAs Slow in withJavaCompiler { (_, config, cc, store, search) =>
+  it should "find symbol at point" taggedAs IgnoreOnTravis in withJavaCompiler { (_, config, cc, store, search) =>
     refresh()(search)
 
     runForPositionInCompiledSource(config, cc,

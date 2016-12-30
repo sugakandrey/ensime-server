@@ -5,13 +5,10 @@ package org.ensime.intg
 import org.ensime.api.{ BasicTypeInfo => _, _ }
 import org.ensime.fixture._
 import org.ensime.model.BasicTypeInfo
-import org.ensime.util.EnsimeSpec
+import org.ensime.util.{ EnsimeSpec, IgnoreOnTravis }
 import org.ensime.util.file._
 
-import org.scalatest.tags.Slow
-
 // a pure java project, checking that how things behave without scala
-@Slow
 class JavaWorkflow extends EnsimeSpec
     with IsolatedEnsimeConfigFixture
     with IsolatedTestKitFixture
@@ -19,7 +16,7 @@ class JavaWorkflow extends EnsimeSpec
 
   val original = EnsimeConfigFixture.JavaTestProject
 
-  "ensime-server" should "open the pure Java test project" in {
+  "ensime-server" should "open the pure Java test project" taggedAs (IgnoreOnTravis) in {
     withEnsimeConfig { implicit config =>
       withTestKit { implicit testkit =>
         withProject { (project, asyncHelper) =>
