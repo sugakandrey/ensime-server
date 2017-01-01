@@ -51,8 +51,8 @@ object EnsimeBuild {
     // disabling shared memory gives a small performance boost to tests
     javaOptions ++= Seq(
       "-XX:+PerfDisableSharedMem",
-      "-Xms512m",
-      "-Xmx512m",
+      "-Xms1g",
+      "-Xmx1g",
       "-XX:MaxDirectMemorySize=4g"
     ),
 
