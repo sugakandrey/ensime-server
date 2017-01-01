@@ -1,4 +1,4 @@
-// Copyright: 2010 - 2016 https://github.com/ensime/ensime-server/graphs
+// Copyright: 2010 - 2017 https://github.com/ensime/ensime-server/graphs
 // License: http://www.apache.org/licenses/LICENSE-2.0
 package org.ensime.api
 
