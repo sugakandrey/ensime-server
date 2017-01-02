@@ -221,7 +221,7 @@ trait RichCompilerControl extends CompilerControl with RefactoringControl with C
       ).getOrElse(List.empty)
     )
 
-  def askNotifyWhenReady(): Unit = ask(setNotifyWhenReady)
+  def askNotifyWhenReady(): Unit = ask(setNotifyWhenReady _)
 
   // WARNING: be really careful when creating BatchSourceFiles. there
   // are multiple constructors which do weird things, best to be very

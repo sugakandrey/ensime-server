@@ -209,11 +209,11 @@ class SearchServiceSpec extends EnsimeSpec
   }
 
   "lucene index" should "not contain duplicates" in withSearchService { implicit service =>
-    import scala.collection.JavaConversions._
+    import scala.collection.JavaConverters._
     val lucene = service.index.lucene
     val terms = List("org", "example", "bar")
     val query = new DisjunctionMaxQuery(
-      terms.map(service.index.buildTermClassMethodQuery), 0f
+      terms.map(service.index.buildTermClassMethodQuery).asJavaCollection, 0f
     )
     val fqns = lucene.search(query, 10).map(_.get("fqn"))
     fqns.distinct should ===(fqns)
