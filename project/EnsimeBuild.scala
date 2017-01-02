@@ -55,7 +55,8 @@ object EnsimeBuild {
       "org.apache.lucene" % "lucene-core" % luceneVersion
     ),
 
-    updateOptions := updateOptions.value.withCachedResolution(true)
+    updateOptions := updateOptions.value.withCachedResolution(true),
+    resolvers += Resolver.sonatypeRepo("snapshots")
   )
 
   lazy val commonItSettings = inConfig(It)(
@@ -170,6 +171,7 @@ object EnsimeBuild {
           // see notes in https://github.com/ensime/ensime-server/pull/1446
           case "2.10" => "org.scala-refactoring" % "org.scala-refactoring.library_2.10.6" % "0.11.0"
           case "2.11" => "org.scala-refactoring" % "org.scala-refactoring.library_2.11.8" % "0.11.0"
+          case "2.12" => "org.scala-refactoring" % "org.scala-refactoring.library_2.12.0" % "0.12.0-SNAPSHOT"
         },
         "commons-lang" % "commons-lang" % "2.6",
         "com.googlecode.java-diff-utils" % "diffutils" % "1.3.0",

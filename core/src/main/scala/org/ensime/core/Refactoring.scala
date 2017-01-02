@@ -3,10 +3,12 @@
 package org.ensime.core
 
 import java.nio.charset.Charset
+
 import org.ensime.api._
 import org.ensime.util.FileUtils._
 import org.ensime.util._
 import org.ensime.util.file.File
+
 import scala.tools.nsc.io.AbstractFile
 import scala.tools.refactoring._
 import scala.tools.refactoring.analysis.GlobalIndexes
@@ -81,7 +83,8 @@ trait RefactoringControl { self: RichCompilerControl with RefactoringImpl =>
 
 }
 
-trait RefactoringImpl { self: RichPresentationCompiler =>
+trait RefactoringImpl extends ScalaRefactoringBackCompat {
+  self: RichPresentationCompiler =>
 
   import org.ensime.util.FileUtils._
 
@@ -91,7 +94,7 @@ trait RefactoringImpl { self: RichPresentationCompiler =>
         val global = RefactoringImpl.this
         val invalidSet = toBeRemoved.synchronized { toBeRemoved.toSet }
         val cuIndexes = this.global.activeUnits().map { u => CompilationUnitIndex(u.body) }
-        val index = GlobalIndex(cuIndexes.toList)
+        val index = GlobalIndex(cuIndexes)
       }
       val result = performRefactoring(procId, tpe, name)
     }.result
@@ -102,7 +105,7 @@ trait RefactoringImpl { self: RichPresentationCompiler =>
       val refactoring = new ExtractMethod with GlobalIndexes {
         val global = RefactoringImpl.this
         val cuIndexes = this.global.activeUnits().map { u => CompilationUnitIndex(u.body) }
-        val index = GlobalIndex(cuIndexes.toList)
+        val index = GlobalIndex(cuIndexes)
       }
       val result = performRefactoring(procId, tpe, name)
     }.result
@@ -113,7 +116,7 @@ trait RefactoringImpl { self: RichPresentationCompiler =>
       val refactoring = new ExtractLocal with GlobalIndexes {
         val global = RefactoringImpl.this
         val cuIndexes = this.global.activeUnits().map { u => CompilationUnitIndex(u.body) }
-        val index = GlobalIndex(cuIndexes.toList)
+        val index = GlobalIndex(cuIndexes)
       }
       val result = performRefactoring(procId, tpe, name)
     }.result
@@ -124,7 +127,7 @@ trait RefactoringImpl { self: RichPresentationCompiler =>
       val refactoring = new InlineLocal with GlobalIndexes {
         val global = RefactoringImpl.this
         val cuIndexes = this.global.activeUnits().map { u => CompilationUnitIndex(u.body) }
-        val index = GlobalIndex(cuIndexes.toList)
+        val index = GlobalIndex(cuIndexes)
       }
       val result = performRefactoring(procId, tpe, new refactoring.RefactoringParameters())
     }.result
@@ -136,12 +139,7 @@ trait RefactoringImpl { self: RichPresentationCompiler =>
       }
 
       val result = performRefactoring(procId, tpe, new refactoring.RefactoringParameters(
-        options = List(
-          refactoring.SortImports,
-          refactoring.SortImportSelectors,
-          refactoring.SimplifyWildcards,
-          refactoring.RemoveDuplicates
-        ),
+        options = organizeImportOptions(refactoring),
         config = Some(OrganizeImports.OrganizeImportsConfig(
           importsStrategy = Some(OrganizeImports.ImportsStrategy.CollapseImports),
           groups = List("java", "scala")

@@ -3,5 +3,5 @@
 package org.ensime.database
 
 object SlickBackCompat {
-  val h2Api = slick.driver.H2Driver.api
+  val h2Api = slick.jdbc.H2Profile.api
 }

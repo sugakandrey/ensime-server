@@ -10,7 +10,7 @@ import org.ensime.api._
 import org.ensime.config._
 import org.ensime.util.ensimefile._
 import org.ensime.util.file._
-import org.scaladebugger.api.profiles.traits.info.LocationInfoProfile
+import org.scaladebugger.api.profiles.traits.info.LocationInfo
 
 import scala.collection.mutable
 
@@ -45,7 +45,7 @@ class SourceMap(
    *         otherwise None
    */
   def newLineSourcePosition(
-    location: LocationInfoProfile
+    location: LocationInfo
   ): Option[LineSourcePosition] = {
     findFileByLocation(location).map(f =>
       LineSourcePosition(f, location.lineNumber))
@@ -57,8 +57,8 @@ class SourceMap(
    * @param location The location whose source file to find
    * @return Some file representing the local source, otherwise None
    */
-  def findFileByLocation(location: LocationInfoProfile): Option[EnsimeFile] =
-    location.trySourcePath.toOption.flatMap(sourceForFilePath).map(EnsimeFile(_))
+  def findFileByLocation(location: LocationInfo): Option[EnsimeFile] =
+    location.trySourcePath.toOption.flatMap(sourceForFilePath).map(EnsimeFile)
 
   /**
    * Retrieves all current Scala sources available through Ensime with the
