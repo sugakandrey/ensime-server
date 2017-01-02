@@ -11,15 +11,15 @@ import akka.event.slf4j.SLF4JLogging
 import com.zaxxer.hikari.HikariDataSource
 import org.apache.commons.vfs2.FileObject
 import org.ensime.api._
+import org.ensime.database.SlickBackCompat.h2Api._
 import org.ensime.indexer.database.DatabaseService._
 import org.ensime.util.file._
 import org.ensime.vfs._
-import slick.driver.H2Driver.api._
 
 class DatabaseService(dir: File) extends SLF4JLogging {
   lazy val (datasource, db) = {
     // MVCC plus connection pooling speeds up the tests ~10%
-    val backend = sys.env.get("ENSIME_EXPERIMENTAL_H2").getOrElse("jdbc:h2:file:")
+    val backend = sys.env.getOrElse("ENSIME_EXPERIMENTAL_H2", "jdbc:h2:file:")
     val url = backend + dir.getAbsolutePath + "/db;MVCC=TRUE"
     val driver = "org.h2.Driver"
 

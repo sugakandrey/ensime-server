@@ -154,7 +154,10 @@ object EnsimeBuild {
       ensimeUnmanagedSourceArchives += (baseDirectory in ThisBuild).value / "openjdk-langtools/openjdk8-langtools-src.zip",
       libraryDependencies ++= Seq(
         "com.h2database" % "h2" % "1.4.193",
-        "com.typesafe.slick" %% "slick" % "3.1.1",
+        "com.typesafe.slick" %% "slick" % (scalaBinaryVersion.value match {
+          case "2.10" => "3.1.1"
+          case "2.11" | "2.12" => "3.2.0-M2"
+        }),
         "com.zaxxer" % "HikariCP" % "2.5.1",
         "org.apache.lucene" % "lucene-core" % luceneVersion,
         "org.apache.lucene" % "lucene-analyzers-common" % luceneVersion,
@@ -170,7 +173,7 @@ object EnsimeBuild {
         },
         "commons-lang" % "commons-lang" % "2.6",
         "com.googlecode.java-diff-utils" % "diffutils" % "1.3.0",
-        "org.scala-debugger" %% "scala-debugger-api" % "1.1.0-M2",
+        "org.scala-debugger" %% "scala-debugger-api" % "1.1.0-M3",
         "org.scalamock" %% "scalamock-scalatest-support" % "3.4.2" % Test
       ) ++ shapeless.value
     ) enablePlugins BuildInfoPlugin settings (
@@ -274,8 +277,8 @@ object EnsimeTestingBuild {
 
   lazy val testingFqns = testingProject("testing/fqns").settings (
     libraryDependencies ++= shapeless.value ++ Seq(
-      "org.typelevel" %% "cats" % "0.6.0" % Test intransitive(),
-      "org.spire-math" %% "spire" % "0.11.0" % Test intransitive()
+      "org.typelevel" %% "cats" % "0.8.1" % Test intransitive(),
+      "org.spire-math" %% "spire" % "0.13.0" % Test intransitive()
     )
   )
 
