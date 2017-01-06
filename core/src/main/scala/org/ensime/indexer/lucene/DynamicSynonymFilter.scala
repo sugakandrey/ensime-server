@@ -47,13 +47,14 @@ class DynamicSynonymFilter(input: TokenStream, engine: SynonymEngine) extends To
   private val termAtt = addAttribute(classOf[CharTermAttribute])
   private val posIncrAtt = addAttribute(classOf[PositionIncrementAttribute])
 
-  private val stack: mutable.Stack[String] = mutable.Stack()
+  private var stack: List[String] = Nil
   private var current: State = _
 
   // return false when EOL
   override def incrementToken(): Boolean = {
     if (stack.nonEmpty) {
-      val synonym = stack.pop()
+      val synonym = stack.head
+      stack = stack.tail
       restoreState(current) // brings us back to the original token in case of multiple synonyms
       termAtt.setEmpty()
       termAtt.append(synonym)
@@ -69,7 +70,7 @@ class DynamicSynonymFilter(input: TokenStream, engine: SynonymEngine) extends To
     if (synonyms.nonEmpty) {
       synonyms foreach { synonym =>
         if (!synonym.equals(term))
-          stack.push(synonym)
+          stack = synonym :: stack
       }
       current = captureState()
     }
