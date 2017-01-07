@@ -457,10 +457,20 @@ class SemanticHighlightingSpec extends EnsimeSpec
           """,
       List(ValFieldSymbol)
     )
-    sds should ===(List(
-      (ValFieldSymbol, "u"),
-      (ValFieldSymbol, "v")
-    ))
+    sds should (
+      // 2.10 & 2.11 case
+      equal(List(
+        (ValFieldSymbol, "u"),
+        (ValFieldSymbol, "v")
+      )) or
+      // 2.12 case
+      equal(List(
+        (ValFieldSymbol, "u"),
+        (ValFieldSymbol, "v"),
+        (ValFieldSymbol, "u"),
+        (ValFieldSymbol, "v")
+      ))
+    )
   }
 
   it should "highlight setter operators" in withPresCompiler { (config, cc) =>

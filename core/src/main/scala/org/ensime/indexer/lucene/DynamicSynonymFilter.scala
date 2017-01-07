@@ -9,8 +9,6 @@ import org.apache.lucene.analysis.tokenattributes.{ CharTermAttribute, PositionI
 import org.apache.lucene.util.AttributeSource.State
 import org.ensime.indexer.lucene.DynamicSynonymFilter._
 
-import scala.collection.mutable
-
 /**
  * `Analyzer` that does no additional (not even lowercasing) other than
  * the term itself and its synonyms.

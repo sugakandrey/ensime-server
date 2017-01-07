@@ -280,7 +280,7 @@ class BasicWorkflow extends EnsimeSpec
               else fail(s"Different diff content than expected. \n Actual content: '$diffContents' \n ExpectedRelevantContent: '$relevantExpectedPart'")
           }
 
-          val oldTree1 = """Apply[1](Select[2](Select[1](Apply[3](TypeApply[4](Select[5](Select[6](This[7](newTypeName("immutable")), scala.collection.immutable.List#MOD%M1), newTermName("apply")#METH%M1), List(TypeTree[1]())), List(Literal[8](Constant(1)), Literal[9](Constant(2)), Literal[10](Constant(3)))), newTermName("head")#METH%M1), newTermName("$plus")#METH%M1), List(Literal[9](Constant(2))))
+          val headAst210 = """Apply[1](Select[2](Select[1](Apply[3](TypeApply[4](Select[5](Select[6](This[7](newTypeName("immutable")), scala.collection.immutable.List#MOD%M1), newTermName("apply")#METH%M1), List(TypeTree[1]())), List(Literal[8](Constant(1)), Literal[9](Constant(2)), Literal[10](Constant(3)))), newTermName("head")#METH%M1), newTermName("$plus")#METH%M1), List(Literal[9](Constant(2))))
                            |[1] TypeRef(ThisType(scala#PK%M1), scala.Int#CLS%M1, List())
                            |[2] MethodType(List(newTermName("x")#VAL%M1), TypeRef(ThisType(scala#PK%M1), scala.Int#CLS%M1, List()))
                            |[3] TypeRef(ThisType(scala.collection.immutable#PK%M1), scala.collection.immutable.List#CLS%M1, List(TypeRef(ThisType(scala#PK%M1), scala.Int#CLS%M1, List())))
@@ -293,7 +293,7 @@ class BasicWorkflow extends EnsimeSpec
                            |[10] ConstantType(Constant(3))
                            |[1] compiler mirror""".stripMargin
 
-          val tree1 = """Apply[1](Select[2](Select[1](Apply[3](TypeApply[4](Select[5](Select[6](This[7](TypeName("immutable")), scala.collection.immutable.List#MOD%M1), TermName("apply")#METH%M1), List(TypeTree[1]())), List(Literal[8](Constant(1)), Literal[9](Constant(2)), Literal[10](Constant(3)))), TermName("head")#METH%M1), TermName("$plus")#METH%M1), List(Literal[9](Constant(2))))
+          val headAst211 = """Apply[1](Select[2](Select[1](Apply[3](TypeApply[4](Select[5](Select[6](This[7](TypeName("immutable")), scala.collection.immutable.List#MOD%M1), TermName("apply")#METH%M1), List(TypeTree[1]())), List(Literal[8](Constant(1)), Literal[9](Constant(2)), Literal[10](Constant(3)))), TermName("head")#METH%M1), TermName("$plus")#METH%M1), List(Literal[9](Constant(2))))
                         |[1] TypeRef(ThisType(scala#PKC%M1), scala.Int#CLS%M1, List())
                         |[2] MethodType(List(TermName("x")#VAL%M1), TypeRef(ThisType(scala#PKC%M1), scala.Int#CLS%M1, List()))
                         |[3] TypeRef(ThisType(scala.collection.immutable#PKC%M1), scala.collection.immutable.List#CLS%M1, List(TypeRef(ThisType(scala#PKC%M1), scala.Int#CLS%M1, List())))
@@ -305,42 +305,70 @@ class BasicWorkflow extends EnsimeSpec
                         |[9] ConstantType(Constant(2))
                         |[10] ConstantType(Constant(3))
                         |[1] compiler mirror""".stripMargin
+
+          val headAst212 = """Apply[1](Select[2](Select[1](Apply[3](TypeApply[4](Select[5](Select[6](Select[7](Select[8](Ident[9](scala#PK%M1), scala.collection#PK%M1), scala.collection.immutable#PK%M1), scala.collection.immutable.List#MOD%M1), TermName("apply")#METH%M1), List(TypeTree[1]())), List(Literal[10](Constant(1)), Literal[11](Constant(2)), Literal[12](Constant(3)))), TermName("head")#METH%M1), TermName("$plus")#METH%M1), List(Literal[11](Constant(2))))
+                        |[1] TypeRef(ThisType(scala#PKC%M1), scala.Int#CLS%M1, List())
+                        |[2] MethodType(List(TermName("x")#VAL%M1), TypeRef(ThisType(scala#PKC%M1), scala.Int#CLS%M1, List()))
+                        |[3] TypeRef(ThisType(scala.collection.immutable#PKC%M1), scala.collection.immutable.List#CLS%M1, List(TypeRef(ThisType(scala#PKC%M1), scala.Int#CLS%M1, List())))
+                        |[4] MethodType(List(TermName("xs")#VAL%M1), TypeRef(ThisType(scala.collection.immutable#PKC%M1), scala.collection.immutable.List#CLS%M1, List(TypeRef(ThisType(scala#PKC%M1), scala.Int#CLS%M1, List()))))
+                        |[5] PolyType(List(TypeName("A")#TPE%M1), MethodType(List(TermName("xs")#VAL%M1), TypeRef(ThisType(scala.collection.immutable#PKC%M1), scala.collection.immutable.List#CLS%M1, List(TypeRef(NoPrefix, TypeName("A")#TPE%M1, List())))))
+                        |[6] SingleType(TypeRef(ThisType(scala.collection#PKC%M1), scala.collection.immutable#PKC%M1, List()), scala.collection.immutable.List#MOD%M1)
+                        |[7] TypeRef(ThisType(scala.collection#PKC%M1), scala.collection.immutable#PKC%M1, List())
+                        |[8] TypeRef(ThisType(scala#PKC%M1), scala.collection#PKC%M1, List())
+                        |[9] TypeRef(ThisType(<root>#PKC%M1), scala#PKC%M1, List())
+                        |[10] ConstantType(Constant(1))
+                        |[11] ConstantType(Constant(2))
+                        |[12] ConstantType(Constant(3))
+                        |[1] compiler mirror""".stripMargin
+
           project ! AstAtPointReq(SourceFileInfo(RawFile(fooFile.toPath)), OffsetRange(475, 496))
           expectMsgPF() {
             case AstInfo(ast) if {
               val stripped = ast.replaceAll("[\n\r]", "")
-              stripped == tree1.replaceAll("[\n\r]", "") || stripped == oldTree1.replaceAll("[\n\r]", "")
+              stripped == headAst211.replaceAll("[\n\r]", "") || stripped == headAst210.replaceAll("[\n\r]", "") || stripped == headAst212.replaceAll("[\n\r]", "")
             } =>
           }
 
-          val oldTree2 = """Apply[11](TypeApply[12](Select[13](Select[14](Select[15](This[16](newTypeName("scala")), scala.Predef#MOD%M1), newTermName("Map")#GET%M1), newTermName("apply")#METH%M1), List(TypeTree[17]().setOriginal(Select[17](Select[15](This[16](newTypeName("scala")), scala.Predef#MOD%M1), newTypeName("String")#TPE%M1)), TypeTree[1]().setOriginal(Select[1](Ident[18](scala#PK%M1), scala.Int#CLS%M1)))), List())
-                           |[1] TypeRef(ThisType(scala#PK%M1), scala.Int#CLS%M1, List())
-                           |[11] TypeRef(ThisType(scala.collection.immutable#PK%M1), scala.collection.immutable.Map#TRT%M1, List(TypeRef(SingleType(ThisType(scala#PK%M1), scala.Predef#MOD%M1), newTypeName("String")#TPE%M1, List()), TypeRef(ThisType(scala#PK%M1), scala.Int#CLS%M1, List())))
-                           |[12] MethodType(List(newTermName("elems")#VAL%M1), TypeRef(ThisType(scala.collection.immutable#PK%M1), scala.collection.immutable.Map#TRT%M1, List(TypeRef(SingleType(ThisType(scala#PK%M1), scala.Predef#MOD%M1), newTypeName("String")#TPE%M1, List()), TypeRef(ThisType(scala#PK%M1), scala.Int#CLS%M1, List()))))
-                           |[13] PolyType(List(newTypeName("A")#TPE%M1, newTypeName("B")#TPE%M1), MethodType(List(newTermName("elems")#VAL%M1), TypeRef(ThisType(scala.collection.immutable#PK%M1), scala.collection.immutable.Map#TRT%M1, List(TypeRef(NoPrefix, newTypeName("A")#TPE%M1, List()), TypeRef(NoPrefix, newTypeName("B")#TPE%M1, List())))))
-                           |[14] SingleType(SingleType(ThisType(scala#PK%M1), scala.Predef#MOD%M1), newTermName("Map")#GET%M1)
-                           |[15] SingleType(ThisType(scala#PK%M1), scala.Predef#MOD%M1)
-                           |[16] ThisType(scala#PK%M1)
-                           |[17] TypeRef(SingleType(ThisType(scala#PK%M1), scala.Predef#MOD%M1), newTypeName("String")#TPE%M1, List())
-                           |[18] SingleType(ThisType(<root>#PK%M1), scala#PK%M1)
-                           |[1] compiler mirror""".stripMargin
+          val mapAst210 = """Apply[11](TypeApply[12](Select[13](Select[14](Select[15](This[16](newTypeName("scala")), scala.Predef#MOD%M1), newTermName("Map")#GET%M1), newTermName("apply")#METH%M1), List(TypeTree[17]().setOriginal(Select[17](Select[15](This[16](newTypeName("scala")), scala.Predef#MOD%M1), newTypeName("String")#TPE%M1)), TypeTree[1]().setOriginal(Select[1](Ident[18](scala#PK%M1), scala.Int#CLS%M1)))), List())
+                          |[1] TypeRef(ThisType(scala#PK%M1), scala.Int#CLS%M1, List())
+                          |[11] TypeRef(ThisType(scala.collection.immutable#PK%M1), scala.collection.immutable.Map#TRT%M1, List(TypeRef(SingleType(ThisType(scala#PK%M1), scala.Predef#MOD%M1), newTypeName("String")#TPE%M1, List()), TypeRef(ThisType(scala#PK%M1), scala.Int#CLS%M1, List())))
+                          |[12] MethodType(List(newTermName("elems")#VAL%M1), TypeRef(ThisType(scala.collection.immutable#PK%M1), scala.collection.immutable.Map#TRT%M1, List(TypeRef(SingleType(ThisType(scala#PK%M1), scala.Predef#MOD%M1), newTypeName("String")#TPE%M1, List()), TypeRef(ThisType(scala#PK%M1), scala.Int#CLS%M1, List()))))
+                          |[13] PolyType(List(newTypeName("A")#TPE%M1, newTypeName("B")#TPE%M1), MethodType(List(newTermName("elems")#VAL%M1), TypeRef(ThisType(scala.collection.immutable#PK%M1), scala.collection.immutable.Map#TRT%M1, List(TypeRef(NoPrefix, newTypeName("A")#TPE%M1, List()), TypeRef(NoPrefix, newTypeName("B")#TPE%M1, List())))))
+                          |[14] SingleType(SingleType(ThisType(scala#PK%M1), scala.Predef#MOD%M1), newTermName("Map")#GET%M1)
+                          |[15] SingleType(ThisType(scala#PK%M1), scala.Predef#MOD%M1)
+                          |[16] ThisType(scala#PK%M1)
+                          |[17] TypeRef(SingleType(ThisType(scala#PK%M1), scala.Predef#MOD%M1), newTypeName("String")#TPE%M1, List())
+                          |[18] SingleType(ThisType(<root>#PK%M1), scala#PK%M1)
+                          |[1] compiler mirror""".stripMargin
 
-          val tree2 = """Apply[11](TypeApply[12](Select[13](Select[14](Select[15](This[16](TypeName("scala")), scala.Predef#MOD%M1), TermName("Map")#GET%M1), TermName("apply")#METH%M1), List(TypeTree[17]().setOriginal(Select[17](Select[15](This[16](TypeName("scala")), scala.Predef#MOD%M1), TypeName("String")#TPE%M1)), TypeTree[1]().setOriginal(Select[1](Ident[18](scala#PK%M1), scala.Int#CLS%M1)))), List())
-                        |[1] TypeRef(ThisType(scala#PKC%M1), scala.Int#CLS%M1, List())
-                        |[11] TypeRef(ThisType(scala.collection.immutable#PKC%M1), scala.collection.immutable.Map#TRT%M1, List(TypeRef(SingleType(ThisType(scala#PKC%M1), scala.Predef#MOD%M1), TypeName("String")#TPE%M1, List()), TypeRef(ThisType(scala#PKC%M1), scala.Int#CLS%M1, List())))
-                        |[12] MethodType(List(TermName("elems")#VAL%M1), TypeRef(ThisType(scala.collection.immutable#PKC%M1), scala.collection.immutable.Map#TRT%M1, List(TypeRef(SingleType(ThisType(scala#PKC%M1), scala.Predef#MOD%M1), TypeName("String")#TPE%M1, List()), TypeRef(ThisType(scala#PKC%M1), scala.Int#CLS%M1, List()))))
-                        |[13] PolyType(List(TypeName("A")#TPE%M1, TypeName("B")#TPE%M1), MethodType(List(TermName("elems")#VAL%M1), TypeRef(ThisType(scala.collection.immutable#PKC%M1), scala.collection.immutable.Map#TRT%M1, List(TypeRef(NoPrefix, TypeName("A")#TPE%M1, List()), TypeRef(NoPrefix, TypeName("B")#TPE%M1, List())))))
-                        |[14] SingleType(SingleType(ThisType(scala#PKC%M1), scala.Predef#MOD%M1), TermName("Map")#GET%M1)
-                        |[15] SingleType(ThisType(scala#PKC%M1), scala.Predef#MOD%M1)
-                        |[16] ThisType(scala#PKC%M1)
-                        |[17] TypeRef(SingleType(ThisType(scala#PKC%M1), scala.Predef#MOD%M1), TypeName("String")#TPE%M1, List())
-                        |[18] SingleType(ThisType(<root>#PKC%M1), scala#PK%M1)
-                        |[1] compiler mirror""".stripMargin
+          val mapAst211 = """Apply[11](TypeApply[12](Select[13](Select[14](Select[15](This[16](TypeName("scala")), scala.Predef#MOD%M1), TermName("Map")#GET%M1), TermName("apply")#METH%M1), List(TypeTree[17]().setOriginal(Select[17](Select[15](This[16](TypeName("scala")), scala.Predef#MOD%M1), TypeName("String")#TPE%M1)), TypeTree[1]().setOriginal(Select[1](Ident[18](scala#PK%M1), scala.Int#CLS%M1)))), List())
+                          |[1] TypeRef(ThisType(scala#PKC%M1), scala.Int#CLS%M1, List())
+                          |[11] TypeRef(ThisType(scala.collection.immutable#PKC%M1), scala.collection.immutable.Map#TRT%M1, List(TypeRef(SingleType(ThisType(scala#PKC%M1), scala.Predef#MOD%M1), TypeName("String")#TPE%M1, List()), TypeRef(ThisType(scala#PKC%M1), scala.Int#CLS%M1, List())))
+                          |[12] MethodType(List(TermName("elems")#VAL%M1), TypeRef(ThisType(scala.collection.immutable#PKC%M1), scala.collection.immutable.Map#TRT%M1, List(TypeRef(SingleType(ThisType(scala#PKC%M1), scala.Predef#MOD%M1), TypeName("String")#TPE%M1, List()), TypeRef(ThisType(scala#PKC%M1), scala.Int#CLS%M1, List()))))
+                          |[13] PolyType(List(TypeName("A")#TPE%M1, TypeName("B")#TPE%M1), MethodType(List(TermName("elems")#VAL%M1), TypeRef(ThisType(scala.collection.immutable#PKC%M1), scala.collection.immutable.Map#TRT%M1, List(TypeRef(NoPrefix, TypeName("A")#TPE%M1, List()), TypeRef(NoPrefix, TypeName("B")#TPE%M1, List())))))
+                          |[14] SingleType(SingleType(ThisType(scala#PKC%M1), scala.Predef#MOD%M1), TermName("Map")#GET%M1)
+                          |[15] SingleType(ThisType(scala#PKC%M1), scala.Predef#MOD%M1)
+                          |[16] ThisType(scala#PKC%M1)
+                          |[17] TypeRef(SingleType(ThisType(scala#PKC%M1), scala.Predef#MOD%M1), TypeName("String")#TPE%M1, List())
+                          |[18] SingleType(ThisType(<root>#PKC%M1), scala#PK%M1)
+                          |[1] compiler mirror""".stripMargin
+
+          val mapAst212 = """Apply[1](TypeApply[2](Select[3](Select[4](Select[5](Ident[6](scala#PK%M1), scala.Predef#MOD%M1), TermName("Map")#GET%M1), TermName("apply")#METH%M1), List(TypeTree[7]().setOriginal(Select[7](Select[5](Ident[6](scala#PK%M1), scala.Predef#MOD%M1), TypeName("String")#TPE%M1)), TypeTree[8]().setOriginal(Select[8](Ident[9](scala#PK%M1), scala.Int#CLS%M1)))), List())
+                          |[1] TypeRef(ThisType(scala.collection.immutable#PKC%M1), scala.collection.immutable.Map#TRT%M1, List(TypeRef(SingleType(TypeRef(ThisType(<root>#PKC%M1), scala#PKC%M1, List()), scala.Predef#MOD%M1), TypeName("String")#TPE%M1, List()), TypeRef(ThisType(scala#PKC%M1), scala.Int#CLS%M1, List())))
+                          |[2] MethodType(List(TermName("elems")#VAL%M1), TypeRef(ThisType(scala.collection.immutable#PKC%M1), scala.collection.immutable.Map#TRT%M1, List(TypeRef(SingleType(TypeRef(ThisType(<root>#PKC%M1), scala#PKC%M1, List()), scala.Predef#MOD%M1), TypeName("String")#TPE%M1, List()), TypeRef(ThisType(scala#PKC%M1), scala.Int#CLS%M1, List()))))
+                          |[3] PolyType(List(TypeName("A")#TPE%M1, TypeName("B")#TPE%M1), MethodType(List(TermName("elems")#VAL%M1), TypeRef(ThisType(scala.collection.immutable#PKC%M1), scala.collection.immutable.Map#TRT%M1, List(TypeRef(NoPrefix, TypeName("A")#TPE%M1, List()), TypeRef(NoPrefix, TypeName("B")#TPE%M1, List())))))
+                          |[4] SingleType(SingleType(TypeRef(ThisType(<root>#PKC%M1), scala#PKC%M1, List()), scala.Predef#MOD%M1), TermName("Map")#GET%M1)
+                          |[5] SingleType(TypeRef(ThisType(<root>#PKC%M1), scala#PKC%M1, List()), scala.Predef#MOD%M1)
+                          |[6] TypeRef(ThisType(<root>#PKC%M1), scala#PKC%M1, List())
+                          |[7] TypeRef(SingleType(TypeRef(ThisType(<root>#PKC%M1), scala#PKC%M1, List()), scala.Predef#MOD%M1), TypeName("String")#TPE%M1, List())
+                          |[8] TypeRef(ThisType(scala#PKC%M1), scala.Int#CLS%M1, List())
+                          |[9] SingleType(ThisType(<root>#PKC%M1), scala#PK%M1)
+                          |[1] compiler mirror""".stripMargin
           project ! AstAtPointReq(SourceFileInfo(RawFile(fooFile.toPath)), OffsetRange(189, 206))
           expectMsgPF() {
             case AstInfo(ast) if {
               val stripped = ast.replaceAll("[\n\r]", "")
-              stripped == tree2.replaceAll("[\n\r]", "") || stripped == oldTree2.replaceAll("[\n\r]", "")
+              stripped == mapAst211.replaceAll("[\n\r]", "") || stripped == mapAst210.replaceAll("[\n\r]", "") || stripped == mapAst212.replaceAll("[\n\r]", "")
             } =>
           }
 

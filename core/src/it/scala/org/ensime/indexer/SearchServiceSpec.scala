@@ -152,9 +152,9 @@ class SearchServiceSpec extends EnsimeSpec
   it should "not prioritise noisy inner classes" in withSearchService { implicit service =>
     def nonTrailingDollarSigns(fqn: String): Int = fqn.count(_ == '$') - (if (fqn.endsWith("$")) 1 else 0)
     def isSorted(hits: Seq[String]): Boolean =
-      hits.sliding(2).map {
+      hits.sliding(2).forall {
         case List(x, y) => nonTrailingDollarSigns(x) <= nonTrailingDollarSigns(y)
-      }.forall(identity)
+      }
 
     val sorted = new BeMatcher[Seq[String]] {
       override def apply(left: Seq[String]): MatchResult =
@@ -183,7 +183,7 @@ class SearchServiceSpec extends EnsimeSpec
     )
     matchersHits should be(sorted)
 
-    val regexHits = service.searchClasses("Regex", 10).map(_.fqn)
+    val regexHits = service.searchClasses("Regex", 8).map(_.fqn)
     regexHits.take(2) should contain theSameElementsAs Seq(
       "scala.util.matching.Regex",
       "scala.util.matching.Regex$"
