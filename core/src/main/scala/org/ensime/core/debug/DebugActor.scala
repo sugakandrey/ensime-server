@@ -423,17 +423,15 @@ class DebugActor private (
    * @param scalaVirtualMachine The JVM whose events to listen to
    */
   private def bindEventHandlers(scalaVirtualMachine: ScalaVirtualMachine): Unit = {
-    import com.sun.jdi.event._
-
     // Send start event to client when received
     scalaVirtualMachine.onUnsafeVMStart().foreach(_ =>
       broadcaster ! DebugVmStartEvent)
 
     // Breakpoint Event - capture and broadcast breakpoint information
     scalaVirtualMachine.createEventListener(EventType.BreakpointEventType).foreach(e => {
-      val se = e.asInstanceOf[BreakpointEvent]
-      val l: LocationInfo = scalaVirtualMachine.location(se.location())
-      val t: ThreadInfo = scalaVirtualMachine.thread(se.thread())
+      val be = e.toBreakpointEvent
+      val l: LocationInfo = be.location
+      val t: ThreadInfo = be.thread
 
       sourceMap.newLineSourcePosition(l) match {
         case Some(lsp) =>
@@ -452,9 +450,9 @@ class DebugActor private (
 
     // Step Event - capture and broadcast step information
     scalaVirtualMachine.createEventListener(EventType.StepEventType).foreach(e => {
-      val se = e.asInstanceOf[StepEvent]
-      val l: LocationInfo = scalaVirtualMachine.location(se.location())
-      val t: ThreadInfo = scalaVirtualMachine.thread(se.thread())
+      val se = e.toStepEvent
+      val l: LocationInfo = se.location
+      val t: ThreadInfo = se.thread
 
       sourceMap.newLineSourcePosition(l) match {
         case Some(lsp) =>
@@ -472,12 +470,12 @@ class DebugActor private (
     })
 
     scalaVirtualMachine.createEventListener(EventType.ExceptionEventType).foreach(e => {
-      val ee = e.asInstanceOf[ExceptionEvent]
-      val t = scalaVirtualMachine.thread(ee.thread())
-      val ex = scalaVirtualMachine.`object`(ee.exception())
-      val lsp = if (ee.catchLocation() != null) {
-        val l: LocationInfo = scalaVirtualMachine.location(ee.catchLocation())
-        sourceMap.newLineSourcePosition(l)
+      val ee = e.toExceptionEvent
+      val t = ee.thread
+      val ex = ee.exception
+      val ce: Option[LocationInfo] = ee.catchLocation
+      val lsp = if (ce != null) {
+        ce.flatMap(l => sourceMap.newLineSourcePosition(l))
       } else None
 
       broadcaster ! DebugExceptionEvent(
@@ -498,15 +496,12 @@ class DebugActor private (
       SuspendPolicyProperty.AllThreads
     ).foreach(e => {
       // Cache the exception object
-      scalaVirtualMachine.`object`(e.exception.toJdiInstance).cache()
+      e.exception.cache()
 
-      val t = scalaVirtualMachine.thread(e.thread.toJdiInstance)
-      val ex = scalaVirtualMachine.`object`(e.exception.toJdiInstance)
+      val t = e.thread
+      val ex = e.exception
       val lsp = if (e.catchLocation != null) {
-        e.catchLocation.flatMap { l =>
-          val li = scalaVirtualMachine.location(l.toJdiInstance)
-          sourceMap.newLineSourcePosition(li)
-        }
+        e.catchLocation.flatMap(l => sourceMap.newLineSourcePosition(l))
       } else None
 
       broadcaster ! DebugExceptionEvent(
@@ -520,14 +515,12 @@ class DebugActor private (
 
     // Thread Start Event - capture and broadcast associated thread
     scalaVirtualMachine.onUnsafeThreadStart(SuspendPolicyProperty.NoThread).foreach(t => {
-      val ti = scalaVirtualMachine.thread(t.thread.toJdiInstance)
-      broadcaster ! DebugThreadStartEvent(DebugThreadId(ti.uniqueId))
+      broadcaster ! DebugThreadStartEvent(DebugThreadId(t.thread.uniqueId))
     })
 
     // Thread Death Event - capture and broadcast associated thread
     scalaVirtualMachine.onUnsafeThreadDeath(SuspendPolicyProperty.NoThread).foreach(t => {
-      val ti = scalaVirtualMachine.thread(t.thread.toJdiInstance)
-      broadcaster ! DebugThreadDeathEvent(DebugThreadId(ti.uniqueId))
+      broadcaster ! DebugThreadDeathEvent(DebugThreadId(t.thread.uniqueId))
     })
   }
 }
