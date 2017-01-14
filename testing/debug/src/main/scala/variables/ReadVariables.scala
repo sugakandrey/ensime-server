@@ -17,8 +17,11 @@ object ReadVariables {
     val j = List(4, 5, 6)
     val k = Array(One("one"), 1, true)
     val l = NullToString
+    val m = SimpleTestClass(Some("foo"), List(3, 2, 1))
 
     noop(None)
   }
+
+  case class SimpleTestClass(x: Option[String], xs: List[Int])
 
 }

@@ -187,7 +187,7 @@ class DebugTest extends EnsimeSpec
         withDebugSession(
           "variables.ReadVariables",
           "variables/ReadVariables.scala",
-          21
+          22
         ) { (threadId, variablesFile) =>
             // boolean local
             getVariableValue(threadId, "a") should matchPattern {
@@ -238,14 +238,11 @@ class DebugTest extends EnsimeSpec
             }
 
             // type local
-            inside(getVariableValue(threadId, "j")) {
-              case DebugObjectInstance(summary, debugFields, "scala.collection.immutable.$colon$colon", _) =>
-                summary should startWith("Instance of scala.collection.immutable.$colon$colon")
+            inside(getVariableValue(threadId, "m")) {
+              case DebugObjectInstance(summary, debugFields, "variables.ReadVariables$SimpleTestClass", _) =>
+                summary should startWith("Instance of variables.ReadVariables$SimpleTestClass")
                 exactly(1, debugFields) should matchPattern {
-                  case DebugClassField(_, head, "java.lang.Object", summary) if (
-                    (head == "head" || head == "hd") &&
-                    summary.startsWith("Instance of java.lang.Integer")
-                  ) =>
+                  case DebugClassField(_, "xs", "scala.collection.immutable.List", summary) if summary.startsWith("Instance of scala.collection.immutable.$colon$colon") =>
                 }
             }
 
@@ -265,7 +262,7 @@ class DebugTest extends EnsimeSpec
         withDebugSession(
           "variables.ReadVariables",
           "variables/ReadVariables.scala",
-          21
+          22
         ) { (threadId, variablesFile) =>
             // boolean local
             getVariableAsString(threadId, "a").text should be("true")
