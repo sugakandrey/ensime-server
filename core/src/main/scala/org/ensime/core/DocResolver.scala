@@ -9,12 +9,15 @@ import java.util.jar.JarFile
 import org.ensime.api._
 
 class DocResolver(
-    prefix: String,
-    forceJavaVersion: Option[String] // for testing
+  prefix: String,
+  forceJavaVersion: Option[String] // for testing
 )(
-    implicit
-    config: EnsimeConfig
-) extends Actor with ActorLogging with DocUsecaseHandling {
+  implicit
+  config: EnsimeConfig
+) extends Actor
+    with ActorLogging
+    with DocUsecaseHandling
+    with DocResolverBackCompat {
 
   var htmlToJar = Map.empty[String, File]
   var jarNameToJar = Map.empty[String, File]
@@ -79,12 +82,6 @@ class DocResolver(
     }
   }
 
-  def scalaFqnToPath(fqn: DocFqn): String = {
-    if (fqn.typeName == "package") {
-      fqn.pack.replace(".", "/") + "/package.html"
-    } else fqn.pack.replace(".", "/") + "/" + fqn.typeName + ".html"
-  }
-
   private def makeLocalUri(jar: File, sig: DocSigPair): String = {
     val jarName = jar.getName
     val docType = docTypes(jarName)
@@ -97,9 +94,7 @@ class DocResolver(
       s"$prefix/$jarName/$path$anchor"
     } else {
       val scalaSig = maybeReplaceWithUsecase(jar, sig.scala)
-      val anchor = scalaSig.fqn.mkString +
-        scalaSig.member.map("@" + _).getOrElse("")
-      s"$prefix/$jarName/index.html#$anchor"
+      scalaSigToLocalUri(prefix, jarName, scalaSig)
     }
   }
 

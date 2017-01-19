@@ -31,7 +31,8 @@ trait DocUsecaseHandling { self: DocResolver =>
             try {
               val is = jarFile.getInputStream(jarFile.getEntry(scalaFqnToPath(sig.fqn)))
               val html = Source.fromInputStream(is).mkString
-              val re = s"""<a id="(${Pattern.quote(prefix)}.+?)"""".r
+              //              val re = s"""<a id="(${Pattern.quote(prefix)}.+?)"""".r
+              val re = s"""<a id="(${Pattern.quote(prefix)}[^a-zA-Z\\d].*?)"""".r
               re.findFirstMatchIn(html).map { m =>
                 sig.copy(member = Some(StringEscapeUtils.unescapeHtml(m.group(1))))
               }.getOrElse(sig)
