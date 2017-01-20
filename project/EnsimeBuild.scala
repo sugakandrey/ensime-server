@@ -173,7 +173,7 @@ object EnsimeBuild {
           // see notes in https://github.com/ensime/ensime-server/pull/1446
           case Some((2, 10)) => "org.scala-refactoring" % "org.scala-refactoring.library_2.10.6" % "0.11.0"
           case Some((2, 11)) => "org.scala-refactoring" % "org.scala-refactoring.library_2.11.8" % "0.11.0"
-          case Some((2, 12)) => "org.scala-refactoring" % "org.scala-refactoring.library_2.12.0" % "0.12.0-SNAPSHOT"
+          case _             => "org.scala-refactoring" % "org.scala-refactoring.library_2.12.0" % "0.12.0-SNAPSHOT"
         },
         "commons-lang" % "commons-lang" % "2.6",
         "com.googlecode.java-diff-utils" % "diffutils" % "1.3.0",
