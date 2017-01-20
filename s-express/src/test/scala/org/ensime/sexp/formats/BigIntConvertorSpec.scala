@@ -53,6 +53,11 @@ class BigIntConvertorCheck extends SexpSpec with GeneratorDrivenPropertyChecks {
     }
   }
 
+  it should "round-trip a troublesome number" in {
+    val trouble = BigInt("9223372036854775808")
+    fromBitSet(toBitSet(trouble)) shouldBe trouble
+  }
+
   it should "round-trip BitSet <=> BigInt" in {
     forAll { (bitset: BitSet) =>
       toBitSet(fromBitSet(bitset)) should ===(bitset)
