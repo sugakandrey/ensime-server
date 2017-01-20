@@ -155,10 +155,12 @@ object EnsimeBuild {
       ensimeUnmanagedSourceArchives += (baseDirectory in ThisBuild).value / "openjdk-langtools/openjdk8-langtools-src.zip",
       libraryDependencies ++= Seq(
         "com.h2database" % "h2" % "1.4.193",
-        "com.typesafe.slick" %% "slick" % (scalaBinaryVersion.value match {
-          case "2.10" => "3.1.1"
-          case "2.11" | "2.12" => "3.2.0-M2"
-        }),
+        "com.typesafe.slick" %% "slick" % {
+          CrossVersion.partialVersion(scalaVersion.value) match {
+            case Some((2, 10)) => "3.1.1"
+            case _             => "3.2.0-M2"
+          }
+        },
         "com.zaxxer" % "HikariCP" % "2.5.1",
         "org.apache.lucene" % "lucene-core" % luceneVersion,
         "org.apache.lucene" % "lucene-analyzers-common" % luceneVersion,
@@ -167,11 +169,11 @@ object EnsimeBuild {
         "org.scala-lang" % "scalap" % scalaVersion.value,
         "com.typesafe.akka" %% "akka-actor" % akkaVersion.value,
         "com.typesafe.akka" %% "akka-slf4j" % akkaVersion.value,
-        scalaBinaryVersion.value match {
+        CrossVersion.partialVersion(scalaVersion.value) match {
           // see notes in https://github.com/ensime/ensime-server/pull/1446
-          case "2.10" => "org.scala-refactoring" % "org.scala-refactoring.library_2.10.6" % "0.11.0"
-          case "2.11" => "org.scala-refactoring" % "org.scala-refactoring.library_2.11.8" % "0.11.0"
-          case "2.12" => "org.scala-refactoring" % "org.scala-refactoring.library_2.12.0" % "0.12.0-SNAPSHOT"
+          case Some((2, 10)) => "org.scala-refactoring" % "org.scala-refactoring.library_2.10.6" % "0.11.0"
+          case Some((2, 11)) => "org.scala-refactoring" % "org.scala-refactoring.library_2.11.8" % "0.11.0"
+          case Some((2, 12)) => "org.scala-refactoring" % "org.scala-refactoring.library_2.12.0" % "0.12.0-SNAPSHOT"
         },
         "commons-lang" % "commons-lang" % "2.6",
         "com.googlecode.java-diff-utils" % "diffutils" % "1.3.0",
