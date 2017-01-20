@@ -69,7 +69,7 @@ object EnsimeBuild {
   // modules
   lazy val monkeys = Project("monkeys", file("monkeys")) settings (commonSettings) settings (
     // WORKAROUND https://issues.scala-lang.org/browse/SI-10157
-    scalacOptions -= "-Xfatal-warnings",
+    scalacOptions in (Compile, doc) -= "-Xfatal-warnings",
     libraryDependencies ++= Seq(
       "org.scala-lang" % "scala-compiler" % scalaVersion.value,
       "org.apache.commons" % "commons-vfs2" % "2.1" exclude ("commons-logging", "commons-logging")
