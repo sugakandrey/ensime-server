@@ -257,7 +257,7 @@ trait RichCompilerControl extends CompilerControl with RefactoringControl with C
     case SourceFileInfo(ac @ ArchiveFile(a, e), None, Some(contentsIn)) => new BatchSourceFile(
       new VirtualFile(ac.fullPath), contentsIn.readString()(charset).toCharArray
     )
-
+    case _ => throw new IllegalArgumentException(s"Invalid contents of SourceFileInfo parameter: $file.")
   }
 
   def askLinkPos(sym: Symbol, path: EnsimeFile): Option[Position] =

@@ -586,6 +586,7 @@ object SwankProtocolResponse {
         SexpList(SexpSymbol(":ok"), payload.toSexp),
         SexpNumber(callId)
       )
+      case _ => throw new IllegalArgumentException(s"Illegal combination of callId and payload content: $o")
     }
   }
 
