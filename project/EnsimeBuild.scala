@@ -68,7 +68,7 @@ object EnsimeBuild {
   ////////////////////////////////////////////////
   // modules
   lazy val monkeys = Project("monkeys", file("monkeys")) settings (commonSettings) settings (
-    // workaround inability to disable spurious fatal-warnings in scaladoc
+    // WORKAROUND https://issues.scala-lang.org/browse/SI-10157
     scalacOptions -= "-Xfatal-warnings",
     libraryDependencies ++= Seq(
       "org.scala-lang" % "scala-compiler" % scalaVersion.value,
