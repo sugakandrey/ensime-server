@@ -18,7 +18,11 @@
  */
 package org.apache.commons.vfs2.provider;
 
-import org.apache.commons.vfs2.*;
+import org.apache.commons.vfs2.FileName;
+import org.apache.commons.vfs2.FileSystemException;
+import org.apache.commons.vfs2.FileType;
+import org.apache.commons.vfs2.NameScope;
+import org.apache.commons.vfs2.VFS;
 
 /**
  * A default file name implementation.
