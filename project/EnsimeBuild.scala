@@ -23,7 +23,7 @@ object ProjectPlugin extends AutoPlugin {
   override def trigger = allRequirements
 
   override def buildSettings = Seq(
-    scalaVersion := "2.12.0",
+    scalaVersion := "2.11.8",
     organization := "org.ensime",
     version := "2.0.0-SNAPSHOT",
 
