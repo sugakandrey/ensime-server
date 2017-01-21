@@ -121,7 +121,10 @@ class BasicWorkflow extends EnsimeSpec
           expectMsg(Some(intDocSig))
 
           project ! intDocSig
-          expectMsgType[StringResponse].text should endWith("/index.html#scala.Int")
+          expectMsgType[StringResponse].text should (
+            endWith("/index.html#scala.Int") or
+            endWith("/scala/Int.html")
+          )
 
           //-----------------------------------------------------------------------------------------------
           // uses of symbol at point
