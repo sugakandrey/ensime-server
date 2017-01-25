@@ -4,8 +4,10 @@ os:
 env:
   global:
     - AKKA_TEST_TIMEFACTOR=10
-    - SBT_TASK_LIMIT=4
+    - SBT_TASK_LIMIT=2
 script:
+  - echo "ensimeServerJars := Nil" > ensime.sbt ;
+    echo "ensimeServerProjectJars := Nil" >> ensime.sbt ;
   - export JAVA_HOME=$(/usr/libexec/java_home)
   - curl https://raw.githubusercontent.com/paulp/sbt-extras/master/sbt -o sbt ; chmod 755 sbt
   - ./sbt ";ensimeConfig ;test:compile ;it:compile"
@@ -16,7 +18,6 @@ cache:
   directories:
   - $HOME/.sbt
   - $HOME/.ivy2
-  - $HOME/.m2
   - $HOME/.coursier
 notifications:
   email: false

@@ -1,4 +1,4 @@
-// Copyright: 2010 - 2016 https://github.com/ensime/ensime-server/graphs
+// Copyright: 2010 - 2017 https://github.com/ensime/ensime-server/graphs
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 package org.ensime.core.debug
 
@@ -11,7 +11,7 @@ import scala.util.Success
 import org.ensime.api._
 import org.ensime.util.EnsimeSpec
 import org.ensime.util.ensimefile._
-import org.scaladebugger.api.profiles.traits.info.LocationInfoProfile
+import org.scaladebugger.api.profiles.traits.info.LocationInfo
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.OneInstancePerTest
 
@@ -37,7 +37,7 @@ class SourceMapSpec extends EnsimeSpec with OneInstancePerTest with MockFactory 
   }
 
   "A SourceMap" should "be able to construct a LineSourcePosition from a location" in {
-    val mockLocationInfo = mock[LocationInfoProfile]
+    val mockLocationInfo = mock[LocationInfo]
     val lineNumber = 999
 
     (mockLocationInfo.trySourcePath _).expects()
@@ -50,7 +50,7 @@ class SourceMapSpec extends EnsimeSpec with OneInstancePerTest with MockFactory 
   }
 
   it should "use the source path of a location to find the associated local file" in {
-    val mockLocationInfo = mock[LocationInfoProfile]
+    val mockLocationInfo = mock[LocationInfo]
 
     (mockLocationInfo.trySourcePath _).expects()
       .returning(Success(testSources.head.getPath)).once()

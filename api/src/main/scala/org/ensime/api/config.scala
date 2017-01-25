@@ -1,4 +1,4 @@
-// Copyright: 2010 - 2016 https://github.com/ensime/ensime-server/graphs
+// Copyright: 2010 - 2017 https://github.com/ensime/ensime-server/graphs
 // License: http://www.apache.org/licenses/LICENSE-2.0
 package org.ensime.api
 
@@ -17,18 +17,19 @@ final case class EnsimeConfig(
     name: String,
     scalaVersion: String,
     compilerArgs: List[String],
-    referenceSourceRoots: List[File],
+    javaSources: List[File],
     subprojects: List[EnsimeModule],
+    projects: List[EnsimeProject],
     javaLibs: List[File]
 ) {
-  (rootDir :: cacheDir :: javaHome :: referenceSourceRoots ::: javaLibs).foreach { f =>
+  (rootDir :: cacheDir :: javaHome :: javaSources ::: javaLibs).foreach { f =>
     require(f.exists, "" + f + " is required but does not exist")
   }
 
   /* Proposed alternatives to the legacy wire format field names */
   def root = rootDir
   val referenceSourceJars =
-    (referenceSourceRoots ++ subprojects.flatMap(_.referenceSourceRoots)).toSet
+    (javaSources ++ subprojects.flatMap(_.referenceSourceRoots)).toSet
 
   // some marshalling libs (e.g. spray-json) might not like extra vals
   val modules = subprojects.map { module => (module.name, module) }.toMap
@@ -80,5 +81,23 @@ final case class EnsimeModule(
 
   def dependencies(implicit config: EnsimeConfig): List[EnsimeModule] =
     dependsOnModules.map(config.modules)
+}
 
+final case class EnsimeProjectId(
+  project: String,
+  config: String
+)
+
+final case class EnsimeProject(
+    id: EnsimeProjectId,
+    depends: Seq[EnsimeProjectId],
+    sources: Set[File],
+    targets: Set[File],
+    scalacOptions: List[String],
+    javacOptions: List[String],
+    libraryJars: Set[File],
+    librarySources: Set[File],
+    libraryDocs: Set[File]
+) {
+  sources.foreach(f => require(f.exists, "" + f + " is required but does not exist"))
 }

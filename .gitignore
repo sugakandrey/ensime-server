@@ -1,6 +1,7 @@
 target/
 *.log
 .ensime*
+ensime.sbt
 
 # DO NOT ADD ANYTHING TO THIS FILE UNLESS IT IS DIRECTLY
 # RELATED TO THE BUILD.

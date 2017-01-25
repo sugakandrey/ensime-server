@@ -1,4 +1,4 @@
-// Copyright: 2010 - 2016 https://github.com/ensime/ensime-server/graphs
+// Copyright: 2010 - 2017 https://github.com/ensime/ensime-server/graphs
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 package org.ensime.core.debug
 
@@ -10,7 +10,7 @@ import org.ensime.api._
 import org.ensime.config._
 import org.ensime.util.ensimefile._
 import org.ensime.util.file._
-import org.scaladebugger.api.profiles.traits.info.LocationInfoProfile
+import org.scaladebugger.api.profiles.traits.info.LocationInfo
 
 import scala.collection.mutable
 
@@ -45,7 +45,7 @@ class SourceMap(
    *         otherwise None
    */
   def newLineSourcePosition(
-    location: LocationInfoProfile
+    location: LocationInfo
   ): Option[LineSourcePosition] = {
     findFileByLocation(location).map(f =>
       LineSourcePosition(f, location.lineNumber))
@@ -57,8 +57,8 @@ class SourceMap(
    * @param location The location whose source file to find
    * @return Some file representing the local source, otherwise None
    */
-  def findFileByLocation(location: LocationInfoProfile): Option[EnsimeFile] =
-    location.trySourcePath.toOption.flatMap(sourceForFilePath).map(EnsimeFile(_))
+  def findFileByLocation(location: LocationInfo): Option[EnsimeFile] =
+    location.trySourcePath.toOption.flatMap(sourceForFilePath).map(EnsimeFile)
 
   /**
    * Retrieves all current Scala sources available through Ensime with the
@@ -140,7 +140,7 @@ class SourceMap(
    */
   protected def retrieveRoots: Seq[String] = (
     config.compileClasspath.map(_.getCanonicalPath).toSeq ++
-    config.referenceSourceRoots.map(_.getCanonicalPath) ++
+    config.javaSources.map(_.getCanonicalPath) ++
     config.subprojects.flatMap(_.sourceRoots).map(_.getCanonicalPath)
   ).distinct
 

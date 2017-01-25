@@ -1,4 +1,4 @@
-// Copyright: 2010 - 2016 https://github.com/ensime/ensime-server/graphs
+// Copyright: 2010 - 2017 https://github.com/ensime/ensime-server/graphs
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 package org.ensime.fixture
 
@@ -54,12 +54,12 @@ object ProjectFixture extends Matchers {
     expectMsg(ConnectionInfo())
 
     if (config.scalaLibrary.isEmpty)
-      probe.receiveN(2, 2.minutes.dilated) should contain only (
+      probe.receiveN(2, 30.seconds) should contain only (
         Broadcaster.Persist(AnalyzerReadyEvent),
         Broadcaster.Persist(IndexerReadyEvent)
       )
     else
-      probe.receiveN(3, 2.minutes.dilated) should contain only (
+      probe.receiveN(3, 30.seconds) should contain only (
         Broadcaster.Persist(AnalyzerReadyEvent),
         Broadcaster.Persist(FullTypeCheckCompleteEvent),
         Broadcaster.Persist(IndexerReadyEvent)

@@ -22,6 +22,8 @@ install:
   - cmd: SET SBT_TASK_LIMIT=2
   - cmd: SET GC_LOGGING=true
 build_script:
+  - echo ensimeServerJars := Nil > ensime.sbt
+  - echo ensimeServerProjectJars := Nil >> ensime.sbt
   - sbt ";ensimeConfig ;test:compile ;it:compile"
 test_script:
   - sbt "testOnly -- -l IgnoreOnAppVeyor"

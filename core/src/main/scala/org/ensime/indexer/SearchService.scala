@@ -1,4 +1,4 @@
-// Copyright: 2010 - 2016 https://github.com/ensime/ensime-server/graphs
+// Copyright: 2010 - 2017 https://github.com/ensime/ensime-server/graphs
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 package org.ensime.indexer
 
@@ -79,7 +79,7 @@ class SearchService(
    */
   private val version = "2.3.3"
 
-  private val index = new IndexService((config.cacheDir / ("index-" + version)).toPath)
+  private[indexer] val index = new IndexService((config.cacheDir / ("index-" + version)).toPath)
   private val db = new GraphService(config.cacheDir / ("graph-" + version))
 
   import ExecutionContext.Implicits.global

@@ -1,11 +1,12 @@
-// Copyright: 2010 - 2016 https://github.com/ensime/ensime-server/graphs
+// Copyright: 2010 - 2017 https://github.com/ensime/ensime-server/graphs
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 package org.ensime.indexer
 
-import org.ensime.api.DeclaredAs
+import org.apache.lucene.search.DisjunctionMaxQuery
 
 import scala.concurrent._
 import scala.concurrent.duration._
+import org.ensime.api.DeclaredAs
 import org.ensime.fixture._
 import org.ensime.indexer.graph._
 import org.ensime.util.EnsimeSpec
@@ -156,9 +157,9 @@ class SearchServiceSpec extends EnsimeSpec
   it should "not prioritise noisy inner classes" in withSearchService { implicit service =>
     def nonTrailingDollarSigns(fqn: String): Int = fqn.count(_ == '$') - (if (fqn.endsWith("$")) 1 else 0)
     def isSorted(hits: Seq[String]): Boolean =
-      hits.sliding(2).map {
+      hits.sliding(2).forall {
         case List(x, y) => nonTrailingDollarSigns(x) <= nonTrailingDollarSigns(y)
-      }.forall(identity)
+      }
 
     val sorted = new BeMatcher[Seq[String]] {
       override def apply(left: Seq[String]): MatchResult =
@@ -343,6 +344,14 @@ class SearchServiceSpec extends EnsimeSpec
       ("org.reverselookups.Overloads.foo(Ljava/lang/String;I)V", "Method org.reverselookups.Overloads#foo(s: scala.Predef.String, i: scala.Int): scala.Unit"),
       ("org.reverselookups.Overloads.foo(Lorg/reverselookups/MyException;)V", "Method org.reverselookups.Overloads#foo[T <: org.reverselookups.MyException](t: T): scala.Unit"),
       ("org.reverselookups.Overloads.foo(Lorg/reverselookups/MyAnnotation;)V", "Method org.reverselookups.Overloads#foo(ann: org.reverselookups.MyAnnotation): scala.Unit")
+  }
+      
+  "lucene index" should "not contain duplicates" in withSearchService { implicit service =>
+    import scala.collection.JavaConverters._
+    val lucene = service.index.lucene
+    val terms = List("org", "example", "bar")
+    val query = new DisjunctionMaxQuery(
+      terms.map(service.index.buildTermClassMethodQuery).asJavaCollection, 0f
     )
   }
 }

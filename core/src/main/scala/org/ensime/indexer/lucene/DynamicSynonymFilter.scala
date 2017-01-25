@@ -1,4 +1,4 @@
-// Copyright: 2010 - 2016 https://github.com/ensime/ensime-server/graphs
+// Copyright: 2010 - 2017 https://github.com/ensime/ensime-server/graphs
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 package org.ensime.indexer.lucene
 
@@ -8,8 +8,6 @@ import org.apache.lucene.analysis.core.KeywordTokenizer
 import org.apache.lucene.analysis.tokenattributes.{ CharTermAttribute, PositionIncrementAttribute }
 import org.apache.lucene.util.AttributeSource.State
 import org.ensime.indexer.lucene.DynamicSynonymFilter._
-
-import scala.collection.mutable
 
 /**
  * `Analyzer` that does no additional (not even lowercasing) other than
@@ -47,13 +45,14 @@ class DynamicSynonymFilter(input: TokenStream, engine: SynonymEngine) extends To
   private val termAtt = addAttribute(classOf[CharTermAttribute])
   private val posIncrAtt = addAttribute(classOf[PositionIncrementAttribute])
 
-  private val stack: mutable.Stack[String] = mutable.Stack()
+  private var stack: List[String] = Nil
   private var current: State = _
 
   // return false when EOL
   override def incrementToken(): Boolean = {
     if (stack.nonEmpty) {
-      val synonym = stack.pop()
+      val synonym = stack.head
+      stack = stack.tail
       restoreState(current) // brings us back to the original token in case of multiple synonyms
       termAtt.setEmpty()
       termAtt.append(synonym)
@@ -69,7 +68,7 @@ class DynamicSynonymFilter(input: TokenStream, engine: SynonymEngine) extends To
     if (synonyms.nonEmpty) {
       synonyms foreach { synonym =>
         if (!synonym.equals(term))
-          stack.push(synonym)
+          stack = synonym :: stack
       }
       current = captureState()
     }

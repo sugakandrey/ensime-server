@@ -1,4 +1,4 @@
-// Copyright: 2010 - 2016 https://github.com/ensime/ensime-server/graphs
+// Copyright: 2010 - 2017 https://github.com/ensime/ensime-server/graphs
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 package org.ensime.core
 
@@ -9,10 +9,11 @@ import org.ensime.util.FileUtils._
 import org.ensime.util._
 import org.ensime.util.file.File
 
+import scala.collection.mutable
 import scala.tools.nsc.io.AbstractFile
 import scala.tools.refactoring._
 import scala.tools.refactoring.analysis.GlobalIndexes
-import scala.tools.refactoring.common.{ Change, CompilerAccess, RenameSourceFileChange }
+import scala.tools.refactoring.common.{Change, CompilerAccess, RenameSourceFileChange}
 import scala.tools.refactoring.implementations._
 
 abstract class RefactoringEnvironment(file: String, start: Int, end: Int) {
@@ -83,7 +84,8 @@ trait RefactoringControl { self: RichCompilerControl with RefactoringImpl =>
 
 }
 
-trait RefactoringImpl { self: RichPresentationCompiler =>
+trait RefactoringImpl {
+  self: RichPresentationCompiler =>
 
   import org.ensime.util.FileUtils._
 
@@ -92,11 +94,11 @@ trait RefactoringImpl { self: RichPresentationCompiler =>
       val refactoring = new Rename with GlobalIndexes {
         val global = RefactoringImpl.this
         val invalidSet = toBeRemoved.synchronized { toBeRemoved.toSet }
-        val cuIndexes = this.global.unitOfFile.collect {
+        val cuIndexes: List[CompilationUnitIndex] = this.global.unitOfFile.collect {
           case (f, unit) if search.noReverseLookups || files.contains(f.file.getPath) =>
             CompilationUnitIndex(unit.body)
-        }
-        val index = GlobalIndex(cuIndexes.toList)
+        }(collection.breakOut)
+        val index = GlobalIndex(cuIndexes)
       }
       val result = performRefactoring(procId, tpe, name)
     }.result
@@ -134,6 +136,16 @@ trait RefactoringImpl { self: RichPresentationCompiler =>
       val result = performRefactoring(procId, tpe, new refactoring.RefactoringParameters())
     }.result
 
+  // we probably want to allow users to customise this
+  private def organizeImportOptions(refactoring: OrganizeImports) = {
+    import refactoring.oiWorker.participants._
+    List(
+      SortImports,
+      SortImportSelectors,
+      RemoveDuplicates
+    )
+  }
+
   protected def doOrganizeImports(procId: Int, tpe: RefactorType, file: File) =
     new RefactoringEnvironment(file.getPath, 0, 0) {
       val refactoring = new OrganizeImports {
@@ -141,12 +153,7 @@ trait RefactoringImpl { self: RichPresentationCompiler =>
       }
 
       val result = performRefactoring(procId, tpe, new refactoring.RefactoringParameters(
-        options = List(
-          refactoring.SortImports,
-          refactoring.SortImportSelectors,
-          refactoring.SimplifyWildcards,
-          refactoring.RemoveDuplicates
-        ),
+        options = organizeImportOptions(refactoring),
         config = Some(OrganizeImports.OrganizeImportsConfig(
           importsStrategy = Some(OrganizeImports.ImportsStrategy.CollapseImports),
           groups = List("java", "scala")

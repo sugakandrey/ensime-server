@@ -1,4 +1,4 @@
-// Copyright: 2010 - 2016 https://github.com/ensime/ensime-server/graphs
+// Copyright: 2010 - 2017 https://github.com/ensime/ensime-server/graphs
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 package org.ensime.intg
 
@@ -26,7 +26,7 @@ class JarTargetTest extends EnsimeSpec
 
           mainTarget should be a 'file
 
-          eventually(interval(1 second)) {
+          eventually(timeout(scaled(10 seconds)), interval(scaled(1 second))) {
             project ! PublicSymbolSearchReq(List("Foo"), 5)
             atLeast(1, expectMsgType[SymbolSearchResults].syms) should matchPattern {
               case TypeSearchResult("baz.Foo$", "Foo$", DeclaredAs.Object, Some(_)) =>
@@ -44,8 +44,7 @@ class JarTargetTest extends EnsimeSpec
           import tk._
           mainTarget should be a 'file
 
-          // no scaling here
-          eventually(timeout(30 seconds), interval(1 second)) {
+          eventually(timeout(scaled(10 seconds)), interval(scaled(1 second))) {
             mainTarget.delete() shouldBe true
           }
 
@@ -89,9 +88,9 @@ class MissingJarTargetTest extends EnsimeSpec
           mainTarget should be a 'file
 
           // means the file addition was detected
-          asyncHelper.expectMsg(CompilerRestartedEvent)
+          asyncHelper.expectMsg(10 seconds, CompilerRestartedEvent)
 
-          eventually(interval(1 second)) {
+          eventually(timeout(scaled(10 seconds)), interval(scaled(1 second))) {
             project ! PublicSymbolSearchReq(List("Foo"), 5)
             atLeast(1, expectMsgType[SymbolSearchResults].syms) should matchPattern {
               case TypeSearchResult("baz.Foo$", "Foo$", DeclaredAs.Object, Some(_)) =>

@@ -1,4 +1,4 @@
-// Copyright: 2010 - 2016 https://github.com/ensime/ensime-server/graphs
+// Copyright: 2010 - 2017 https://github.com/ensime/ensime-server/graphs
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 package org.ensime.core
 
@@ -521,7 +521,7 @@ class RichPresentationCompilerSpec extends EnsimeSpec
     )
 
     cc.search.refreshResolver()
-    Await.result(cc.search.refresh(), 300.seconds)
+    Await.result(cc.search.refresh(), 30.seconds * spanScaleFactor)
 
     val scalaVersion = scala.util.Properties.versionNumberString
     val parts = scalaVersion.split("\\.").take(2).map { _.toInt }

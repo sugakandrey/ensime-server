@@ -1,4 +1,4 @@
-// Copyright: 2010 - 2016 https://github.com/ensime/ensime-server/graphs
+// Copyright: 2010 - 2017 https://github.com/ensime/ensime-server/graphs
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 package org.ensime.intg
 
@@ -43,7 +43,7 @@ class DebugTest extends EnsimeSpec
         ) { (threadId, breakpointsFile) =>
             import testkit._
 
-            within(10.minutes) {
+            within(10.seconds) {
               // Should be able to step over a method call
               project ! DebugNextReq(threadId)
               expectMsg(remaining, "Failed to step over line!", TrueResponse)
@@ -187,7 +187,7 @@ class DebugTest extends EnsimeSpec
         withDebugSession(
           "variables.ReadVariables",
           "variables/ReadVariables.scala",
-          21
+          22
         ) { (threadId, variablesFile) =>
             // boolean local
             getVariableValue(threadId, "a") should matchPattern {
@@ -238,14 +238,11 @@ class DebugTest extends EnsimeSpec
             }
 
             // type local
-            inside(getVariableValue(threadId, "j")) {
-              case DebugObjectInstance(summary, debugFields, "scala.collection.immutable.$colon$colon", _) =>
-                summary should startWith("Instance of scala.collection.immutable.$colon$colon")
+            inside(getVariableValue(threadId, "m")) {
+              case DebugObjectInstance(summary, debugFields, "variables.ReadVariables$SimpleTestClass", _) =>
+                summary should startWith("Instance of variables.ReadVariables$SimpleTestClass")
                 exactly(1, debugFields) should matchPattern {
-                  case DebugClassField(_, head, "java.lang.Object", summary) if (
-                    (head == "head" || head == "hd") &&
-                    summary.startsWith("Instance of java.lang.Integer")
-                  ) =>
+                  case DebugClassField(_, "xs", "scala.collection.immutable.List", summary) if summary.startsWith("Instance of scala.collection.immutable.$colon$colon") =>
                 }
             }
 
@@ -265,7 +262,7 @@ class DebugTest extends EnsimeSpec
         withDebugSession(
           "variables.ReadVariables",
           "variables/ReadVariables.scala",
-          21
+          22
         ) { (threadId, variablesFile) =>
             // boolean local
             getVariableAsString(threadId, "a").text should be("true")
@@ -347,7 +344,7 @@ class DebugTest extends EnsimeSpec
         ) { (threadId, variablesFile) =>
             import testkit._
 
-            /* boolean local */ within(10.minutes) {
+            /* boolean local */ within(10.seconds) {
               val n = "a"
 
               project ! DebugLocateNameReq(threadId, n)
@@ -361,7 +358,7 @@ class DebugTest extends EnsimeSpec
               }
             }
 
-            /* char local */ within(10.minutes) {
+            /* char local */ within(10.seconds) {
               val n = "b"
 
               project ! DebugLocateNameReq(threadId, n)
@@ -375,7 +372,7 @@ class DebugTest extends EnsimeSpec
               }
             }
 
-            /* short local */ within(10.minutes) {
+            /* short local */ within(10.seconds) {
               val n = "c"
 
               project ! DebugLocateNameReq(threadId, n)
@@ -389,7 +386,7 @@ class DebugTest extends EnsimeSpec
               }
             }
 
-            /* int local */ within(10.minutes) {
+            /* int local */ within(10.seconds) {
               val n = "d"
 
               project ! DebugLocateNameReq(threadId, n)
@@ -403,7 +400,7 @@ class DebugTest extends EnsimeSpec
               }
             }
 
-            /* long local */ within(10.minutes) {
+            /* long local */ within(10.seconds) {
               val n = "e"
 
               project ! DebugLocateNameReq(threadId, n)
@@ -417,7 +414,7 @@ class DebugTest extends EnsimeSpec
               }
             }
 
-            /* float local */ within(10.minutes) {
+            /* float local */ within(10.seconds) {
               val n = "f"
 
               project ! DebugLocateNameReq(threadId, n)
@@ -431,7 +428,7 @@ class DebugTest extends EnsimeSpec
               }
             }
 
-            /* double local */ within(10.minutes) {
+            /* double local */ within(10.seconds) {
               val n = "g"
 
               project ! DebugLocateNameReq(threadId, n)
@@ -445,7 +442,7 @@ class DebugTest extends EnsimeSpec
               }
             }
 
-            /* string local */ within(10.minutes) {
+            /* string local */ within(10.seconds) {
               val n = "h"
 
               project ! DebugLocateNameReq(threadId, n)
@@ -528,9 +525,9 @@ trait DebugTestUtils {
 
       asyncHelper.expectMsg(DebugVmStartEvent)
 
-      val gotOnStartup = asyncHelper.expectMsgType[EnsimeServerMessage]
+      val gotOnStartup = asyncHelper.expectMsgType[EnsimeServerMessage](10 seconds)
       // weird! we sometimes see a duplicate break event instantly, not really expected
-      val additionalOnStartup = Try(asyncHelper.expectMsgType[EnsimeServerMessage](1 second)).toOption.toSeq
+      val additionalOnStartup = Try(asyncHelper.expectMsgType[EnsimeServerMessage]).toOption.toSeq
       // but it doesn't always come through
 
       val allEvents = gotOnStartup +: additionalOnStartup

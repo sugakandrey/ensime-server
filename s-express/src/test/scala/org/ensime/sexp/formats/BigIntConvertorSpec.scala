@@ -1,4 +1,4 @@
-// Copyright: 2010 - 2016 https://github.com/ensime/ensime-server/graphs
+// Copyright: 2010 - 2017 https://github.com/ensime/ensime-server/graphs
 // License: http://www.gnu.org/licenses/lgpl-3.0.en.html
 package org.ensime.sexp.formats
 
@@ -42,18 +42,9 @@ class BigIntConvertorCheck extends SexpSpec with GeneratorDrivenPropertyChecks {
     for (seq <- positiveIntStream.arbitrary) yield BitSet(seq: _*)
   }
 
-  "BigIntConvertor" should "round-trip BigInt <=> BitSet" in {
-    forAll { (bigint: BigInt) =>
-      whenever(bigint >= 0) {
-        // the exact rules for which negative numbers are allowed
-        // seems to be quite complex, but certainly it is sometimes
-        // valid.
-        fromBitSet(toBitSet(bigint)) should ===(bigint)
-      }
-    }
-  }
-
-  it should "round-trip BitSet <=> BigInt" in {
+  it should "round-trip BitSet <=> BitSet" in {
+    // NOTE: roundtripping BigInt <=> BigInt is not required
+    //       https://issues.scala-lang.org/browse/SI-10162
     forAll { (bitset: BitSet) =>
       toBitSet(fromBitSet(bitset)) should ===(bitset)
     }

@@ -1,4 +1,4 @@
-// Copyright: 2010 - 2016 https://github.com/ensime/ensime-server/graphs
+// Copyright: 2010 - 2017 https://github.com/ensime/ensime-server/graphs
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 package org.ensime.core
 
@@ -57,7 +57,7 @@ class CanonSpec extends EnsimeSpec {
     Canon.config = EnsimeConfig(
       dir, dir, dir,
       "config", "version",
-      Nil, Nil, Nil, Nil
+      Nil, Nil, Nil, Nil, Nil
     )
 
     Canonised(ef) shouldBe expected
@@ -75,7 +75,7 @@ class CanonSpec extends EnsimeSpec {
     Canon.config = EnsimeConfig(
       dir, dir, dir,
       "config", "version",
-      Nil, Nil, Nil, Nil
+      Nil, Nil, Nil, Nil, Nil
     )
 
     Canonised(ef) shouldBe expected

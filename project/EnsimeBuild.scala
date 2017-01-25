@@ -23,7 +23,7 @@ object ProjectPlugin extends AutoPlugin {
   override def trigger = allRequirements
 
   override def buildSettings = Seq(
-    scalaVersion := "2.11.8",
+    scalaVersion := "2.12.1",
     organization := "org.ensime",
     version := "2.0.0-SNAPSHOT",
 
@@ -73,6 +73,8 @@ object EnsimeBuild {
   ////////////////////////////////////////////////
   // modules
   lazy val monkeys = Project("monkeys", file("monkeys")) settings (commonSettings) settings (
+    // WORKAROUND https://issues.scala-lang.org/browse/SI-10157
+    scalacOptions in (Compile, doc) -= "-Xfatal-warnings",
     libraryDependencies ++= Seq(
       "org.scala-lang" % "scala-compiler" % scalaVersion.value,
       "org.apache.commons" % "commons-vfs2" % "2.1" exclude ("commons-logging", "commons-logging")
@@ -170,14 +172,18 @@ object EnsimeBuild {
         "org.scala-lang" % "scalap" % scalaVersion.value,
         "com.typesafe.akka" %% "akka-actor" % akkaVersion.value,
         "com.typesafe.akka" %% "akka-slf4j" % akkaVersion.value,
-        scalaBinaryVersion.value match {
+        {
           // see notes in https://github.com/ensime/ensime-server/pull/1446
-          case "2.10" => "org.scala-refactoring" % "org.scala-refactoring.library_2.10.6" % "0.11.0"
-          case "2.11" => "org.scala-refactoring" % "org.scala-refactoring.library_2.11.8" % "0.11.0"
+          val suffix = CrossVersion.partialVersion(scalaVersion.value) match {
+            case Some((2, 10)) => "2.10.6"
+            case Some((2, 11)) => "2.11.8"
+            case _             => "2.12.1"
+          }
+          "org.scala-refactoring" % s"org.scala-refactoring.library_${suffix}" % "0.12.0"
         },
         "commons-lang" % "commons-lang" % "2.6",
         "com.googlecode.java-diff-utils" % "diffutils" % "1.3.0",
-        "org.scala-debugger" %% "scala-debugger-api" % "1.1.0-M2",
+        "org.scala-debugger" %% "scala-debugger-api" % "1.1.0-M3",
         "org.scalamock" %% "scalamock-scalatest-support" % "3.4.2" % Test
       ) ++ shapeless.value
     ) enablePlugins BuildInfoPlugin settings (
@@ -242,7 +248,7 @@ object EnsimeBuild {
   private def akkaVersion: Def.Initialize[String] = Def.setting {
     CrossVersion.partialVersion(scalaVersion.value) match {
       case Some((2, minor)) if minor >= 11 => "2.4.16"
-      case _ => "2.3.16"
+      case Some((2, 10)) => "2.3.16"
     }
   }
   
@@ -283,8 +289,8 @@ object EnsimeTestingBuild {
 
   lazy val testingFqns = testingProject("testing/fqns").settings (
     libraryDependencies ++= shapeless.value ++ Seq(
-      "org.typelevel" %% "cats" % "0.6.0" % Test intransitive(),
-      "org.spire-math" %% "spire" % "0.11.0" % Test intransitive()
+      "org.typelevel" %% "cats" % "0.8.1" % Test intransitive(),
+      "org.spire-math" %% "spire" % "0.13.0" % Test intransitive()
     )
   )
 

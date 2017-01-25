@@ -1,18 +1,20 @@
-// Copyright: 2010 - 2016 https://github.com/ensime/ensime-server/graphs
+// Copyright: 2010 - 2017 https://github.com/ensime/ensime-server/graphs
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 package org.ensime.core.debug
 
+import scala.util._
+
 import com.sun.jdi.VMDisconnectedException
+import org.ensime.util.Timing.dilation
 import org.scaladebugger.api.debuggers.{ AttachingDebugger, Debugger, LaunchingDebugger }
 import org.scaladebugger.api.profiles.scala210.Scala210DebugProfile
 import org.scaladebugger.api.virtualmachines.{ DummyScalaVirtualMachine, ScalaVirtualMachine }
 import org.slf4j.LoggerFactory
 
-import scala.util.{ Failure, Try }
-
 /**
  * Represents a manager of virtual machines connected to Ensime.
  *
+ * @param timeDilation for slower machines, scales timeouts
  * @param globalStartFunc Invoked whenever a virtual machine is started
  * @param globalStopFunc Invoked whenever a virtual machine is stopped or disconnects
  *                 unexpectedly
@@ -69,7 +71,7 @@ class VirtualMachineManager(
         ).withPending(dummyScalaVirtualMachine)
 
         val s = d.start(
-          timeout = 10.seconds,
+          timeout = (10 * dilation).seconds,
           defaultProfile = Scala210DebugProfile.Name,
           startProcessingEvents = false
         )
@@ -83,7 +85,7 @@ class VirtualMachineManager(
         ).withPending(dummyScalaVirtualMachine)
 
         val s = d.start(
-          timeout = 10.seconds,
+          timeout = (10 * dilation).seconds,
           defaultProfile = Scala210DebugProfile.Name,
           startProcessingEvents = false
         )

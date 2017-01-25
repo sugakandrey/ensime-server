@@ -1,4 +1,4 @@
-// Copyright: 2010 - 2016 https://github.com/ensime/ensime-server/graphs
+// Copyright: 2010 - 2017 https://github.com/ensime/ensime-server/graphs
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 package org.ensime.core.debug
 
@@ -21,7 +21,7 @@ class StructureConverter(private val sourceMap: SourceMap) {
    * @param valueInfo The debugger API value
    * @return The equivalent Ensime message
    */
-  def convertValue(valueInfo: ValueInfoProfile): DebugValue = {
+  def convertValue(valueInfo: ValueInfo): DebugValue = {
     valueInfo.cache() match {
       case v if v.isNull => newDebugNull()
       case v if v.isVoid => convertVoid(v)
@@ -38,7 +38,7 @@ class StructureConverter(private val sourceMap: SourceMap) {
    * @param objInfo The object value to convert
    * @return The new Ensime message
    */
-  private def convertObject(objInfo: ObjectInfoProfile): DebugObjectInstance = {
+  private def convertObject(objInfo: ObjectInfo): DebugObjectInstance = {
     DebugObjectInstance(
       objInfo.toPrettyString,
       extractFields(objInfo.referenceType, objInfo),
@@ -53,7 +53,7 @@ class StructureConverter(private val sourceMap: SourceMap) {
    * @param strInfo The string value to convert
    * @return The new Ensime message
    */
-  private def convertString(strInfo: StringInfoProfile): DebugStringInstance = {
+  private def convertString(strInfo: StringInfo): DebugStringInstance = {
     DebugStringInstance(
       strInfo.toPrettyString,
       extractFields(strInfo.referenceType, strInfo),
@@ -68,7 +68,7 @@ class StructureConverter(private val sourceMap: SourceMap) {
    * @param arrayInfo The array to convert
    * @return The new Ensime message
    */
-  private def convertArray(arrayInfo: ArrayInfoProfile): DebugArrayInstance = {
+  private def convertArray(arrayInfo: ArrayInfo): DebugArrayInstance = {
     DebugArrayInstance(
       arrayInfo.length,
       arrayInfo.referenceType.name,
@@ -84,7 +84,7 @@ class StructureConverter(private val sourceMap: SourceMap) {
    * @return The new Ensime message
    */
   private def convertPrimitive(
-    primitiveInfo: PrimitiveInfoProfile
+    primitiveInfo: PrimitiveInfo
   ): DebugPrimitiveValue = {
     DebugPrimitiveValue(
       primitiveInfo.toPrettyString,
@@ -98,7 +98,7 @@ class StructureConverter(private val sourceMap: SourceMap) {
    * @param void The void value to convert
    * @return The new Ensime message
    */
-  private def convertVoid(void: ValueInfoProfile): DebugPrimitiveValue = {
+  private def convertVoid(void: ValueInfo): DebugPrimitiveValue = {
     DebugPrimitiveValue(
       void.toPrettyString,
       void.typeInfo.name
@@ -123,13 +123,13 @@ class StructureConverter(private val sourceMap: SourceMap) {
    * @return The collection of Ensime messages representing the fields
    */
   private def extractFields(
-    tpeIn: ReferenceTypeInfoProfile,
-    obj: ObjectInfoProfile
+    tpeIn: ReferenceTypeInfo,
+    obj: ObjectInfo
   ): List[DebugClassField] = {
     if (!tpeIn.isClassType) return List.empty
 
     var fields = List[DebugClassField]()
-    var tpe: Option[ClassTypeInfoProfile] = Some(tpeIn.toClassType)
+    var tpe: Option[ClassTypeInfo] = Some(tpeIn.toClassType)
     while (tpe.nonEmpty) {
       fields = tpe.map(_.indexedVisibleFields)
         .map(s => s.map(f => DebugClassField(
@@ -155,7 +155,7 @@ class StructureConverter(private val sourceMap: SourceMap) {
    * @param frame The stack frame to convert
    * @return The resulting Ensime message
    */
-  def convertStackFrame(frame: FrameInfoProfile): DebugStackFrame = {
+  def convertStackFrame(frame: FrameInfo): DebugStackFrame = {
     val locals = ignoreErr(
       frame.indexedLocalVariables.map(_.cache()).map(convertStackLocal).toList,
       List.empty
@@ -182,7 +182,7 @@ class StructureConverter(private val sourceMap: SourceMap) {
    * @return The resulting Ensime message
    */
   private def convertStackLocal(
-    variableInfo: VariableInfoProfile
+    variableInfo: VariableInfo
   ): DebugStackLocal = {
     variableInfo.cache()
     DebugStackLocal(

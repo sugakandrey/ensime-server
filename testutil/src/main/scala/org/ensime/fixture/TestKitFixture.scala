@@ -31,7 +31,7 @@ trait TestKitFixture {
     "IsolatedActorSystems are incompatible with TestKit. Instead, 'import sys._'"
   )
 
-  implicit protected val akkaTimeout: Timeout = ConfigFactory.load().getDuration("akka.test.default-timeout", TimeUnit.MILLISECONDS) milliseconds
+  implicit protected val akkaTimeout: Timeout = ConfigFactory.load().getDuration("akka.test.default-timeout", TimeUnit.MILLISECONDS).milliseconds
 
   def withTestKit(testCode: TestKitFix => Any): Any
 }

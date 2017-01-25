@@ -1,4 +1,4 @@
-// Copyright: 2010 - 2016 https://github.com/ensime/ensime-server/graphs
+// Copyright: 2010 - 2017 https://github.com/ensime/ensime-server/graphs
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 package org.ensime.vfs
 
@@ -37,7 +37,7 @@ object SourceSelector extends ExtSelector {
 }
 
 @deprecating("https://github.com/ensime/ensime-server/issues/1437")
-object EnsimeVFS {
+object EnsimeVFS0 {
   def apply(): EnsimeVFS = {
     val vfsInst = new StandardFileSystemManager()
     vfsInst.init()
@@ -48,6 +48,9 @@ object EnsimeVFS {
 object `package` {
   @deprecating("https://github.com/ensime/ensime-server/issues/1437")
   type EnsimeVFS = DefaultFileSystemManager
+  // this is a workaround for https://issues.scala-lang.org/browse/SI-7139, to build with 2.12.0
+  // should be removed when we move to 2.12.1
+  val EnsimeVFS: EnsimeVFS0.type = EnsimeVFS0
 
   // the alternative is a monkey patch, count yourself lucky
   private val zipFileField = classOf[ZipFileSystem].getDeclaredField("zipFile")

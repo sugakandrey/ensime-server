@@ -1,4 +1,4 @@
-// Copyright: 2010 - 2016 https://github.com/ensime/ensime-server/graphs
+// Copyright: 2010 - 2017 https://github.com/ensime/ensime-server/graphs
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 /*
  * This file contains derivative works that require the following
@@ -50,6 +50,7 @@ import akka.util.Timeout
 import org.ensime.api._
 import org.ensime.indexer.PackageName
 import org.ensime.indexer.lucene.SimpleLucene
+import org.ensime.util.Timing.dilation
 
 trait CompletionControl {
   self: RichPresentationCompiler =>
@@ -356,7 +357,6 @@ trait Completion { self: RichPresentationCompiler =>
 }
 
 object CompletionUtil {
-
   val IdentRegexp = """([a-zA-Z0-9_#:<=>@!%&*+/?\\^|~-]*)\z""".r
   val JavaIdentRegexp = """([a-zA-Z0-9_]+)\z""".r
   val ImportTopLevelRegexp = """import [^\.]*\z""".r
@@ -377,7 +377,7 @@ object CompletionUtil {
   def fetchTypeSearchCompletions(prefix: String, maxResults: Int, indexer: ActorRef): Future[Option[List[CompletionInfo]]] = {
     val req = TypeCompletionsReq(prefix, maxResults)
     import scala.concurrent.ExecutionContext.Implicits.{ global => exe }
-    val askRes = Patterns.ask(indexer, req, Timeout(1000.milliseconds))
+    val askRes = Patterns.ask(indexer, req, Timeout((1 * dilation).seconds))
     askRes.map {
       case s: SymbolSearchResults =>
         s.syms.map { s =>

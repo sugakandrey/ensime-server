@@ -1,4 +1,4 @@
-// Copyright: 2010 - 2016 https://github.com/ensime/ensime-server/graphs
+// Copyright: 2010 - 2017 https://github.com/ensime/ensime-server/graphs
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 package org.ensime.server.protocol.swank
 
@@ -586,6 +586,7 @@ object SwankProtocolResponse {
         SexpList(SexpSymbol(":ok"), payload.toSexp),
         SexpNumber(callId)
       )
+      case _ => throw new IllegalArgumentException(s"Illegal combination of callId and payload content: $o")
     }
   }
 

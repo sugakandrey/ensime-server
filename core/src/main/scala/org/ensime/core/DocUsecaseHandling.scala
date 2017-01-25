@@ -1,4 +1,4 @@
-// Copyright: 2010 - 2016 https://github.com/ensime/ensime-server/graphs
+// Copyright: 2010 - 2017 https://github.com/ensime/ensime-server/graphs
 // License: http://www.gnu.org/licenses/gpl-3.0.en.html
 package org.ensime.core
 
@@ -31,7 +31,8 @@ trait DocUsecaseHandling { self: DocResolver =>
             try {
               val is = jarFile.getInputStream(jarFile.getEntry(scalaFqnToPath(sig.fqn)))
               val html = Source.fromInputStream(is).mkString
-              val re = s"""<a id="(${Pattern.quote(prefix)}.+?)"""".r
+              //              val re = s"""<a id="(${Pattern.quote(prefix)}.+?)"""".r
+              val re = s"""<a id="(${Pattern.quote(prefix)}[^a-zA-Z\\d].*?)"""".r
               re.findFirstMatchIn(html).map { m =>
                 sig.copy(member = Some(StringEscapeUtils.unescapeHtml(m.group(1))))
               }.getOrElse(sig)
