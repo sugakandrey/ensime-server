@@ -344,8 +344,9 @@ class SearchServiceSpec extends EnsimeSpec
       ("org.reverselookups.Overloads.foo(Ljava/lang/String;I)V", "Method org.reverselookups.Overloads#foo(s: scala.Predef.String, i: scala.Int): scala.Unit"),
       ("org.reverselookups.Overloads.foo(Lorg/reverselookups/MyException;)V", "Method org.reverselookups.Overloads#foo[T <: org.reverselookups.MyException](t: T): scala.Unit"),
       ("org.reverselookups.Overloads.foo(Lorg/reverselookups/MyAnnotation;)V", "Method org.reverselookups.Overloads#foo(ann: org.reverselookups.MyAnnotation): scala.Unit")
+    )
   }
-      
+
   "lucene index" should "not contain duplicates" in withSearchService { implicit service =>
     import scala.collection.JavaConverters._
     val lucene = service.index.lucene

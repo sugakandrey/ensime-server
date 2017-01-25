@@ -9,11 +9,10 @@ import org.ensime.util.FileUtils._
 import org.ensime.util._
 import org.ensime.util.file.File
 
-import scala.collection.mutable
 import scala.tools.nsc.io.AbstractFile
 import scala.tools.refactoring._
 import scala.tools.refactoring.analysis.GlobalIndexes
-import scala.tools.refactoring.common.{Change, CompilerAccess, RenameSourceFileChange}
+import scala.tools.refactoring.common.{ Change, CompilerAccess, RenameSourceFileChange }
 import scala.tools.refactoring.implementations._
 
 abstract class RefactoringEnvironment(file: String, start: Int, end: Int) {
