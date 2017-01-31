@@ -87,7 +87,7 @@ trait RichCompilerControl extends CompilerControl with RefactoringControl with C
 
   def askDocSignatureAtPoint(p: Position): Option[DocSigPair] =
     askOption {
-      symbolAt(p).orElse(typeAt(p).map(_.typeSymbol)).flatMap(docSignature(_, Some(p)))
+      symbolAt(p).orElse(typeAt(p).flatMap(_.typeSymbol.toOption)).flatMap(docSignature(_, Some(p)))
     }.flatten
 
   def askDocSignatureForSymbol(typeFullName: String, memberName: Option[String],

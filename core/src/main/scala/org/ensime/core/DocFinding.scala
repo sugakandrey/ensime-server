@@ -105,16 +105,20 @@ trait DocFinding { self: RichPresentationCompiler with SymbolToFqn =>
     def docSig(java: Boolean) = {
       val owner = sym.owner
       if (sym.isCaseApplyOrUnapply) {
-        DocSig(linkName(owner.companionClass, java), None)
+        Some(DocSig(linkName(owner.companionClass, java), None))
       } else if (sym.isClass || sym.isModule || sym.isTrait || sym.hasPackageFlag)
-        DocSig(linkName(sym, java), None)
+        Some(DocSig(linkName(sym, java), None))
       else if (owner.isClass || owner.isModule || owner.isTrait || owner.hasPackageFlag) {
         val ownerAtSite = pos.flatMap(specificOwnerOfSymbolAt).getOrElse(owner)
-        DocSig(linkName(ownerAtSite, java), Some(signatureString(sym, java)))
+        Some(DocSig(linkName(ownerAtSite, java), Some(signatureString(sym, java))))
       } else
-        DocSig(linkName(sym.tpe.typeSymbol, java), None)
+        sym.tpe.typeSymbol.toOption.map(tsym => DocSig(linkName(tsym, java), None))
     }
-    Some(DocSigPair(docSig(java = false), docSig(java = true)))
+
+    (docSig(java = false), docSig(java = true)) match {
+      case (Some(scalaSig), Some(javaSig)) => Some(DocSigPair(scalaSig, javaSig))
+      case _ => None
+    }
   }
 
 }
