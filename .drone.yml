@@ -2,6 +2,7 @@ pipeline:
   build:
     image: ensime/ensime:v2.x-cache
     pull: true
+    privileged: true
     environment:
       - SBT_VOLATILE_TARGET=/root/ramdisk
       - SBT_TASK_LIMIT=4
@@ -13,7 +14,8 @@ pipeline:
           echo "Please remove TODO or FIXME. Create an issue at GitHub instead." ;
           exit 1 ;
         fi
-      - mkdir $SBT_VOLATILE_TARGET || mount -t tmpfs -o size=1g tmpfs $SBT_VOLATILE_TARGET ;
+      - export BUILD_DIR=$PWD
+      - mkdir $SBT_VOLATILE_TARGET && mount -t tmpfs -o size=1g tmpfs $SBT_VOLATILE_TARGET ; df -h
       - echo "ensimeServerJars := Nil" > ensime.sbt ;
         echo "ensimeServerProjectJars := Nil" >> ensime.sbt ;
       - sbt ++$SCALA_VERSION ensimeConfig ";createHeaders ;test:createHeaders ;it:createHeaders ;test:compile ;it:compile ;doc ;ensime/assembly";
@@ -22,14 +24,13 @@ pipeline:
           git --no-pager diff ;
           exit 1 ;
         fi
-      - sbt ++$SCALA_VERSION "testOnly -- -l IgnoreOnDrone" ;
-      - sbt ++$SCALA_VERSION "it:testOnly -- -l IgnoreOnDrone" ;
-      - if [ -z "$DRONE_PULL_REQUEST" ] ; then
-          sbt ++$SCALA_VERSION publish ;
-        fi
+      - export ASSEMBLY_JAR=$SBT_VOLATILE_TARGET/$BUILD_DIR/target/*/*-assembly.jar ; echo $ASSEMBLY_JAR
+      - if [ -n "$DRONE_PULL_REQUEST" ] ; then sbt ++$SCALA_VERSION "testOnly -- -l IgnoreOnDrone" ; fi
+      - if [ -n "$DRONE_PULL_REQUEST" ] ; then sbt ++$SCALA_VERSION "it:testOnly -- -l IgnoreOnDrone" ; fi
+      - if [ -z "$DRONE_PULL_REQUEST" ] ; then sbt ++$SCALA_VERSION publish ; fi
       - if [ -z "$DRONE_PULL_REQUEST" ] ; then
           echo "$SSH_KEY" > ~/.ssh/id_rsa ; chmod 600 ~/.ssh/id_rsa ;
-          scp -o StrictHostKeyChecking=no $SBT_VOLATILE_TARGET/$PWD/target/*/*-assembly.jar typelevel@ensime.typelevel.org:ensime.typelevel.org/ ;
+          scp -o StrictHostKeyChecking=no $ASSEMBLY_JAR typelevel@ensime.typelevel.org:ensime.typelevel.org/ ;
         fi
       - if [ -z "$DRONE_PULL_REQUEST" ] && [ "$SCALA_VERSION" = "2.11.8" ] ; then
           curl -H 'Content-Type:application/json' --data '{"docker_tag":"v2.x-cache"}' -X POST "https://registry.hub.docker.com/u/ensime/ensime/trigger/${DOCKER_TRIGGER_TOKEN}/" ;

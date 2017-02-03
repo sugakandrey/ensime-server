@@ -80,12 +80,20 @@ class ServerStartupSpec extends EnsimeSpec
 
         val preferredTcp = 10004
         (config.cacheDir / "port").writeString(preferredTcp.toString)
-        val tcpHog = new ServerSocket().bind(new InetSocketAddress("127.0.0.1", preferredTcp))
+        val socket = new ServerSocket()
 
-        val protocol = new SwankProtocol
-        system.actorOf(Props(new ServerActor(config, protocol)), "ensime-main")
+        try {
+          val tcpHog = socket.bind(new InetSocketAddress("127.0.0.1", preferredTcp))
 
-        Await.result(system.whenTerminated, akkaTimeout.duration)
+          eventually { assert(socket.isBound()) }
+
+          val protocol = new SwankProtocol
+          system.actorOf(Props(new ServerActor(config, protocol)), "ensime-main")
+
+          Await.result(system.whenTerminated, akkaTimeout.duration)
+        } finally {
+          socket.close()
+        }
       }
     }
   }
@@ -98,12 +106,20 @@ class ServerStartupSpec extends EnsimeSpec
         val preferredHttp = 10003
         (config.cacheDir / "http").writeString(preferredHttp.toString)
 
-        val httpHog = new ServerSocket().bind(new InetSocketAddress("127.0.0.1", preferredHttp))
+        val socket = new ServerSocket()
 
-        val protocol = new SwankProtocol
-        system.actorOf(Props(new ServerActor(config, protocol)), "ensime-main")
+        try {
+          val httpHog = socket.bind(new InetSocketAddress("127.0.0.1", preferredHttp))
 
-        Await.result(system.whenTerminated, akkaTimeout.duration)
+          eventually { assert(socket.isBound()) }
+
+          val protocol = new SwankProtocol
+          system.actorOf(Props(new ServerActor(config, protocol)), "ensime-main")
+
+          Await.result(system.whenTerminated, akkaTimeout.duration)
+        } finally {
+          socket.close()
+        }
       }
     }
   }
