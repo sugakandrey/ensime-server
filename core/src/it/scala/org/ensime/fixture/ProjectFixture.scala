@@ -54,12 +54,12 @@ object ProjectFixture extends Matchers {
     expectMsg(ConnectionInfo())
 
     if (config.scalaLibrary.isEmpty)
-      probe.receiveN(2, 30.seconds) should contain only (
+      probe.receiveN(2, 60.seconds) should contain only (
         Broadcaster.Persist(AnalyzerReadyEvent),
         Broadcaster.Persist(IndexerReadyEvent)
       )
     else
-      probe.receiveN(3, 30.seconds) should contain only (
+      probe.receiveN(3, 60.seconds) should contain only (
         Broadcaster.Persist(AnalyzerReadyEvent),
         Broadcaster.Persist(FullTypeCheckCompleteEvent),
         Broadcaster.Persist(IndexerReadyEvent)
