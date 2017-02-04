@@ -445,6 +445,7 @@ class BasicWorkflow extends EnsimeSpec
           project ! TypecheckFilesReq(List(Left(bazFile), Right(toBeUnloaded)))
           expectMsg(VoidResponse)
           asyncHelper.expectMsgType[NewScalaNotesEvent]
+          asyncHelper.expectMsgType[NewScalaNotesEvent]
           asyncHelper.expectMsg(FullTypeCheckCompleteEvent)
 
           project ! UnloadFileReq(toBeUnloaded)
