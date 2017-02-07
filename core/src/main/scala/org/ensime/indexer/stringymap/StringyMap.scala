@@ -6,6 +6,13 @@
  */
 package org.ensime.indexer.stringymap
 
+import scala.util._
+
+import java.sql.Timestamp
+
+import com.orientechnologies.orient.core.metadata.schema.OType
+import org.ensime.api.DeclaredAs
+import org.ensime.indexer.{ Access, Default, Private, Protected, Public }
 import org.ensime.indexer.orientdb.api.OrientProperty
 import shapeless._
 import shapeless.labelled._
@@ -16,13 +23,6 @@ package object api {
 }
 
 package api {
-  import java.sql.Timestamp
-
-  import com.orientechnologies.orient.core.metadata.schema.OType
-  import org.ensime.api.DeclaredAs
-  import org.ensime.indexer.{ Access, Default, Private, Protected, Public }
-  import org.ensime.indexer.orientdb.api.OrientProperty
-
   trait BigDataFormat[T] {
     def label: String
     def toProperties(t: T): StringyMap
@@ -138,7 +138,7 @@ package api {
 }
 
 package object impl {
-  import api._
+  import org.ensime.indexer.stringymap.api._
 
   implicit def hNilBigDataFormat[T]: BigDataFormat[HNil] = new BigDataFormat[HNil] {
     def label: String = ???
@@ -164,7 +164,6 @@ package object impl {
       }
 
       def fromProperties(m: StringyMap) = {
-        import scala.util.{ Try, Success, Failure }
         val value = m.get(key.value.name)
         /*
         This is a pretty hacky way to handle null => Empty option case, i'd love
@@ -243,24 +242,8 @@ package object impl {
   }
 }
 
-package impl {
-  import api._
-
-  // I tried and failed to have nice syntax for this
-  // see https://gist.github.com/fommil/784726514fed98e4c802
-  object LensId {
-    def apply[T, P](
-      field: String,
-      getter: Lens[T, P]
-    ): BigDataFormatId[T, P] = new BigDataFormatId[T, P] {
-      def key = field
-      def value(t: T): P = getter.get(t)
-    }
-  }
-}
-
 package object syntax {
-  import api._
+  import org.ensime.indexer.stringymap.api._
 
   implicit class RichBigResult[R](val e: BigResult[R]) extends AnyVal {
     def getOrThrowError: R = e match {
@@ -273,8 +256,6 @@ package object syntax {
   implicit class RichBigDataFormat[T](val t: T) extends AnyVal {
     def label(implicit s: BigDataFormat[T]): String = s.label
     def toProperties(implicit s: BigDataFormat[T]): StringyMap = s.toProperties(t)
-    def idKey[P](implicit lens: Lens[T, P]): String = ???
-    def idValue[P](implicit lens: Lens[T, P]): P = lens.get(t)
   }
 
   implicit class RichProperties(val props: StringyMap) extends AnyVal {

@@ -123,24 +123,27 @@ class GraphService(dir: File) extends SLF4JLogging {
   implicit val MethodS: BigDataFormat[Method] = cachedImplicit
   implicit val FieldS: BigDataFormat[Field] = cachedImplicit
 
-  import shapeless._
-  implicit val UniqueFileCheckV = LensId("filename", lens[FileCheck] >> 'filename)
-  implicit val FieldV = LensId("fqn", lens[Field] >> 'fqn)
-  implicit val MethodV = LensId("fqn", lens[Method] >> 'fqn)
-  implicit val ClassDefV = LensId("fqn", lens[ClassDef] >> 'fqn)
+  implicit val UniqueFileCheckV: BigDataFormatId[FileCheck, String] =
+    new BigDataFormatId[FileCheck, String] {
+      override def key = "filename"
+      override def value(t: FileCheck): String = t.filename
+    }
 
-  private implicit val FqnSymbolLens = new Lens[FqnSymbol, String] {
-    override def get(sym: FqnSymbol): String = sym.fqn
-    override def set(sym: FqnSymbol)(fqn: String) = ???
+  implicit val FqnIndexV: BigDataFormatId[FqnIndex, String] =
+    new BigDataFormatId[FqnIndex, String] {
+      override def key = "fqn"
+      override def value(t: FqnIndex): String = t.fqn
+    }
+
+  class UniqueFqnSymbol[T <: FqnSymbol] extends BigDataFormatId[T, String] {
+    override def key = "fqn"
+    override def value(t: T): String = t.fqn
   }
 
-  private implicit val FqnIndexLens = new Lens[FqnIndex, String] {
-    override def get(index: FqnIndex): String = index.fqn
-    override def set(index: FqnIndex)(fqn: String): FqnIndex = ???
-  }
-
-  implicit val UniqueFqnIndexV = LensId("fqn", FqnIndexLens)
-  implicit val UniqueFqnSymbolV = LensId("fqn", FqnSymbolLens)
+  implicit val UniqueClassDefV: UniqueFqnSymbol[ClassDef] = new UniqueFqnSymbol[ClassDef]
+  implicit val UniqueMethodV: UniqueFqnSymbol[Method] = new UniqueFqnSymbol[Method]
+  implicit val UniqueFieldV: UniqueFqnSymbol[Field] = new UniqueFqnSymbol[Field]
+  implicit val UniqueFqnSymbolV: UniqueFqnSymbol[FqnSymbol] = new UniqueFqnSymbol[FqnSymbol]
 
   // all methods return Future, which means we can do isolation by
   // doing all work on a single worker Thread. We can't optimise until
