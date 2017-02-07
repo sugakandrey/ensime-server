@@ -14,7 +14,8 @@ import com.tinkerpop.blueprints._
 import com.tinkerpop.blueprints.impls.orient._
 import org.ensime.indexer.graph.GraphService.{ IsParent, UsedIn, EnclosingClass }
 import org.ensime.indexer.graph._
-import org.ensime.indexer.orientdb.api.{ NotUnique, OrientProperty }
+import org.ensime.indexer.orientdb.api._
+import org.ensime.indexer.orientdb.schema.api._
 import org.ensime.indexer.stringymap.api._
 import org.ensime.indexer.stringymap.syntax._
 import shapeless.Typeable
@@ -88,11 +89,15 @@ package object syntax {
       this
     }
 
-    def createVertexFrom[T](superClass: Option[OClass] = None)(implicit bdf: BigDataFormat[T]): OClass = {
+    def createVertexFrom[T](superClass: Option[OClass] = None)(
+      implicit
+      bdf: BigDataFormat[T],
+      sg: SchemaFormat[T]
+    ): OClass = {
       graph.createVertexType(bdf.label)
       val schemaClass = schema.getClass(bdf.label)
       superClass.foreach(schemaClass.addSuperClass)
-      bdf.toSchema.foreach {
+      sg.toSchema.foreach {
         case (key, OrientProperty(oType, isMandatory)) =>
           if (schemaClass.getProperty(key) == null) {
             schemaClass.createProperty(key, oType)

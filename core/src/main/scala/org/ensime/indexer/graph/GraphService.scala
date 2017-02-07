@@ -23,8 +23,8 @@ import org.ensime.indexer.SearchService._
 import org.ensime.indexer._
 import org.ensime.indexer.orientdb.api._
 import org.ensime.indexer.orientdb.syntax._
+import org.ensime.indexer.orientdb.schema.api._
 import org.ensime.indexer.stringymap.api._
-import org.ensime.indexer.stringymap.impl._
 import org.ensime.util.file._
 import org.ensime.vfs._
 import shapeless.cachedImplicit
@@ -115,35 +115,6 @@ object FileCheck extends ((String, Timestamp) => FileCheck) {
 // core/it:test-only *Search* -- -z prestine
 class GraphService(dir: File) extends SLF4JLogging {
   import org.ensime.indexer.graph.GraphService._
-
-  implicit val FqnSymbolS: BigDataFormat[FqnSymbol] = cachedImplicit
-  implicit val MemberS: BigDataFormat[Member] = cachedImplicit
-  implicit val FileCheckS: BigDataFormat[FileCheck] = cachedImplicit
-  implicit val ClassDefS: BigDataFormat[ClassDef] = cachedImplicit
-  implicit val MethodS: BigDataFormat[Method] = cachedImplicit
-  implicit val FieldS: BigDataFormat[Field] = cachedImplicit
-
-  implicit val UniqueFileCheckV: BigDataFormatId[FileCheck, String] =
-    new BigDataFormatId[FileCheck, String] {
-      override def key = "filename"
-      override def value(t: FileCheck): String = t.filename
-    }
-
-  implicit val FqnIndexV: BigDataFormatId[FqnIndex, String] =
-    new BigDataFormatId[FqnIndex, String] {
-      override def key = "fqn"
-      override def value(t: FqnIndex): String = t.fqn
-    }
-
-  class UniqueFqnSymbol[T <: FqnSymbol] extends BigDataFormatId[T, String] {
-    override def key = "fqn"
-    override def value(t: T): String = t.fqn
-  }
-
-  implicit val UniqueClassDefV: UniqueFqnSymbol[ClassDef] = new UniqueFqnSymbol[ClassDef]
-  implicit val UniqueMethodV: UniqueFqnSymbol[Method] = new UniqueFqnSymbol[Method]
-  implicit val UniqueFieldV: UniqueFqnSymbol[Field] = new UniqueFqnSymbol[Field]
-  implicit val UniqueFqnSymbolV: UniqueFqnSymbol[FqnSymbol] = new UniqueFqnSymbol[FqnSymbol]
 
   // all methods return Future, which means we can do isolation by
   // doing all work on a single worker Thread. We can't optimise until
@@ -364,8 +335,49 @@ object GraphService {
   private[indexer] case object UsedIn extends EdgeT[FqnSymbol, FqnSymbol]
   private[indexer] case object IsParent extends EdgeT[ClassDef, ClassDef]
 
+  // the domain-specific formats for schema generation
+  import org.ensime.indexer.orientdb.schema.impl._
+  import org.ensime.indexer.stringymap.impl._
+
+  implicit val FileCheckBdf: BigDataFormat[FileCheck] = cachedImplicit
+  implicit val FileCheckS: SchemaFormat[FileCheck] = cachedImplicit
+
+  implicit val ClassDefBdf: BigDataFormat[ClassDef] = cachedImplicit
+  implicit val ClassDefS: SchemaFormat[ClassDef] = cachedImplicit
+
+  implicit val MethodBdf: BigDataFormat[Method] = cachedImplicit
+  implicit val MethodS: SchemaFormat[Method] = cachedImplicit
+
+  implicit val FieldBdf: BigDataFormat[Field] = cachedImplicit
+  implicit val FieldS: SchemaFormat[Field] = cachedImplicit
+
+  implicit val FqnSymbolBdf: BigDataFormat[FqnSymbol] = cachedImplicit
+
   implicit val DefinedInS: BigDataFormat[DefinedIn.type] = cachedImplicit
   implicit val EnclosingClassS: BigDataFormat[EnclosingClass.type] = cachedImplicit
   implicit val UsedInS: BigDataFormat[UsedIn.type] = cachedImplicit
   implicit val IsParentS: BigDataFormat[IsParent.type] = cachedImplicit
+
+  implicit val UniqueFileCheckV: BigDataFormatId[FileCheck, String] =
+    new BigDataFormatId[FileCheck, String] {
+      override def key = "filename"
+      override def value(t: FileCheck): String = t.filename
+    }
+
+  implicit val FqnIndexV: BigDataFormatId[FqnIndex, String] =
+    new BigDataFormatId[FqnIndex, String] {
+      override def key = "fqn"
+      override def value(t: FqnIndex): String = t.fqn
+    }
+
+  class UniqueFqnSymbol[T <: FqnSymbol] extends BigDataFormatId[T, String] {
+    override def key = "fqn"
+    override def value(t: T): String = t.fqn
+  }
+
+  implicit val UniqueClassDefV: UniqueFqnSymbol[ClassDef] = new UniqueFqnSymbol[ClassDef]
+  implicit val UniqueMethodV: UniqueFqnSymbol[Method] = new UniqueFqnSymbol[Method]
+  implicit val UniqueFieldV: UniqueFqnSymbol[Field] = new UniqueFqnSymbol[Field]
+  implicit val UniqueFqnSymbolV: UniqueFqnSymbol[FqnSymbol] = new UniqueFqnSymbol[FqnSymbol]
+
 }

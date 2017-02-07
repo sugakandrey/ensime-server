@@ -10,10 +10,8 @@ import scala.util._
 
 import java.sql.Timestamp
 
-import com.orientechnologies.orient.core.metadata.schema.OType
 import org.ensime.api.DeclaredAs
 import org.ensime.indexer.{ Access, Default, Private, Protected, Public }
-import org.ensime.indexer.orientdb.api.OrientProperty
 import shapeless._
 import shapeless.labelled._
 
@@ -27,18 +25,11 @@ package api {
     def label: String
     def toProperties(t: T): StringyMap
     def fromProperties(m: StringyMap): BigResult[T]
-    def toSchema: Map[String, OrientProperty]
-  }
-
-  trait BigDataFormatId[T, P] {
-    def key: String
-    def value(t: T): P
   }
 
   trait SPrimitive[T] {
     def toValue(v: T): AnyRef
     def fromValue(v: AnyRef): T
-    def toOrientProperty: OrientProperty
   }
 
   // defining really basic implementations on the companion
@@ -46,17 +37,14 @@ package api {
     implicit object StringSPrimitive extends SPrimitive[String] {
       def toValue(v: String): String = v
       def fromValue(v: AnyRef): String = v.asInstanceOf[String]
-      def toOrientProperty: OrientProperty = OrientProperty(OType.STRING)
     }
     implicit object IntSPrimitive extends SPrimitive[Int] {
       def toValue(v: Int): java.lang.Integer = v
       def fromValue(v: AnyRef): Int = v.asInstanceOf[java.lang.Integer]
-      def toOrientProperty: OrientProperty = OrientProperty(OType.INTEGER)
     }
     implicit object LongSPrimitive extends SPrimitive[Long] {
       def toValue(v: Long): java.lang.Long = v
       def fromValue(v: AnyRef): Long = v.asInstanceOf[java.lang.Long]
-      def toOrientProperty: OrientProperty = OrientProperty(OType.LONG)
     }
     implicit def OptionSPrimitive[T](
       implicit
@@ -69,12 +57,10 @@ package api {
       def fromValue(v: AnyRef): Option[T] =
         if (v == null) None
         else Some(p.fromValue(v))
-      def toOrientProperty: OrientProperty = OrientProperty(p.toOrientProperty.oType, isMandatory = false)
     }
     implicit object TimeStampSPrimitive extends SPrimitive[Timestamp] {
       def toValue(v: Timestamp): java.lang.Long = LongSPrimitive.toValue(v.getTime)
       def fromValue(v: AnyRef): Timestamp = new Timestamp(LongSPrimitive.fromValue(v))
-      def toOrientProperty: OrientProperty = OrientProperty(OType.LONG)
     }
 
     implicit object AccessSPrimitive extends SPrimitive[Access] {
@@ -93,46 +79,13 @@ package api {
         }
 
       def fromValue(v: AnyRef): Access = Access(IntSPrimitive.fromValue(v))
-      def toOrientProperty: OrientProperty = OrientProperty(OType.INTEGER)
     }
 
     implicit object DeclaredAsSPrimitive extends SPrimitive[DeclaredAs] {
-      trait SingletonByName[A, C <: Coproduct] {
-        def map: Map[String, A]
-      }
-      object SingletonByName {
-        implicit def CNilSingleton[A]: SingletonByName[A, CNil] =
-          new SingletonByName[A, CNil] { def map = Map.empty }
-
-        implicit def coproductSingletons[A, H <: A, T <: Coproduct](
-          implicit
-          tsbn: SingletonByName[A, T],
-          witness: Witness.Aux[H],
-          tpe: Typeable[H]
-        ): SingletonByName[A, H :+: T] = new SingletonByName[A, H :+: T] {
-          def map = {
-            val label = tpe.describe.replaceAll(".type", "")
-            tsbn.map + (label -> witness.value)
-          }
-        }
-      }
-
-      trait AdtToMap[A] {
-        def map: Map[String, A]
-      }
-      object AdtToMap {
-        implicit def fromSingletonByName[A, C <: Coproduct](
-          implicit
-          gen: Generic.Aux[A, C],
-          singletonByName: SingletonByName[A, C]
-        ): AdtToMap[A] = new AdtToMap[A] { def map: Map[String, A] = singletonByName.map }
-      }
-
-      val map: Map[String, DeclaredAs] = implicitly[AdtToMap[DeclaredAs]].map
-
+      import org.ensime.util.enums._
+      private val lookup: Map[String, DeclaredAs] = implicitly[AdtToMap[DeclaredAs]].lookup
       def toValue(v: DeclaredAs): java.lang.String = if (v == null) null else StringSPrimitive.toValue(v.toString)
-      def fromValue(v: AnyRef): DeclaredAs = map(StringSPrimitive.fromValue(v))
-      def toOrientProperty: OrientProperty = OrientProperty(OType.STRING)
+      def fromValue(v: AnyRef): DeclaredAs = lookup(StringSPrimitive.fromValue(v))
     }
   }
 }
@@ -144,7 +97,6 @@ package object impl {
     def label: String = ???
     def toProperties(t: HNil): StringyMap = new java.util.HashMap()
     def fromProperties(m: StringyMap) = Right(HNil)
-    def toSchema: Map[String, OrientProperty] = Map.empty
   }
 
   implicit def hListBigDataFormat[Key <: Symbol, Value, Remaining <: HList](
@@ -180,11 +132,6 @@ package object impl {
         } yield field[Key](current) :: remaining
       }
 
-      def toSchema: Map[String, OrientProperty] = {
-        val otype = prim.toOrientProperty
-        val map = remV.value.toSchema
-        map + (key.value.name -> otype)
-      }
     }
 
   implicit def familyBigDataFormat[T, Repr](
@@ -203,13 +150,11 @@ package object impl {
     }
     def fromProperties(m: StringyMap): BigResult[T] =
       sg.value.fromProperties(m).right.map(gen.from)
-    def toSchema: Map[String, OrientProperty] = sg.value.toSchema
   }
 
   implicit def CNilBigDataFormat[T]: BigDataFormat[CNil] = new BigDataFormat[CNil] {
     override def label: String = ???
     override def toProperties(t: CNil): StringyMap = ???
-    override def toSchema: Map[String, OrientProperty] = ???
     override def fromProperties(m: StringyMap): BigResult[CNil] = ???
   }
 
@@ -225,8 +170,6 @@ package object impl {
       case Inl(found) => bdfh.value.toProperties(found)
       case Inr(tail) => bdft.value.toProperties(tail)
     }
-
-    override def toSchema: Map[String, OrientProperty] = ???
 
     override def fromProperties(m: StringyMap): BigResult[FieldType[Key, Value] :+: Tail] = {
       if (m.get("typehint") == key.value.name) {
