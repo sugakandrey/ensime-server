@@ -444,8 +444,13 @@ class BasicWorkflow extends EnsimeSpec
 
           project ! TypecheckFilesReq(List(Left(bazFile), Right(toBeUnloaded)))
           expectMsg(VoidResponse)
-          asyncHelper.expectMsgType[NewScalaNotesEvent]
-          asyncHelper.expectMsg(FullTypeCheckCompleteEvent)
+          forAll(asyncHelper.receiveN(2)) { el =>
+            // ordering is arbitrary
+            el should matchPattern {
+              case note: NewScalaNotesEvent =>
+              case FullTypeCheckCompleteEvent =>
+            }
+          }
 
           project ! UnloadFileReq(toBeUnloaded)
           expectMsg(VoidResponse)
@@ -456,7 +461,13 @@ class BasicWorkflow extends EnsimeSpec
 
           project ! TypecheckFilesReq(List(Left(bazFile)))
           expectMsg(VoidResponse)
-          asyncHelper.expectMsg(FullTypeCheckCompleteEvent)
+          forAll(asyncHelper.receiveN(2)) { el =>
+            // ordering is arbitrary
+            el should matchPattern {
+              case note: NewScalaNotesEvent =>
+              case FullTypeCheckCompleteEvent =>
+            }
+          }
         }
       }
     }
