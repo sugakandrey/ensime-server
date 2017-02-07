@@ -4,14 +4,12 @@
  * TypeClass (api/impl/syntax) for marshalling objects into
  * `java.util.HashMap<String,Object>` (yay, big data!).
  */
-package org.ensime.indexer.stringymap
+package org.ensime.util.stringymap
 
 import scala.util._
 
 import java.sql.Timestamp
 
-import org.ensime.api.DeclaredAs
-import org.ensime.indexer.{ Access, Default, Private, Protected, Public }
 import shapeless._
 import shapeless.labelled._
 
@@ -22,6 +20,9 @@ package object api {
 
 package api {
   trait BigDataFormat[T] {
+    // "label" is nasty, it's like we can't make up our mind between
+    // reflection-based names of an un-sealed Any hierarchy, or the
+    // CNil coproducts impl.
     def label: String
     def toProperties(t: T): StringyMap
     def fromProperties(m: StringyMap): BigResult[T]
@@ -62,36 +63,11 @@ package api {
       def toValue(v: Timestamp): java.lang.Long = LongSPrimitive.toValue(v.getTime)
       def fromValue(v: AnyRef): Timestamp = new Timestamp(LongSPrimitive.fromValue(v))
     }
-
-    implicit object AccessSPrimitive extends SPrimitive[Access] {
-      import org.objectweb.asm.Opcodes._
-
-      def toValue(v: Access): java.lang.Integer =
-        if (v == null) null
-        else {
-          val code = v match {
-            case Public => ACC_PUBLIC
-            case Private => ACC_PRIVATE
-            case Protected => ACC_PROTECTED
-            case Default => 0
-          }
-          IntSPrimitive.toValue(code)
-        }
-
-      def fromValue(v: AnyRef): Access = Access(IntSPrimitive.fromValue(v))
-    }
-
-    implicit object DeclaredAsSPrimitive extends SPrimitive[DeclaredAs] {
-      import org.ensime.util.enums._
-      private val lookup: Map[String, DeclaredAs] = implicitly[AdtToMap[DeclaredAs]].lookup
-      def toValue(v: DeclaredAs): java.lang.String = if (v == null) null else StringSPrimitive.toValue(v.toString)
-      def fromValue(v: AnyRef): DeclaredAs = lookup(StringSPrimitive.fromValue(v))
-    }
   }
 }
 
 package object impl {
-  import org.ensime.indexer.stringymap.api._
+  import org.ensime.util.stringymap.api._
 
   implicit def hNilBigDataFormat[T]: BigDataFormat[HNil] = new BigDataFormat[HNil] {
     def label: String = ???
@@ -186,7 +162,7 @@ package object impl {
 }
 
 package object syntax {
-  import org.ensime.indexer.stringymap.api._
+  import org.ensime.util.stringymap.api._
 
   implicit class RichBigResult[R](val e: BigResult[R]) extends AnyVal {
     def getOrThrowError: R = e match {

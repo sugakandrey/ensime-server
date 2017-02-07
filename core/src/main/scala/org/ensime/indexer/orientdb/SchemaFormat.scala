@@ -22,8 +22,7 @@ package api {
     def toOrientProperty: OrientProperty
   }
 
-  // FIXME: rename
-  trait BigDataFormatId[T, P] {
+  trait OrientIdFormat[T, P] {
     def key: String
     def value(t: T): P
   }
@@ -81,7 +80,6 @@ package object impl {
       }
     }
 
-  // FIXME: are we even using this for coproducts?
   implicit def familySchemaFormat[T, Repr](
     implicit
     gen: LabelledGeneric.Aux[T, Repr],
@@ -91,16 +89,4 @@ package object impl {
     def toSchema: Map[String, OrientProperty] = sg.value.toSchema
   }
 
-  implicit def CNilSchemaFormat[T]: SchemaFormat[CNil] = new SchemaFormat[CNil] {
-    override def toSchema: Map[String, OrientProperty] = ???
-  }
-
-  implicit def CoproductSchemaFormat[Key <: Symbol, Value, Tail <: Coproduct](
-    implicit
-    key: Witness.Aux[Key],
-    bdfh: Lazy[SchemaFormat[Value]],
-    bdft: Lazy[SchemaFormat[Tail]]
-  ): SchemaFormat[FieldType[Key, Value] :+: Tail] = new SchemaFormat[FieldType[Key, Value] :+: Tail] {
-    override def toSchema: Map[String, OrientProperty] = ???
-  }
 }

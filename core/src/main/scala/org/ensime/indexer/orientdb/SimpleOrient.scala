@@ -16,8 +16,8 @@ import org.ensime.indexer.graph.GraphService.{ IsParent, UsedIn, EnclosingClass 
 import org.ensime.indexer.graph._
 import org.ensime.indexer.orientdb.api._
 import org.ensime.indexer.orientdb.schema.api._
-import org.ensime.indexer.stringymap.api._
-import org.ensime.indexer.stringymap.syntax._
+import org.ensime.util.stringymap.api._
+import org.ensime.util.stringymap.syntax._
 import shapeless.Typeable
 
 // NOTE: this uses the v2 version of tinkerpop. v3 is on Java 8.
@@ -82,7 +82,7 @@ package object syntax {
       implicit
       tag: Indexable[E],
       tpe: Typeable[T],
-      id: BigDataFormatId[T, F]
+      id: OrientIdFormat[T, F]
     ): RichOrientGraph = {
       val label = tpe.describe.replace(".type", "")
       graph.createKeyIndex(id.key, tag.aClass, "type" -> idx.orientKey, "class" -> label)
@@ -200,7 +200,7 @@ package object syntax {
       implicit
       graph: OrientBaseGraph,
       s: BigDataFormat[T],
-      u: BigDataFormatId[T, P],
+      u: OrientIdFormat[T, P],
       p: SPrimitive[P]
     ): Option[VertexT[T]] = {
       graph.getVertices(s.label + "." + u.key, p.toValue(value))
@@ -217,7 +217,7 @@ package object syntax {
       implicit
       graph: OrientBaseGraph,
       s: BigDataFormat[T],
-      u: BigDataFormatId[T, P],
+      u: OrientIdFormat[T, P],
       p: SPrimitive[P]
     ): VertexT[T] = {
       readUniqueV(u.value(t)) match {
@@ -243,7 +243,7 @@ package object syntax {
       implicit
       graph: OrientBaseGraph,
       s: BigDataFormat[T],
-      u: BigDataFormatId[T, P],
+      u: OrientIdFormat[T, P],
       p: SPrimitive[P]
     ): VertexT[T] = {
       readUniqueV(u.value(t)) match {
@@ -263,7 +263,7 @@ package object syntax {
       implicit
       graph: OrientBaseGraph,
       s: BigDataFormat[T],
-      u: BigDataFormatId[T, P],
+      u: OrientIdFormat[T, P],
       p: SPrimitive[P],
       cdefFormat: BigDataFormat[ClassDef]
     ): Boolean = {
@@ -304,7 +304,7 @@ package object syntax {
       implicit
       graph: OrientBaseGraph,
       s: BigDataFormat[T],
-      u: BigDataFormatId[T, P],
+      u: OrientIdFormat[T, P],
       p: SPrimitive[P],
       cdefFormat: BigDataFormat[ClassDef]
     ): Int = ts.map(removeV(_)).count(_ == true)
@@ -325,7 +325,7 @@ package object syntax {
       implicit
       graph: OrientBaseGraph,
       s: BigDataFormat[ClassDef],
-      u: BigDataFormatId[ClassDef, P],
+      u: OrientIdFormat[ClassDef, P],
       p: SPrimitive[P]
     ): Option[Hierarchy] = {
       import GraphService.IsParentS
@@ -356,7 +356,7 @@ package object syntax {
       implicit
       graph: OrientBaseGraph,
       bdf: BigDataFormat[FqnSymbol],
-      bdfId: BigDataFormatId[FqnSymbol, P],
+      oid: OrientIdFormat[FqnSymbol, P],
       p: SPrimitive[P]
     ): Seq[VertexT[FqnSymbol]] = {
       import GraphService.{ UsedInS, EnclosingClassS }

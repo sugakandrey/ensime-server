@@ -24,7 +24,6 @@ import org.ensime.indexer._
 import org.ensime.indexer.orientdb.api._
 import org.ensime.indexer.orientdb.syntax._
 import org.ensime.indexer.orientdb.schema.api._
-import org.ensime.indexer.stringymap.api._
 import org.ensime.util.file._
 import org.ensime.vfs._
 import shapeless.cachedImplicit
@@ -337,7 +336,35 @@ object GraphService {
 
   // the domain-specific formats for schema generation
   import org.ensime.indexer.orientdb.schema.impl._
-  import org.ensime.indexer.stringymap.impl._
+  import org.ensime.util.stringymap.api._
+  import org.ensime.util.stringymap.impl._
+
+  implicit object AccessSPrimitive extends SPrimitive[Access] {
+    import org.objectweb.asm.Opcodes._
+    import SPrimitive.IntSPrimitive
+
+    def toValue(v: Access): java.lang.Integer =
+      if (v == null) null
+      else {
+        val code = v match {
+          case Public => ACC_PUBLIC
+          case Private => ACC_PRIVATE
+          case Protected => ACC_PROTECTED
+          case Default => 0
+        }
+        IntSPrimitive.toValue(code)
+      }
+
+    def fromValue(v: AnyRef): Access = Access(IntSPrimitive.fromValue(v))
+  }
+
+  implicit object DeclaredAsSPrimitive extends SPrimitive[DeclaredAs] {
+    import org.ensime.util.enums._
+    import SPrimitive.StringSPrimitive
+    private val lookup: Map[String, DeclaredAs] = implicitly[AdtToMap[DeclaredAs]].lookup
+    def toValue(v: DeclaredAs): java.lang.String = if (v == null) null else StringSPrimitive.toValue(v.toString)
+    def fromValue(v: AnyRef): DeclaredAs = lookup(StringSPrimitive.fromValue(v))
+  }
 
   implicit val FileCheckBdf: BigDataFormat[FileCheck] = cachedImplicit
   implicit val FileCheckS: SchemaFormat[FileCheck] = cachedImplicit
@@ -358,19 +385,19 @@ object GraphService {
   implicit val UsedInS: BigDataFormat[UsedIn.type] = cachedImplicit
   implicit val IsParentS: BigDataFormat[IsParent.type] = cachedImplicit
 
-  implicit val UniqueFileCheckV: BigDataFormatId[FileCheck, String] =
-    new BigDataFormatId[FileCheck, String] {
+  implicit val UniqueFileCheckV: OrientIdFormat[FileCheck, String] =
+    new OrientIdFormat[FileCheck, String] {
       override def key = "filename"
       override def value(t: FileCheck): String = t.filename
     }
 
-  implicit val FqnIndexV: BigDataFormatId[FqnIndex, String] =
-    new BigDataFormatId[FqnIndex, String] {
+  implicit val FqnIndexV: OrientIdFormat[FqnIndex, String] =
+    new OrientIdFormat[FqnIndex, String] {
       override def key = "fqn"
       override def value(t: FqnIndex): String = t.fqn
     }
 
-  class UniqueFqnSymbol[T <: FqnSymbol] extends BigDataFormatId[T, String] {
+  class UniqueFqnSymbol[T <: FqnSymbol] extends OrientIdFormat[T, String] {
     override def key = "fqn"
     override def value(t: T): String = t.fqn
   }
