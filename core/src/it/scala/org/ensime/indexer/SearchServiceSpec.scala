@@ -14,6 +14,7 @@ import org.ensime.util.file._
 import org.scalactic.source.Position
 import org.scalatest.Matchers._
 import org.scalatest.matchers.{ BeMatcher, MatchResult }
+import org.scalatest.OptionValues._
 
 class SearchServiceSpec extends EnsimeSpec
     with SharedTestKitFixture
@@ -213,17 +214,14 @@ class SearchServiceSpec extends EnsimeSpec
     val aTrait = service.findUnique("org.scalatest.FunSuiteLike")
     val aClass = service.findUnique("org.scalatest.FunSuite")
     val anObject = service.findUnique("org.scalatest.SuperEngine$Bundle$")
-    aTrait shouldBe defined
-    aTrait.get.toSearchResult should startWith("Trait")
-    aClass shouldBe defined
-    aClass.get.toSearchResult should startWith("Class")
-    anObject shouldBe defined
-    anObject.get.toSearchResult should startWith("Object")
+    aTrait.value.toSearchResult should startWith("Trait")
+    aClass.value.toSearchResult should startWith("Class")
+    anObject.value.toSearchResult should startWith("Object")
   }
 
   it should "find scala names for scala symbols" in withSearchService { implicit service =>
     val hits = service.searchClassesMethods(List("TestSuite"), 10)
-    hits.length should be > 0
+    hits should be ('nonEmpty)
     all(hits.map(_.scalaName)) shouldBe defined
   }
 
