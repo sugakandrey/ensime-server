@@ -17,7 +17,7 @@ import org.ensime.EnsimeKeys._
 
 import fommil.SensibleSettings._
 import fommil.SonatypeKeys._
- 
+
 object ProjectPlugin extends AutoPlugin {
   override def requires = fommil.SensiblePlugin
   override def trigger = allRequirements
@@ -94,7 +94,7 @@ object EnsimeBuild {
       "org.apache.commons" % "commons-vfs2" % "2.1" exclude ("commons-logging", "commons-logging"),
       "com.google.guava" % "guava" % "20.0",
       "com.google.code.findbugs" % "jsr305" % "3.0.1" % "provided"
-    ) ++ logback
+    ) ++ logback ++ shapeless.value
   )
 
   lazy val testutil = Project("testutil", file("testutil")) settings (commonSettings) dependsOn (
@@ -251,7 +251,7 @@ object EnsimeBuild {
       case Some((2, 10)) => "2.3.16"
     }
   }
-  
+
   private val orientVersion = "2.2.13"
 }
 

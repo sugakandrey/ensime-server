@@ -59,7 +59,7 @@ object ProjectFixture extends Matchers {
         Broadcaster.Persist(IndexerReadyEvent)
       )
     else
-      probe.receiveN(3, 60.seconds) should contain only (
+      probe.receiveN(3, 120.seconds) should contain only (
         Broadcaster.Persist(AnalyzerReadyEvent),
         Broadcaster.Persist(FullTypeCheckCompleteEvent),
         Broadcaster.Persist(IndexerReadyEvent)
