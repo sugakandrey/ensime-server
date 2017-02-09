@@ -7,13 +7,14 @@ import java.util.concurrent.Semaphore
 import scala.concurrent._
 import scala.concurrent.duration._
 import scala.util.{ Failure, Properties, Success }
-import scala.collection.{ mutable => m, Map, Set }
+import scala.collection.{ mutable, Map, Set }
 import akka.actor._
 import akka.event.slf4j.SLF4JLogging
 import org.apache.commons.vfs2._
 import org.ensime.api._
 import org.ensime.indexer.graph._
 import org.ensime.util.file._
+import org.ensime.util.map._
 import org.ensime.util.fileobject._
 import org.ensime.vfs._
 
@@ -102,18 +103,20 @@ class SearchService(
   }
 
   private def scanGrouped(
-    f: FileObject,
-    initial: m.MultiMap[FileName, FileObject] = new m.HashMap[FileName, m.Set[FileObject]] with m.MultiMap[FileName, FileObject]
-  ): Map[FileName, Set[FileObject]] = f.findFiles(ClassfileSelector) match {
-    case null => initial
-    case res =>
-      for (fo <- res) {
-        val key = getTopLevelClassFile(fo)
-        if (key.exists()) {
-          initial.addBinding(key.getName, fo)
+    f: FileObject
+  ): Map[FileName, Set[FileObject]] = {
+    val results = new mutable.HashMap[FileName, mutable.Set[FileObject]] with mutable.MultiMap[FileName, FileObject]
+    f.findFiles(ClassfileSelector) match {
+      case null => results
+      case res =>
+        for (fo <- res) {
+          val key = getTopLevelClassFile(fo)
+          if (key.exists()) {
+            results.addBinding(key.getName, fo)
+          }
         }
-      }
-      initial
+        results
+    }
   }
 
   /**
@@ -145,15 +148,12 @@ class SearchService(
 
     // a snapshot of everything that we want to index
     def findBases(): (Set[FileObject], Map[FileName, Set[FileObject]]) = {
-      val grouped = new m.HashMap[FileName, m.Set[FileObject]] with m.MultiMap[FileName, FileObject]
-      val jars = config.modules.flatMap {
+      val (jarFiles, dirs) = config.modules.flatMap {
         case (name, m) =>
-          (m.testTargets ++ m.targets).flatMap {
-            case d if !d.exists() => Nil
-            case d if d.isJar => List(vfs.vfile(d))
-            case d => scanGrouped(vfs.vfile(d), grouped); Nil
-          } ::: (m.compileJars ++ m.testJars).map(vfs.vfile)
-      }.toSet ++ config.javaLibs.map(vfs.vfile)
+          (m.testTargets ++ m.targets).filter(_.exists()) ::: (m.compileJars ++ m.testJars)
+      }.partition(_.isJar)
+      val grouped = dirs.map(d => scanGrouped(vfs.vfile(d))).fold(Map.empty[FileName, Set[FileObject]])(_ merge _)
+      val jars: Set[FileObject] = (jarFiles ++ config.javaLibs).map(vfs.vfile)(collection.breakOut)
       (jars, grouped)
     }
 
@@ -457,7 +457,7 @@ class IndexingQueueActor(searchService: SearchService) extends Actor with ActorL
   // De-dupes files that have been updated since we were last told to
   // index them. No need to aggregate values: the latest wins. Key is
   // the URI because FileObject doesn't implement equals
-  private val todo = new m.HashMap[FileName, m.Set[FileObject]] with m.MultiMap[FileName, FileObject]
+  private val todo = new mutable.HashMap[FileName, mutable.Set[FileObject]] with mutable.MultiMap[FileName, FileObject]
 
   // debounce and give us a chance to batch (which is *much* faster)
   private var worker: Cancellable = _

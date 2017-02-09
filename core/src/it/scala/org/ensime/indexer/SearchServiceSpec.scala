@@ -221,7 +221,7 @@ class SearchServiceSpec extends EnsimeSpec
 
   it should "find scala names for scala symbols" in withSearchService { implicit service =>
     val hits = service.searchClassesMethods(List("TestSuite"), 10)
-    hits should be ('nonEmpty)
+    hits should be('nonEmpty)
     all(hits.map(_.scalaName)) shouldBe defined
   }
 
