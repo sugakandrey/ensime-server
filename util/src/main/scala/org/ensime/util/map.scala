@@ -3,7 +3,7 @@
 package org.ensime.util
 
 import Predef.{ any2stringadd => _, _ => _ }
-import scala.collection.{ Map, Set } 
+import scala.collection.{ Map, Set }
 
 package object map {
   implicit class RichMap[K, V](val map: Map[K, V]) extends AnyVal {

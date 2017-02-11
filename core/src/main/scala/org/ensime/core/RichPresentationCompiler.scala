@@ -43,7 +43,8 @@ import java.nio.file.{ Path, Paths }
 import java.net.URI
 
 import scala.collection.mutable
-import scala.concurrent.Future
+import scala.collection.immutable.{ Set => SCISet }
+import scala.concurrent.{ ExecutionContext, Future }
 import scala.reflect.internal.util.{ BatchSourceFile, RangePosition, SourceFile }
 import scala.reflect.io.{ PlainFile, VirtualFile }
 import scala.tools.nsc.Settings
@@ -103,7 +104,7 @@ trait RichCompilerControl extends CompilerControl with RefactoringControl with C
   // exposed for testing
   def askSymbolFqn(p: Position): Option[FullyQualifiedName] =
     askOption(symbolAt(p).map(toFqn)).flatten
-  def askSymbolFqn(s: Symbol): FullyQualifiedName = toFqn(s)
+  def askSymbolFqn(s: Symbol): Option[FullyQualifiedName] = askOption(toFqn(s))
   def askTypeFqn(p: Position): Option[FullyQualifiedName] =
     askOption(typeAt(p).map { tpe => toFqn(tpe.typeSymbol) }).flatten
   def askSymbolByScalaName(name: String, declaredAs: Option[DeclaredAs] = None): Option[Symbol] =
@@ -208,7 +209,7 @@ trait RichCompilerControl extends CompilerControl with RefactoringControl with C
   def askReloadAndTypeFiles(files: Iterable[SourceFile]) =
     askOption(reloadAndTypeFiles(files))
 
-  def askUsesOfSymAtPos(pos: Position): Future[List[RangePosition]] = {
+  def askUsesOfSymAtPos(pos: Position)(implicit ec: ExecutionContext): Future[List[RangePosition]] = {
     askLoadedTyped(pos.source)
     val symbol = askSymbolAt(pos)
     symbol match {
@@ -216,18 +217,18 @@ trait RichCompilerControl extends CompilerControl with RefactoringControl with C
       case Some(sym) =>
         val source = pos.source
         val loadedFiles = loadUsesOfSym(sym)
-        loadedFiles.map { lfs => 
+        loadedFiles.map { lfs =>
           val files = lfs.map(_.file) + source.file.file.toPath
           askUsesOfSym(sym, files)
         }
     }
   }
 
-  def askUsesOfSym(sym: Symbol, files: collection.Set[Path]): List[RangePosition] =
+  def askUsesOfSym(sym: Symbol, files: SCISet[Path]): List[RangePosition] =
     askOption(usesOfSymbol(sym.pos, files).toList).getOrElse(List.empty)
 
   protected def withExistingScalaFiles(
-    files: collection.Set[SourceFileInfo]
+    files: SCISet[SourceFileInfo]
   )(
     f: List[SourceFile] => RpcResponse
   ): RpcResponse = {
@@ -242,7 +243,7 @@ trait RichCompilerControl extends CompilerControl with RefactoringControl with C
     }
   }
 
-  def handleReloadFiles(files: collection.Set[SourceFileInfo]): RpcResponse = {
+  def handleReloadFiles(files: SCISet[SourceFileInfo]): RpcResponse = {
     withExistingScalaFiles(files) { scalas =>
       if (scalas.nonEmpty) {
         askReloadFiles(scalas)
@@ -252,7 +253,7 @@ trait RichCompilerControl extends CompilerControl with RefactoringControl with C
     }
   }
 
-  def handleReloadAndRetypeFiles(files: collection.Set[SourceFileInfo]): RpcResponse = {
+  def handleReloadAndRetypeFiles(files: SCISet[SourceFileInfo]): RpcResponse = {
     withExistingScalaFiles(files) { scalas =>
       if (scalas.nonEmpty) {
         askReloadFiles(scalas)
@@ -264,7 +265,7 @@ trait RichCompilerControl extends CompilerControl with RefactoringControl with C
   }
 
   import org.ensime.util.file.File
-  def loadUsesOfSym(sym: Symbol): Future[collection.Set[RawFile]] = {
+  def loadUsesOfSym(sym: Symbol)(implicit ec: ExecutionContext): Future[SCISet[RawFile]] = {
     val files = usesOfSym(sym)
     files.map { rfs =>
       val sfis = rfs.map(rf => SourceFileInfo(rf))
@@ -273,19 +274,21 @@ trait RichCompilerControl extends CompilerControl with RefactoringControl with C
     }
   }
 
-  def usesOfSym(sym: Symbol): Future[collection.Set[RawFile]] = {
+  def usesOfSym(sym: Symbol)(implicit ec: ExecutionContext): Future[SCISet[RawFile]] = {
     val noReverseLookups = search.noReverseLookups
     if (noReverseLookups) {
       Future.successful(Set.empty)
     } else {
-      val fqn = askSymbolFqn(sym)
-      val usages = search.findUsages(fqn.fqnString)
-      usages.map { usages =>
-        val uniqueFiles: collection.Set[RawFile] = usages.flatMap { u =>
-          val source = u.source
-          source.map(s => RawFile(Paths.get(new URI(s))))
-        }(collection.breakOut)
-        uniqueFiles + RawFile(sym.sourceFile.file.toPath)
+      val symbolFqn = askSymbolFqn(sym)
+      symbolFqn.fold(Future.successful(Set.empty[RawFile])) { fqn =>
+        val usages = search.findUsages(fqn.fqnString)
+        usages.map { usages =>
+          val uniqueFiles: SCISet[RawFile] = usages.flatMap { u =>
+            val source = u.source
+            source.map(s => RawFile(Paths.get(new URI(s))))
+          }(collection.breakOut)
+          uniqueFiles + RawFile(sym.sourceFile.file.toPath)
+        }
       }
     }
   }

@@ -200,13 +200,15 @@ class Analyzer(
     case TypecheckFilesReq(files) =>
       sender ! scalaCompiler.handleReloadFiles(files.map(toSourceFileInfo)(breakOut))
     case req: RefactorReq =>
-      sender ! handleRefactorRequest(req)
+      import context.dispatcher
+      pipe(handleRefactorRequest(req)) to sender
     case CompletionsReq(fileInfo, point, maxResults, caseSens, _reload) =>
       sender ! withExisting(fileInfo) {
         reporter.disable()
         scalaCompiler.askCompletionsAt(pos(fileInfo, point), maxResults, caseSens)
       }
     case UsesOfSymbolAtPointReq(file, point) =>
+      import context.dispatcher
       val response = if (toSourceFileInfo(file).exists()) {
         val p = pos(file, point)
         val uses = scalaCompiler.askUsesOfSymAtPos(p)
