@@ -40,8 +40,10 @@ package org.ensime.core
 
 import java.nio.charset.Charset
 import java.nio.file.{ Path, Paths }
+import java.net.URI
 
 import scala.collection.mutable
+import scala.concurrent.Future
 import scala.reflect.internal.util.{ BatchSourceFile, RangePosition, SourceFile }
 import scala.reflect.io.{ PlainFile, VirtualFile }
 import scala.tools.nsc.Settings
@@ -206,16 +208,18 @@ trait RichCompilerControl extends CompilerControl with RefactoringControl with C
   def askReloadAndTypeFiles(files: Iterable[SourceFile]) =
     askOption(reloadAndTypeFiles(files))
 
-  def askUsesOfSymAtPos(pos: Position): List[RangePosition] = {
+  def askUsesOfSymAtPos(pos: Position): Future[List[RangePosition]] = {
     askLoadedTyped(pos.source)
     val symbol = askSymbolAt(pos)
     symbol match {
-      case None => Nil
+      case None => Future.successful(Nil)
       case Some(sym) =>
         val source = pos.source
         val loadedFiles = loadUsesOfSym(sym)
-        val files = loadedFiles.map(_.file) + source.file.file.toPath
-        askUsesOfSym(sym, files)
+        loadedFiles.map { lfs => 
+          val files = lfs.map(_.file) + source.file.file.toPath
+          askUsesOfSym(sym, files)
+        }
     }
   }
 
@@ -260,28 +264,29 @@ trait RichCompilerControl extends CompilerControl with RefactoringControl with C
   }
 
   import org.ensime.util.file.File
-  def loadUsesOfSym(sym: Symbol): collection.Set[RawFile] = {
+  def loadUsesOfSym(sym: Symbol): Future[collection.Set[RawFile]] = {
     val files = usesOfSym(sym)
-    val sfis = files.map(rf => SourceFileInfo(rf))
-    handleReloadAndRetypeFiles(sfis)
-    files
+    files.map { rfs =>
+      val sfis = rfs.map(rf => SourceFileInfo(rf))
+      handleReloadAndRetypeFiles(sfis)
+      rfs
+    }
   }
 
-  def usesOfSym(sym: Symbol): collection.Set[RawFile] = {
-    import scala.concurrent.Await
-    import scala.concurrent.duration.Duration
-
+  def usesOfSym(sym: Symbol): Future[collection.Set[RawFile]] = {
     val noReverseLookups = search.noReverseLookups
     if (noReverseLookups) {
-      Set.empty
+      Future.successful(Set.empty)
     } else {
       val fqn = askSymbolFqn(sym)
-      val usages = Await.result(search.findUsages(fqn.fqnString), Duration.Inf)
-      val files: collection.Set[RawFile] = usages.flatMap { usage =>
-        val source = usage.source
-        source.map(s => RawFile(Paths.get(vfs.vfile(s).getName.getPath)))
-      }(collection.breakOut)
-      files + RawFile(sym.sourceFile.file.toPath)
+      val usages = search.findUsages(fqn.fqnString)
+      usages.map { usages =>
+        val uniqueFiles: collection.Set[RawFile] = usages.flatMap { u =>
+          val source = u.source
+          source.map(s => RawFile(Paths.get(new URI(s))))
+        }(collection.breakOut)
+        uniqueFiles + RawFile(sym.sourceFile.file.toPath)
+      }
     }
   }
 

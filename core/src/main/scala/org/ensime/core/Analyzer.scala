@@ -7,6 +7,7 @@ import java.nio.charset.Charset
 
 import org.ensime.util.ensimefile._
 import akka.actor._
+import akka.pattern.pipe
 import akka.event.LoggingReceive.withLabel
 import org.ensime.api._
 import org.ensime.config._
@@ -19,6 +20,7 @@ import org.ensime.util.file._
 import org.ensime.util.sourcefile._
 
 import scala.collection.breakOut
+import scala.concurrent.Future
 import scala.reflect.internal.util.{ OffsetPosition, RangePosition, SourceFile }
 import scala.tools.nsc.Settings
 import scala.tools.nsc.interactive.Global
@@ -205,11 +207,12 @@ class Analyzer(
         scalaCompiler.askCompletionsAt(pos(fileInfo, point), maxResults, caseSens)
       }
     case UsesOfSymbolAtPointReq(file, point) =>
-      sender ! withExisting(file) {
+      val response = if (toSourceFileInfo(file).exists()) {
         val p = pos(file, point)
         val uses = scalaCompiler.askUsesOfSymAtPos(p)
-        ERangePositions(uses.map(ERangePositionHelper.fromRangePosition))
-      }
+        uses.map(positions => ERangePositions(positions.map(ERangePositionHelper.fromRangePosition)))
+      } else Future.successful(EnsimeServerError(s"File does not exist: ${file.file}"))
+      pipe(response) to sender
     case PackageMemberCompletionReq(path: String, prefix: String) =>
       val members = scalaCompiler.askCompletePackageMember(path, prefix)
       sender ! members
