@@ -21,6 +21,7 @@ class SearchServiceSpec extends EnsimeSpec
     with SharedSearchServiceFixture {
 
   def original = EnsimeConfigFixture.SimpleTestProject
+  override def usePreWarmedIndex = false
 
   import SearchServiceTestUtils._
 
@@ -352,6 +353,8 @@ class SearchServiceSpec extends EnsimeSpec
     val query = new DisjunctionMaxQuery(
       terms.map(service.index.buildTermClassMethodQuery).asJavaCollection, 0f
     )
+    val fqns = lucene.search(query, 10).futureValue.map(_.get("fqn"))
+    fqns.distinct should ===(fqns)
   }
 }
 

@@ -13,7 +13,9 @@ import org.ensime.util._
 import org.ensime.util.file._
 import org.ensime.util.fileobject._
 import org.ensime.vfs._
+import org.scalatest.concurrent.TimeLimitedTests
 import org.scalatest.tagobjects.Retryable
+import org.scalatest.time._
 
 sealed trait FileWatcherMessage
 final case class Added(f: FileObject) extends FileWatcherMessage
@@ -32,8 +34,12 @@ final case class BaseRegistered() extends FileWatcherMessage
  *       ParallelTestExecution". It's not used by default, only to
  *       reduce the load on the pathetic CI machines.
  */
-class FileWatcherSpec extends EnsimeSpec
+class FileWatcherSpec extends EnsimeSpec with TimeLimitedTests
     with IsolatedTestKitFixture with IsolatedEnsimeVFSFixture {
+
+  // some of these tests hang sporadically on Windows, so fail fast.
+  // not retried: https://github.com/scalatest/scalatest/issues/1087
+  override val timeLimit = scaled(Span(30, Seconds))
 
   implicit val DefaultCharset: Charset = Charset.defaultCharset()
 
@@ -267,7 +273,7 @@ class FileWatcherSpec extends EnsimeSpec
       }
     }
 
-  it should "survive removed parent base directory and recreated base" taggedAs (IgnoreOnTravis, IgnoreOnAppVeyor, Retryable) in
+  it should "survive removed parent base directory and recreated base" taggedAs (Retryable, IgnoreOnAppVeyor) in
     withVFS { implicit vfs =>
       withTestKit { implicit tk =>
 

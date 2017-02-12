@@ -22,7 +22,7 @@ final case class EnsimeConfig(
     projects: List[EnsimeProject],
     javaLibs: List[File]
 ) {
-  (rootDir :: cacheDir :: javaHome :: javaSources ::: javaLibs).foreach { f =>
+  (rootDir :: javaHome :: javaSources ::: javaLibs).foreach { f =>
     require(f.exists, "" + f + " is required but does not exist")
   }
 

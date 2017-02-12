@@ -5,6 +5,9 @@ package org.ensime.util
 import java.io._
 import com.google.common.io.ByteStreams
 
+/**
+ * NOTE: prefer NIO via the path utilities.
+ */
 package object io {
 
   implicit class RichInputStream(val is: InputStream) extends AnyVal {

@@ -18,20 +18,25 @@ install:
   - cmd: SET JAVA_HOME=C:\Program Files\Java\jdk1.8.0
   - cmd: SET PATH=C:\sbt\sbt-launcher-packaging-0.13.13\bin;%JAVA_HOME%\bin;%PATH%
   - cmd: SET COURSIER_VERBOSITY=-1
-  - cmd: SET AKKA_TEST_TIMEFACTOR=10
+  - cmd: SET AKKA_TEST_TIMEFACTOR=5
   - cmd: SET SBT_TASK_LIMIT=2
   - cmd: SET GC_LOGGING=true
+  - cmd: SET SCALA_VERSION=2.12.1
+  - cmd: git config core.symlinks true
+  - cmd: git reset --hard
 build_script:
   - echo ensimeServerJars := Nil > ensime.sbt
   - echo ensimeServerProjectJars := Nil >> ensime.sbt
-  - sbt ";ensimeConfig ;test:compile ;it:compile"
+  - sbt ++%SCALA_VERSION% ";ensimeConfig ;test:compile ;it:compile ;ensime/assembly"
+  - cd testing\cache && sbt ++%SCALA_VERSION% ensimeConfig ensimeServerIndex && cd ..\..
 test_script:
-  - sbt "testOnly -- -l IgnoreOnAppVeyor"
-  - sbt "it:testOnly -- -l IgnoreOnAppVeyor"
+  - sbt ++%SCALA_VERSION% "testOnly -- -l IgnoreOnAppVeyor"
+  - sbt ++%SCALA_VERSION% "it:testOnly -- -l IgnoreOnAppVeyor"
 cache:
   - C:\Program Files\Java\jdk1.8.0\src.zip
   - C:\sbt\sbt-launcher-packaging-0.13.13
   - C:\Users\appveyor\.ivy2 -> appveyor.yml
   - C:\Users\appveyor\.coursier -> appveyor.yml
-on_finish:
-  - ps: Get-ChildItem -Path .\* -Include *.log,*.hprof -Recurse | % { Push-AppveyorArtifact $_.FullName -FileName $_.Name }
+on_failure:
+  - cmd: rmdir /S /Q testing
+  - ps: Get-ChildItem -Include *.log,*.hprof -Recurse -Depth 2 | % { Push-AppveyorArtifact $_.FullName -FileName $_.Name }

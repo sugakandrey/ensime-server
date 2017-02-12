@@ -120,6 +120,10 @@ object OffsetRange extends ((Int, Int) => OffsetRange) {
   def apply(fromTo: Int): OffsetRange = new OffsetRange(fromTo, fromTo)
 }
 
+// it would be good to expand this hierarchy and include information
+// such as files/dirs, existance, content hints
+// (java/scala/class/resource) in the type, validated at construction
+// (and can be revalidated at any time)
 sealed trait EnsimeFile
 final case class RawFile(file: Path) extends EnsimeFile
 /**
