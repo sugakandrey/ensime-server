@@ -97,7 +97,7 @@ class IndexService(path: Path)(implicit ec: ExecutionContext) {
     1 - .25f * nonTrailing$s
   }
 
-  def persist(symbols: List[SourceSymbolInfo], commit: Boolean, boost: Boolean): Unit = {
+  def persist(symbols: List[SourceSymbolInfo], commit: Boolean, boost: Boolean): Future[Unit] = {
     val fqns: List[Document] = symbols.collect {
       case ClassSymbolInfo(f, _, _, _, classSymbol, scalap) if !classSymbol.isScala || scalap.isDefined =>
         val fqn = classSymbol.name.fqnString

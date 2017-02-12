@@ -142,19 +142,16 @@ class SimpleLucene(path: Path, analyzers: Map[String, Analyzer]) extends SLF4JLo
   // for manual committing after multiple insertions
   def commit(): Future[Unit] = Future(blocking(writer.commit()))
 
-  def shutdown(): Future[Unit] = {
-    executionContext.shutdown()
-    executorService.shutdown()
-
-    Future {
-      blocking {
-        writer.close()
+  def shutdown(): Future[Unit] = Future {
+    blocking {
+      try {
+        executionContext.shutdownNow()
+        executorService.shutdownNow()
 
         executionContext.awaitTermination(30, TimeUnit.SECONDS)
         executorService.awaitTermination(30, TimeUnit.SECONDS)
-
-        ()
-      }
-    }(ExecutionContext.Implicits.global)
-  }
+      } finally writer.close()
+      ()
+    }
+  }(ExecutionContext.Implicits.global)
 }
