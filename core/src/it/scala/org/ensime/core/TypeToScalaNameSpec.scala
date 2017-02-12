@@ -7,6 +7,7 @@ import org.ensime.fixture._
 import org.ensime.model.BasicTypeInfo
 import org.ensime.util.EnsimeSpec
 import DeclaredAs.{ Nil => _, _ }
+import org.scalactic.Equality
 
 class TypeToScalaNameSpec extends EnsimeSpec
     with IsolatedRichPresentationCompilerFixture
@@ -15,6 +16,29 @@ class TypeToScalaNameSpec extends EnsimeSpec
   import ReallyRichPresentationCompilerFixture._
 
   val original = EnsimeConfigFixture.ShapelessTestProject
+
+  // ignores the source information when performing equality
+  implicit object TypeInfoSimplifiedEquality extends Equality[TypeInfo] {
+    def areEqual(a: TypeInfo, b: Any): Boolean = b match {
+      case api.BasicTypeInfo(name, declAs, fullName, _, _, _, _) =>
+        a.name === name &&
+          a.declAs === declAs &&
+          a.fullName === fullName
+      case api.ArrowTypeInfo(name, fullName, resultType, paramSections, _) =>
+        a.name === name &&
+          a.fullName === fullName && {
+            a match {
+              case api.ArrowTypeInfo(_, _, aRes, aParam, _) => aRes === resultType && {
+                // saves creating an Equality[ParamSectionInfo]
+                aParam.map(_.isImplicit) === paramSections.map(_.isImplicit) &&
+                  aParam.map(_.params.map(_._1)) === paramSections.map(_.params.map(_._1)) &&
+                  aParam.map(_.params.map(_._2)) === paramSections.map(_.params.map(_._2))
+              }
+              case _ => false
+            }
+          }
+    }
+  }
 
   it should "calculate the TypeInfo at point" in withPresCompiler { (config, cc) =>
     runForPositionInCompiledSource(
@@ -39,7 +63,7 @@ class TypeToScalaNameSpec extends EnsimeSpec
       "}"
     ) { (p, label, cc) =>
         withClue(label) {
-          cc.askTypeInfoAt(p).getOrElse { fail } shouldBe {
+          cc.askTypeInfoAt(p).getOrElse { fail } shouldEqual {
             label match {
               case "int" =>
                 BasicTypeInfo("Int", Class, "scala.Int")

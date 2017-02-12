@@ -15,7 +15,12 @@ import org.scalatest.OptionValues
 class JavaCompilerSpec extends EnsimeSpec with OptionValues
     with IsolatedJavaCompilerFixture {
 
-  val original = EnsimeConfigFixture.SimpleTestProject.copy(javaSources = Nil)
+  val original = EnsimeConfigFixture.SimpleTestProject.copy(javaSources = Nil, javaLibs = Nil)
+  override def usePreWarmedIndex = false
+
+  // NOTE: we're intentionally removing the pre-indexing support so
+  // that we don't have javaSources here, because they break
+  // https://github.com/ensime/ensime-server/issues/1648
 
   "JavaCompiler" should "generate compilation notes" in {
     withJavaCompiler { (_, config, cc, store, search) =>

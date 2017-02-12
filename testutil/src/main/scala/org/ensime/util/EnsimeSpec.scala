@@ -7,11 +7,10 @@ import java.util.concurrent.TimeUnit
 
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
-
 import com.typesafe.config.ConfigFactory
 import org.scalactic.TypeCheckedTripleEquals
 import org.scalatest._
-import org.scalatest.concurrent.Eventually
+import org.scalatest.concurrent.{ Eventually, ScalaFutures }
 import org.scalatest.time._
 import org.slf4j.LoggerFactory
 import org.slf4j.bridge.SLF4JBridgeHandler
@@ -32,6 +31,7 @@ trait EnsimeSpec extends FlatSpec
     with Retries
     with Eventually
     with TryValues
+    with ScalaFutures
     with Inspectors
     with TypeCheckedTripleEquals
     with BeforeAndAfterAll { self =>

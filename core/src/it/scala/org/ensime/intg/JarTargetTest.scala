@@ -18,7 +18,7 @@ class JarTargetTest extends EnsimeSpec
 
   val original = EnsimeConfigFixture.SimpleJarTestProject
 
-  "ensime-server" should "index jar targets" in {
+  "ensime-server" should "index pre-existing jar targets" in {
     withEnsimeConfig { implicit config =>
       withTestKit { implicit tk =>
         withProject { (project, asyncHelper) =>

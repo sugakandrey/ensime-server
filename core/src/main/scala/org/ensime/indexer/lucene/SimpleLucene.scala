@@ -3,6 +3,7 @@
 package org.ensime.indexer.lucene
 
 import java.nio.file.{ Files, Path }
+import java.util.concurrent.{ Executors, TimeUnit }
 
 import akka.event.slf4j.SLF4JLogging
 import org.apache.lucene.analysis.Analyzer
@@ -16,12 +17,22 @@ import org.apache.lucene.util._
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
+import scala.concurrent.{ ExecutionContext, Future, blocking }
 
 object SimpleLucene {
   // from DirectDocValuesFormat.MAX_SORTED_SET_ORDS = 2147483391 but
   // it's kind of an insane number, so let's pick something halfway
   // sensible.
   val MaxResults = 10000
+
+  // our fallback analyzer
+  class LowercaseAnalyzer extends Analyzer {
+    override protected def createComponents(fieldName: String) = {
+      val source = new KeywordTokenizer()
+      val filtered = new LowerCaseFilter(source)
+      new Analyzer.TokenStreamComponents(source, filtered)
+    }
+  }
 }
 
 /**
@@ -43,25 +54,22 @@ object SimpleLucene {
  * filtering rules based on tags.
  */
 class SimpleLucene(path: Path, analyzers: Map[String, Analyzer]) extends SLF4JLogging {
+  import SimpleLucene._
+
   Files.createDirectories(path)
+
+  private val executorService = Executors.newFixedThreadPool(8)
+  private implicit val executionContext = ExecutionContext.fromExecutorService(executorService)
 
   // http://blog.thetaphi.de/2012/07/use-lucenes-mmapdirectory-on-64bit.html
   private val directory = FSDirectory.open(path)
 
-  // our fallback analyzer
-  class LowercaseAnalyzer extends Analyzer {
-    override protected def createComponents(fieldName: String) = {
-      val source = new KeywordTokenizer()
-      val filtered = new LowerCaseFilter(source)
-      new Analyzer.TokenStreamComponents(source, filtered)
-    }
-  }
   private val analyzer = new PerFieldAnalyzerWrapper(
     new LowercaseAnalyzer,
     analyzers.asJava
   )
+
   private val config = new IndexWriterConfig(analyzer)
-  //  config.setRAMBufferSizeMB(512)
 
   private val writer = new IndexWriter(directory, config)
   writer.commit() // puts a new directory into a valid state
@@ -78,25 +86,28 @@ class SimpleLucene(path: Path, analyzers: Map[String, Analyzer]) extends SLF4JLo
     }
   }
 
-  def search(query: Query, limit: Int): List[Document] = {
-    val searcher = new IndexSearcher(reader())
+  def search(query: Query, limit: Int): Future[List[Document]] = {
+    val searcher = new IndexSearcher(reader(), executorService)
 
     val collector = TopScoreDocCollector.create(limit)
-    searcher.search(query, collector)
 
-    val results = mutable.ListBuffer.empty[Document]
-    for (hit <- collector.topDocs().scoreDocs.take(limit)) {
-      val result = searcher.doc(hit.doc)
-      results += result
-      if (log.isTraceEnabled) {
-        val explanation = searcher.explain(query, hit.doc)
-        log.trace("" + result + " scored " + explanation)
+    Future {
+      blocking {
+        searcher.search(query, collector)
+
+        val results = mutable.ListBuffer.empty[Document]
+        for (hit <- collector.topDocs().scoreDocs.take(limit)) {
+          val result = searcher.doc(hit.doc)
+          results += result
+          if (log.isTraceEnabled) {
+            val explanation = searcher.explain(query, hit.doc)
+            log.trace("" + result + " scored " + explanation)
+          }
+        }
+
+        results.toList
       }
     }
-
-    assert(results.size <= limit)
-
-    results.toList
   }
 
   /**
@@ -108,24 +119,42 @@ class SimpleLucene(path: Path, analyzers: Map[String, Analyzer]) extends SLF4JLo
    * 10,000 deletes to take about 1 second and inserts about 100ms.
    * Each call to this method constitutes a batch UPDATE operation.
    */
-  def update(delete: Seq[Query], create: Seq[Document], commit: Boolean = true): Unit = {
-    if (delete.nonEmpty) {
-      writer.deleteDocuments(delete.toArray: _*)
-      if (commit) writer.commit()
-    }
+  def update(delete: Seq[Query], create: Seq[Document], commit: Boolean = true): Future[Unit] =
+    Future {
+      blocking {
+        if (delete.nonEmpty) {
+          writer.deleteDocuments(delete.toArray: _*)
+          if (commit) writer.commit()
+        }
 
-    if (create.nonEmpty) {
-      create foreach { doc =>
-        writer addDocument doc
+        if (create.nonEmpty) {
+          create foreach { doc =>
+            writer addDocument doc
+          }
+          if (commit) writer.commit()
+        }
       }
-      if (commit) writer.commit()
     }
-  }
 
-  def create(docs: Seq[Document], commit: Boolean = true): Unit = update(Nil, docs, commit)
-  def delete(queries: Seq[Query], commit: Boolean = true): Unit = update(queries, Nil, commit)
+  def create(docs: Seq[Document], commit: Boolean = true): Future[Unit] = update(Nil, docs, commit)
+  def delete(queries: Seq[Query], commit: Boolean = true): Future[Unit] = update(queries, Nil, commit)
 
   // for manual committing after multiple insertions
-  def commit(): Unit = writer.commit()
+  def commit(): Future[Unit] = Future(blocking(writer.commit()))
 
+  def shutdown(): Future[Unit] = {
+    executionContext.shutdown()
+    executorService.shutdown()
+
+    Future {
+      blocking {
+        writer.close()
+
+        executionContext.awaitTermination(30, TimeUnit.SECONDS)
+        executorService.awaitTermination(30, TimeUnit.SECONDS)
+
+        ()
+      }
+    }(ExecutionContext.Implicits.global)
+  }
 }

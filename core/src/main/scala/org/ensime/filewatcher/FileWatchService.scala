@@ -14,6 +14,7 @@ import scala.collection.JavaConverters._
 import scala.collection.concurrent.Map
 import scala.collection.immutable.Set
 import scala.language.implicitConversions
+import scala.util.control.NonFatal
 import scala.util.{ Failure, Properties, Success, Try }
 
 import org.slf4j.LoggerFactory
@@ -106,6 +107,8 @@ class FileWatchService { self =>
               try monitor()
               catch {
                 case i: InterruptedException => // silently ignore
+                case NonFatal(e) =>
+                  log.warn(s"caught an exception while monitoring", e)
               }
           }
         )

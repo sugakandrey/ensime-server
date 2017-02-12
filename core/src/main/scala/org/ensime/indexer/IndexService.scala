@@ -6,7 +6,6 @@ import java.io.FileNotFoundException
 import java.nio.file.Path
 
 import scala.collection.JavaConverters._
-
 import akka.event.slf4j.SLF4JLogging
 import org.apache.commons.vfs2.FileObject
 import org.apache.lucene.analysis.core.KeywordAnalyzer
@@ -21,6 +20,8 @@ import org.ensime.indexer.graph._
 import org.ensime.indexer.lucene._
 import org.ensime.util.list._
 import shapeless.Typeable
+
+import scala.concurrent.{ ExecutionContext, Future }
 
 object IndexService extends SLF4JLogging {
 
@@ -81,7 +82,7 @@ object IndexService extends SLF4JLogging {
     build()
 }
 
-class IndexService(path: Path) {
+class IndexService(path: Path)(implicit ec: ExecutionContext) {
   import org.ensime.indexer.IndexService._
 
   private val analyzers = Map(
@@ -119,35 +120,36 @@ class IndexService(path: Path) {
     lucene.create(fqns, commit)
   }
 
-  def commit(): Unit = {
-    try lucene.commit()
-    catch {
+  def commit(): Future[Unit] = {
+    lucene.commit().recover {
       case e: FileNotFoundException =>
         // one of those useless exceptions that is either harmless
         // (testing, commits are happening after we're interested) or
         // utterly fatal (the user deleted the files on disk)
         log.error("the Lucene database was deleted: " + e.getMessage)
+        ()
     }
   }
 
-  def remove(fs: List[FileObject]): Unit = {
+  def remove(fs: List[FileObject]): Future[Unit] = {
     val terms = fs.map { f => new TermQuery(new Term("file", f.getName.getURI)) }
     lucene.delete(terms, commit = false) // don't commit yet
   }
 
-  def searchClasses(query: String, max: Int): List[ClassIndex] = {
+  def searchClasses(query: String, max: Int): Future[List[ClassIndex]] = {
     val q = new BooleanQuery.Builder().
       add(boostedPrefixQuery(new Term("fqn", query)), Occur.MUST).
       add(ClassIndexT, Occur.MUST).
       build()
-    lucene.search(q, max).map(_.toEntity[ClassIndex]).distinct
+
+    lucene.search(q, max).map(_.map(_.toEntity[ClassIndex]).distinct)
   }
 
-  def searchClassesMethods(terms: List[String], max: Int): List[FqnIndex] = {
+  def searchClassesMethods(terms: List[String], max: Int): Future[List[FqnIndex]] = {
     val query = new DisjunctionMaxQuery(
       terms.map(buildTermClassMethodQuery).asJava, 0.3f
     )
-    lucene.search(query, max).map(_.toEntity[ClassIndex]).distinct
+    lucene.search(query, max).map(_.map(_.toEntity[ClassIndex]).distinct)
   }
 
   def buildTermClassMethodQuery(query: String): Query = {
@@ -163,4 +165,6 @@ class IndexService(path: Path) {
       ).
         build()
   }
+
+  def shutdown(): Future[Unit] = lucene.shutdown()
 }

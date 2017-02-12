@@ -5,10 +5,13 @@ package org.ensime.util
 import java.io.{ File => JFile, _ }
 import java.nio.charset.Charset
 import java.util.regex.Pattern
+import java.nio.file.Files
 
 import scala.collection.JavaConverters._
+import scala.util.Try
 
-import com.google.common.io.Files
+import com.google.common.io.{ Files => GFiles }
+import org.ensime.api.deprecating
 
 /**
  * Decorate `java.io.File` with functionality from common utility
@@ -16,6 +19,8 @@ import com.google.common.io.Files
  *
  * Its nicer to put conveniences for working with `File` here
  * instead of using static accessors from J2SE or Guava.
+ *
+ * NOTE: prefer NIO via the path utilities.
  */
 package object file {
   type File = JFile
@@ -29,23 +34,17 @@ package object file {
    */
   def File(name: String): File = new File(name)
 
-  /**
-   * WARNING: do not create symbolic links in the temporary directory
-   * or the cleanup script will exit the sandbox and start deleting
-   * other files.
-   */
   def withTempDir[T](a: File => T): T = {
-    // sadly not able to provide a prefix. If we really need the
-    // support we could re-implement the Guava method.
-    val dir = Files.createTempDir().canon
+    val dir = Files.createTempDirectory("ensime").toFile.canon
+    import path._
     try a(dir)
-    finally dir.tree.reverse.foreach(_.delete())
+    finally Try(dir.toPath.deleteDirRecursively())
   }
 
   def withTempFile[T](a: File => T): T = {
-    val file = JFile.createTempFile("ensime-", ".tmp").canon
+    val file = Files.createTempFile("ensime-", ".tmp").toFile.canon
     try a(file)
-    finally file.delete()
+    finally Try(file.delete())
   }
 
   implicit class RichFile(val file: File) extends AnyVal {
@@ -65,31 +64,34 @@ package object file {
     def outputStream(): OutputStream = new FileOutputStream(file)
 
     def createWithParents(): Boolean = {
-      Files.createParentDirs(file)
+      GFiles.createParentDirs(file)
       file.createNewFile()
     }
 
     def readLines()(implicit cs: Charset): List[String] = {
-      Files.readLines(file, cs).asScala.toList
+      GFiles.readLines(file, cs).asScala.toList
     }
 
     def writeLines(lines: List[String])(implicit cs: Charset): Unit = {
-      Files.write(lines.mkString("", "\n", "\n"), file, cs)
+      GFiles.write(lines.mkString("", "\n", "\n"), file, cs)
     }
 
     def writeString(contents: String)(implicit cs: Charset): Unit = {
-      Files.write(contents, file, cs)
+      GFiles.write(contents, file, cs)
     }
 
+    @deprecating("prefer path")
     def readString()(implicit cs: Charset): String = {
-      Files.toString(file, cs)
+      import path._
+      file.toPath.readString
     }
 
     /**
      * @return the file and its descendent family tree (if it is a directory).
      */
+    @deprecating("prefer path approaches")
     def tree: Stream[File] = {
-      file #:: Files.fileTreeTraverser().breadthFirstTraversal(file).asScala.toStream
+      file #:: GFiles.fileTreeTraverser().breadthFirstTraversal(file).asScala.toStream
     }
 
     /**
