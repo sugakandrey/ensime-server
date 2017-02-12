@@ -166,7 +166,7 @@ class GraphService(dir: File) extends SLF4JLogging {
   def shutdown(): Future[Unit] = Future {
     blocking {
       try {
-        executor.shutdown()
+        executor.shutdownNow()
         executor.awaitTermination(30, TimeUnit.SECONDS)
         ()
       } finally db.close()
