@@ -3,7 +3,7 @@
 package org.ensime.indexer.graph
 
 import java.sql.Timestamp
-import java.util.concurrent.Executors
+import java.util.concurrent.{ Executors, TimeUnit }
 
 import scala.Predef.{ any2stringadd => _, _ }
 import scala.concurrent._
@@ -120,12 +120,11 @@ class GraphService(dir: File) extends SLF4JLogging {
   // we better understand the concurrency of our third party
   // libraries.
   private val pools = 1
-  private implicit val ec = ExecutionContext.fromExecutor(
-    Executors.newSingleThreadExecutor()
   // WARNING: Faster, but needs further thought
   //Executors.newFixedThreadPool(pools)
   // http://orientdb.com/docs/2.1/Performance-Tuning.html
-  )
+  private val executor = Executors.newSingleThreadExecutor()
+  private implicit val ec = ExecutionContext.fromExecutor(executor)
 
   private implicit lazy val db = {
     // http://orientdb.com/docs/2.1/Performance-Tuning.html
@@ -165,8 +164,14 @@ class GraphService(dir: File) extends SLF4JLogging {
   }
 
   def shutdown(): Future[Unit] = Future {
-    db.close()
-  }
+    blocking {
+      try {
+        executor.shutdown()
+        executor.awaitTermination(30, TimeUnit.SECONDS)
+        ()
+      } finally db.close()
+    }
+  }(ExecutionContext.Implicits.global)
 
   if (!dir.exists) {
     log.info("creating the graph database...")
