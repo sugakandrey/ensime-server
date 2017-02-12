@@ -10,8 +10,6 @@ import org.ensime.api._
 import org.ensime.fixture._
 import org.ensime.util.EnsimeSpec
 import org.scalatest.Assertions
-import scala.concurrent.Await
-import scala.concurrent.duration.Duration
 import scala.concurrent.ExecutionContext.Implicits.global
 
 class RefactoringHandlerSpec extends EnsimeSpec
@@ -47,11 +45,11 @@ class RefactoringHandlerSpec extends EnsimeSpec
     val analyzer = analyzerRef.underlyingActor
 
     val procId = 1
-    val result = Await.result(analyzer.handleRefactorRequest(
+    val result = analyzer.handleRefactorRequest(
       new RefactorReq(
         procId, AddImportRefactorDesc("java.lang.Integer.{valueOf => vo}", new File(file.path)), false
       )
-    ), Duration.Inf)
+    ).futureValue
     val diffContent = extractDiffFromResponse(result, analyzer.charset)
 
     val relevantExpectedPart = s"""|@@ -2,2 +2,3 @@
@@ -80,11 +78,11 @@ class RefactoringHandlerSpec extends EnsimeSpec
       val analyzer = analyzerRef.underlyingActor
 
       val procId = 1
-      val result = Await.result(analyzer.handleRefactorRequest(
+      val result = analyzer.handleRefactorRequest(
         new RefactorReq(
           procId, AddImportRefactorDesc("java.lang.Integer", new File(file.path)), false
         )
-      ), Duration.Inf)
+      ).futureValue
 
       val diffContent = extractDiffFromResponse(result, analyzer.charset)
 
@@ -117,11 +115,11 @@ class RefactoringHandlerSpec extends EnsimeSpec
     val analyzer = analyzerRef.underlyingActor
 
     val procId = 1
-    val result = Await.result(analyzer.handleRefactorRequest(
+    val result = analyzer.handleRefactorRequest(
       new RefactorReq(
         procId, RenameRefactorDesc("doItNow", new File(file.path), 43, 47), false
       )
-    ), Duration.Inf)
+    ).futureValue
 
     val diffContent = extractDiffFromResponse(result, analyzer.charset)
 
@@ -156,11 +154,11 @@ class RefactoringHandlerSpec extends EnsimeSpec
       val analyzer = analyzerRef.underlyingActor
 
       val procId = 1
-      val result = Await.result(analyzer.handleRefactorRequest(
+      val result = analyzer.handleRefactorRequest(
         new RefactorReq(
           procId, OrganiseImportsRefactorDesc(new File(file.path)), false
         )
-      ), Duration.Inf)
+      ).futureValue
 
       val diffContent = extractDiffFromResponse(result, analyzer.charset)
 
@@ -195,11 +193,11 @@ class RefactoringHandlerSpec extends EnsimeSpec
       val analyzer = analyzerRef.underlyingActor
 
       val procId = 1
-      val result = Await.result(analyzer.handleRefactorRequest(
+      val result = analyzer.handleRefactorRequest(
         new RefactorReq(
           procId, OrganiseImportsRefactorDesc(new File(file.path)), false
         )
-      ), Duration.Inf)
+      ).futureValue
 
       val diffContent = extractDiffFromResponse(result, analyzer.charset)
 
@@ -227,11 +225,11 @@ class RefactoringHandlerSpec extends EnsimeSpec
 
       val procId = 1
 
-      val result = Await.result(analyzer.handleRefactorRequest(
+      val result = analyzer.handleRefactorRequest(
         new RefactorReq(
           procId, RenameRefactorDesc("Qux", new File(file.path), 8, 10), false
         )
-      ), Duration.Inf)
+      ).futureValue
 
       val diffContent = extractDiffFromResponse(result, analyzer.charset)
       val renamed = new File(file.path.replace("Foo.scala", "Qux.scala"))

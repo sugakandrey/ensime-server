@@ -97,7 +97,6 @@ trait RefactoringImpl {
         val invalidSet = toBeRemoved.synchronized { toBeRemoved.toSet }
         val cuIndexes: List[CompilationUnitIndex] = this.global.unitOfFile.collect {
           case (f, unit) if search.noReverseLookups || files.contains(f.file.getPath) =>
-            println(s"status = ${unit.status}")
             CompilationUnitIndex(unit.body)
         }(collection.breakOut)
         val index = GlobalIndex(cuIndexes)
