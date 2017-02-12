@@ -52,7 +52,7 @@ class RichPresentationCompilerThatNeedsJavaLibsSpec extends EnsimeSpec
 }
 
 class RichPresentationCompilerSpec extends EnsimeSpec
-    with IsolatedRichPresentationCompilerFixture
+    with SharedRichPresentationCompilerFixture
     with RichPresentationCompilerTestUtils
     with ReallyRichPresentationCompilerFixture {
 

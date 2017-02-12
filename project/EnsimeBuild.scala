@@ -52,10 +52,8 @@ object EnsimeBuild {
     javaOptions ++= Seq(
       "-XX:+PerfDisableSharedMem",
       "-Xms1g",
-      "-Xmx1g",
-      "-XX:MaxDirectMemorySize=4g"
+      "-Xmx1g"
     ),
-
 
     dependencyOverrides ++= Set(
       "org.apache.lucene" % "lucene-core" % luceneVersion
