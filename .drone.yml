@@ -30,7 +30,7 @@ pipeline:
       - if [ -z "$DRONE_PULL_REQUEST" ] ; then sbt ++$SCALA_VERSION publish ; fi
       - if [ -z "$DRONE_PULL_REQUEST" ] ; then
           echo "$SSH_KEY" > ~/.ssh/id_rsa ; chmod 600 ~/.ssh/id_rsa ;
-          export ENSIME_ASSEMBLY_JAR=$SBT_VOLATILE_TARGET/$BUILD_DIR/target/*/*-assembly.jar
+          export ENSIME_ASSEMBLY_JAR=$SBT_VOLATILE_TARGET/$BUILD_DIR/target/*/*-assembly.jar ;
           scp -o StrictHostKeyChecking=no $ENSIME_ASSEMBLY_JAR typelevel@ensime.typelevel.org:ensime.typelevel.org/ ;
         fi
       - if [ -z "$DRONE_PULL_REQUEST" ] && [ "$SCALA_VERSION" = "2.11.8" ] ; then
