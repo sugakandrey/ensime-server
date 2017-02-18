@@ -16,7 +16,7 @@ import org.ensime.api._
 import org.ensime.fixture._
 import org.ensime.indexer._
 import org.ensime.indexer.SearchServiceTestUtils._
-import org.ensime.util.{ EnsimeSpec, IgnoreOnTravis }
+import org.ensime.util.EnsimeSpec
 import org.ensime.util.file._
 import org.ensime.vfs.EnsimeVFS
 
@@ -27,7 +27,7 @@ class RichPresentationCompilerThatNeedsJavaLibsSpec extends EnsimeSpec
 
   val original = EnsimeConfigFixture.SimpleTestProject
 
-  "RichPresentationCompiler" should "locate source position of Java classes in import statements" taggedAs (IgnoreOnTravis) in {
+  "RichPresentationCompiler" should "locate source position of Java classes in import statements" in {
     withPresCompiler { (config, cc) =>
       import ReallyRichPresentationCompilerFixture._
 

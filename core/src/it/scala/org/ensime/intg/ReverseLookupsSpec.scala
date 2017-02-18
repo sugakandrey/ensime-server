@@ -5,7 +5,7 @@ package org.ensime.intg
 import org.ensime.api._
 import org.ensime.core.RefactoringHandlerTestUtils
 import org.ensime.fixture._
-import org.ensime.util.{ EnsimeSpec, IgnoreOnTravis, IgnoreOnAppVeyor }
+import org.ensime.util.{ EnsimeSpec, IgnoreOnAppVeyor }
 import org.ensime.util.ensimefile.Implicits.DefaultCharset
 import org.ensime.util.file._
 
@@ -15,7 +15,7 @@ class ReverseLookupsSpec extends EnsimeSpec
 
   override def original: EnsimeConfig = EnsimeConfigFixture.SimpleTestProject
 
-  "FindUsages" should "find usages using reverse lookups info" taggedAs (IgnoreOnTravis, IgnoreOnAppVeyor) in
+  "FindUsages" should "find usages using reverse lookups info" taggedAs (IgnoreOnAppVeyor) in
     withEnsimeConfig { implicit config =>
       withTestKit { implicit testKit =>
         withProject { (project, asyncHelper) =>
@@ -35,7 +35,7 @@ class ReverseLookupsSpec extends EnsimeSpec
       }
     }
 
-  "Refactor Rename" should "make use of reverse lookups information" taggedAs (IgnoreOnTravis, IgnoreOnAppVeyor) in
+  "Refactor Rename" should "make use of reverse lookups information" taggedAs (IgnoreOnAppVeyor) in
     withEnsimeConfig { implicit config =>
       withTestKit { implicit testKit =>
         withProject { (project, asyncHelper) =>
