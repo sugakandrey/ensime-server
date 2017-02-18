@@ -12,7 +12,7 @@ package enums {
   }
   object SingletonByName {
     implicit def CNilSingleton[A]: SingletonByName[A, CNil] =
-      new SingletonByName[A, CNil] { override def lookup = Map.empty }
+      new SingletonByName[A, CNil] { override def lookup: Map[String, A] = Map.empty }
 
     implicit def coproductSingletons[A, H <: A, T <: Coproduct](
       implicit
@@ -20,7 +20,7 @@ package enums {
       witness: Witness.Aux[H],
       tpe: Typeable[H]
     ): SingletonByName[A, H :+: T] = new SingletonByName[A, H :+: T] {
-      override def lookup = {
+      override def lookup: Map[String, A] = {
         val label = tpe.describe.replaceAll(".type", "")
         tsbn.lookup + (label -> witness.value)
       }

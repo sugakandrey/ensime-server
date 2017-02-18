@@ -30,22 +30,26 @@ package api {
 
   trait SPrimitive[T] {
     def toValue(v: T): AnyRef
-    def fromValue(v: AnyRef): T
+    def fromValue(v: AnyRef): Either[String, T]
   }
 
   // defining really basic implementations on the companion
   object SPrimitive {
+    private def assertNotNull[T](v: AnyRef, transform: AnyRef => T): Either[String, T] =
+      if (v == null) Left("Null encountered in non-optional field")
+      else Right(transform(v))
+
     implicit object StringSPrimitive extends SPrimitive[String] {
       def toValue(v: String): String = v
-      def fromValue(v: AnyRef): String = v.asInstanceOf[String]
+      def fromValue(v: AnyRef): Either[String, String] = assertNotNull(v, _.asInstanceOf[String])
     }
     implicit object IntSPrimitive extends SPrimitive[Int] {
       def toValue(v: Int): java.lang.Integer = v
-      def fromValue(v: AnyRef): Int = v.asInstanceOf[java.lang.Integer]
+      def fromValue(v: AnyRef): Either[String, Int] = assertNotNull(v, _.asInstanceOf[Int])
     }
     implicit object LongSPrimitive extends SPrimitive[Long] {
       def toValue(v: Long): java.lang.Long = v
-      def fromValue(v: AnyRef): Long = v.asInstanceOf[java.lang.Long]
+      def fromValue(v: AnyRef): Either[String, Long] = assertNotNull(v, _.asInstanceOf[Long])
     }
     implicit def OptionSPrimitive[T](
       implicit
@@ -55,13 +59,13 @@ package api {
         case None => null
         case Some(t) => p.toValue(t)
       }
-      def fromValue(v: AnyRef): Option[T] =
-        if (v == null) None
-        else Some(p.fromValue(v))
+      def fromValue(v: AnyRef): Either[String, Option[T]] =
+        if (v == null) Right(None)
+        else p.fromValue(v).right.map(Some(_))
     }
     implicit object TimeStampSPrimitive extends SPrimitive[Timestamp] {
       def toValue(v: Timestamp): java.lang.Long = LongSPrimitive.toValue(v.getTime)
-      def fromValue(v: AnyRef): Timestamp = new Timestamp(LongSPrimitive.fromValue(v))
+      def fromValue(v: AnyRef): Either[String, Timestamp] = LongSPrimitive.fromValue(v).right.map(new Timestamp(_))
     }
   }
 }
@@ -98,10 +102,7 @@ package object impl {
         to have a more typesafe way to do this.
          */
         val errorMessage = s"Missing key ${key.value.name} in $m"
-        val resolved = Try(prim.fromValue(value)) match {
-          case Success(v) => Right(v)
-          case Failure(exc) => Left(errorMessage)
-        }
+        val resolved = prim.fromValue(value)
         for {
           remaining <- remV.value.fromProperties(m).right
           current <- resolved.right
