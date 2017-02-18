@@ -172,12 +172,9 @@ package object syntax {
   // so do it this way instead
   object RichGraph extends SLF4JLogging {
     /** Side-effecting vertex insertion. */
-    def insertV[T](t: T)(implicit graph: Graph, s: BigDataFormat[T]): VertexT[T] = {
+    def insertV[T](t: T)(implicit graph: OrientBaseGraph, s: BigDataFormat[T]): VertexT[T] = {
       val props = t.toProperties
-      val v = graph.addVertex("class:" + t.label)
-      props.asScala.foreach {
-        case (key, value) => v.setProperty(key, value)
-      }
+      val v = graph.addVertex("class:" + t.label, props)
       VertexT[T](v)
     }
 

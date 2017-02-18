@@ -126,7 +126,7 @@ class GraphService(dir: File) extends SLF4JLogging {
   private val executor = Executors.newSingleThreadExecutor()
   private implicit val ec = ExecutionContext.fromExecutor(executor)
 
-  private implicit lazy val db = {
+  private implicit lazy val db: OrientGraphFactory = {
     // http://orientdb.com/docs/2.1/Performance-Tuning.html
 
     // this means disabling transactions!
@@ -360,7 +360,7 @@ object GraphService {
         IntSPrimitive.toValue(code)
       }
 
-    def fromValue(v: AnyRef): Access = Access(IntSPrimitive.fromValue(v))
+    def fromValue(v: AnyRef): Either[String, Access] = IntSPrimitive.fromValue(v).right.map(Access(_))
   }
 
   implicit object DeclaredAsSPrimitive extends SPrimitive[DeclaredAs] {
@@ -368,7 +368,7 @@ object GraphService {
     import SPrimitive.StringSPrimitive
     private val lookup: Map[String, DeclaredAs] = implicitly[AdtToMap[DeclaredAs]].lookup
     def toValue(v: DeclaredAs): java.lang.String = if (v == null) null else StringSPrimitive.toValue(v.toString)
-    def fromValue(v: AnyRef): DeclaredAs = lookup(StringSPrimitive.fromValue(v))
+    def fromValue(v: AnyRef): Either[String, DeclaredAs] = StringSPrimitive.fromValue(v).right.map(lookup)
   }
 
   implicit val FileCheckBdf: BigDataFormat[FileCheck] = cachedImplicit
