@@ -2,6 +2,6 @@ package org.example2
 
 class ToBeUnloaded {
   def warning(): Unit = {
-    val foo: ClassManifest[Int] = ???
+    val foo: ClassManifest[Int] = null
   }
 }

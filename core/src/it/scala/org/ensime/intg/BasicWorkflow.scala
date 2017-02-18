@@ -38,7 +38,6 @@ class BasicWorkflow extends EnsimeSpec
           project ! TypecheckModule("testing_simple")
           expectMsg(VoidResponse)
           asyncHelper.expectMsgType[NewScalaNotesEvent]
-          asyncHelper.expectMsgType[NewScalaNotesEvent]
           asyncHelper.expectMsg(FullTypeCheckCompleteEvent)
 
           project ! TypeByNameReq("org.example.Bloo")
@@ -453,15 +452,12 @@ class BasicWorkflow extends EnsimeSpec
           expectMsg(VoidResponse)
           project ! UnloadFileReq(toBeUnloaded2)
           expectMsg(VoidResponse)
-          // file with warning have been unloaded
+          // file with warning has been unloaded
           // `NewScalaNotesEvent` should now not appear when typechecking `bazFile`
 
           project ! TypecheckFilesReq(List(Left(bazFile)))
           expectMsg(VoidResponse)
-          all(asyncHelper.receiveN(2)) should matchPattern {
-            case note: NewScalaNotesEvent =>
-            case FullTypeCheckCompleteEvent =>
-          }
+          asyncHelper.expectMsg(FullTypeCheckCompleteEvent)
         }
       }
     }
