@@ -1,0 +1,14 @@
+ENSIME Server
+Copyright 2010 - 2016 Aemon Cannon
+Copyright 2014 - 2017 Sam Halliday
+Copyright 2010 - 2017 https://github.com/ensime/ensime-server/graphs
+
+The `api` module is licensed under the Apache 2.0 permissive license.
+
+The `s-express` module is licensed under the LGPLv3.
+
+All remaining files are licensed under the GPLv3.
+
+Some files are copied from external sources and carry additional
+license information which must also be distributed along with this
+file and the LICENSE file.

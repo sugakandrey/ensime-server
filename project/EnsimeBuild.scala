@@ -90,7 +90,7 @@ object EnsimeBuild {
       "com.typesafe.akka" %% "akka-actor" % akkaVersion.value,
       "org.scala-lang" % "scala-compiler" % scalaVersion.value,
       "org.apache.commons" % "commons-vfs2" % "2.1" exclude ("commons-logging", "commons-logging"),
-      "com.google.guava" % "guava" % "20.0",
+      "com.google.guava" % "guava" % "21.0",
       "com.google.code.findbugs" % "jsr305" % "3.0.1" % "provided"
     ) ++ logback ++ shapeless.value
   )
@@ -182,7 +182,7 @@ object EnsimeBuild {
         "commons-lang" % "commons-lang" % "2.6",
         "com.googlecode.java-diff-utils" % "diffutils" % "1.3.0",
         "org.scala-debugger" %% "scala-debugger-api" % "1.1.0-M3",
-        "org.scalamock" %% "scalamock-scalatest-support" % "3.4.2" % Test
+        "org.scalamock" %% "scalamock-scalatest-support" % "3.5.0" % Test
       ) ++ shapeless.value
     ) enablePlugins BuildInfoPlugin settings (
         buildInfoPackage := organization.value,
@@ -196,8 +196,8 @@ object EnsimeBuild {
     dtf.format(new java.util.Date())
   }
 
-  val luceneVersion = "6.3.0"
-  val nettyVersion = "4.1.6.Final"
+  val luceneVersion = "6.4.1"
+  val nettyVersion = "4.1.8.Final"
   lazy val server = Project("server", file("server")).dependsOn(
     core, swanky, jerky,
     s_express % "test->test",
@@ -230,6 +230,7 @@ object EnsimeBuild {
         case PathList("org", "apache", "commons", "vfs2", xs @ _*) => MergeStrategy.first // assumes our classpath is setup correctly
         case PathList("META-INF", "io.netty.versions.properties") => MergeStrategy.concat // assumes our classpath is setup correctly
         case PathList("LICENSE") => MergeStrategy.concat // WORKAROUND https://github.com/sbt/sbt-assembly/issues/224
+        case PathList("NOTICE") => MergeStrategy.concat // WORKAROUND https://github.com/sbt/sbt-assembly/issues/224
         case other => MergeStrategy.defaultMergeStrategy(other)
       },
       assemblyExcludedJars in assembly := {
@@ -245,7 +246,7 @@ object EnsimeBuild {
 
   private def akkaVersion: Def.Initialize[String] = Def.setting {
     CrossVersion.partialVersion(scalaVersion.value) match {
-      case Some((2, minor)) if minor >= 11 => "2.4.16"
+      case Some((2, minor)) if minor >= 11 => "2.4.17"
       case Some((2, 10)) => "2.3.16"
     }
   }

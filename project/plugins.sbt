@@ -1,7 +1,7 @@
 scalacOptions ++= Seq("-unchecked", "-deprecation")
 ivyLoggingLevel := UpdateLogging.Quiet
 libraryDependencies += "org.scala-sbt" % "scripted-plugin" % sbtVersion.value
-addSbtPlugin("com.fommil" % "sbt-sensible" % "1.1.6")
+addSbtPlugin("com.fommil" % "sbt-sensible" % "1.1.8")
 
 // sbt-ensime is needed for the integration tests
 addSbtPlugin("org.ensime" % "sbt-ensime" % "1.12.6")

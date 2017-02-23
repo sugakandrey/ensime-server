@@ -37,6 +37,6 @@ cache:
   - C:\sbt\sbt-launcher-packaging-0.13.13
   - C:\Users\appveyor\.ivy2 -> appveyor.yml
   - C:\Users\appveyor\.coursier -> appveyor.yml
-on_failure:
-  - cmd: rmdir /S /Q testing
-  - ps: Get-ChildItem -Include *.log,*.hprof -Recurse -Depth 2 | % { Push-AppveyorArtifact $_.FullName -FileName $_.Name }
+on_finish:
+  - cmd: rmdir /S /Q testing target
+  - ps: Get-ChildItem -Path $env:APPVEYOR_BUILD_FOLDER -Include *.log,*.hprof -Recurse -Depth 2 | % { Push-AppveyorArtifact $_.FullName -FileName $_.Name }
