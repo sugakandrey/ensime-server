@@ -10,6 +10,7 @@ object Environment {
     s"  Java : $javaVersion",
     s"  Scala version: $scalaVersion",
     s"  Ensime : $ensimeVersion",
+    s"  Heap Size : ${Runtime.getRuntime.maxMemory}",
     s"  Built with Scala version: ${BuildInfo.scalaVersion}",
     s"  Built with sbt version: ${BuildInfo.sbtVersion}",
     s"  Built from git sha: ${BuildInfo.gitSha}",
